@@ -1,0 +1,2 @@
+model,n_estimators,features,diseases,samples,accuracy,precision,recall,f1_score,top_3_accuracy
+RandomForestClassifier,200,131,41,4920,100.0,100.0,100.0,100.0,100.0
