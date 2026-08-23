@@ -1,0 +1,60 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- Virtual environments ----
+.venv/
+venv/
+env/
+
+# ---- Secrets ----
+# .env holds SECRET_KEY and the bootstrap admin password. install.bat generates
+# it locally; it must never be committed. .env.example is the template.
+.env
+backend/.env
+web/.env
+*.pem
+*.key
+
+# ---- Runtime data ----
+# The SQLite database contains real patient assessments.
+*.db
+*.sqlite
+*.sqlite3
+backend/medassist.db
+backend/data/
+backend/generated_reports/*.pdf
+!backend/generated_reports/.gitkeep
+
+# ---- Node / web build ----
+node_modules/
+web/node_modules/
+web/dist/
+web/.vite/
+npm-debug.log*
+yarn-error.log*
+
+# ---- Training scratch ----
+# kaggle_train.py writes an artifacts/ directory next to itself when run
+# locally; the installed copies live in model/artifacts/.
+#
+# These patterns MUST be anchored with a leading slash. A bare `artifacts/`
+# matches at every depth in git, so it silently excludes model/artifacts/ too
+# and the repo clones without the models the API needs to start.
+/artifacts/
+/training/artifacts/
+.kagglehub/
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+
+# NOTE: model/artifacts/ is intentionally NOT ignored. Those ~4 MB of trained
+# artifacts are what the API loads at runtime, so the repo is not deployable
+# without them.

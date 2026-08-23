@@ -1,0 +1,160 @@
+disease_key,disease,symptoms,cures,doctor,risk_level,fever,cough,fatigue,difficulty_breathing,age,gender,blood_pressure,cholesterol_level,outcome_variable
+acanthamoebkeratitis,acanthamoebkeratitis,"pain,redness,inflammation in the eye","antibiotics,antifungals,surgery",ophthalmologist ,low (0.1%,,,,,,,,,
+acne,,,,,,False,False,True,False,40.0,Male,Normal,Normal,Negative
+acute appendicitis,acute appendicitis,"pain in the lower right abdomen,nausea,vomiting,fever",appendectomy,surgeon,high (20%),,,,,,,,,
+acute kidney injury,acute kidney injury (aki) ,decreased kidney function,"treatment for the underlying cause,such as dehydration,infection,medication side effect ",nephrologist ,varies,,,,,,,,,
+adenovirus,adenovirus,"fever,sore throat,cough,conjunctivitis,rash,pink eye","antibiotics,over-the-counter medications,rest,fluids","family doctor,urgent care",low (0.1%),,,,,,,,,
+aflatoxicosis,aflatoxicosis,"vomiting,diarrhea,jaundice,liver damage,death","there is no cure for aflatoxicosis,but treatment may include supportive care,liver transplantation",gastroenterologist,high (70%),,,,,,,,,
+alcoholism,alcoholism,"physical dependence on alcohol,tolerance to alcohol,withdrawal symptoms,impaired judgment,memory problems,liver damage,heart disease,cancer"," treatment for alcoholism may include counseling,medication,support groups"," psychiatrist,addiction specialist",high (25%),,,,,,,,,
+allergic rhinitis,allergic rhinitis,"runny nose,sneezing,itchy eyes,itchy nose,throat,palate","over-the-counter medications,allergy shots",allergist,low (0.1%),False,True,True,False,29.0,Female,Normal,Low,Negative
+alzheimer s,alzheimer's disease,"memory loss,confusion,difficulty thinking,changes in personality or behavior","there is no cure for alzheimer's disease,but there are treatments that can help manage the symptoms",neurologist,high (70%),False,True,False,False,65.0,Male,Normal,High,Positive
+anemia,anemia,"fatigue,shortness of breath,pale skin,lightheadedness,dizziness", , hematologist ,varies depending on the type of anemia,False,False,True,False,50.0,Male,Normal,Normal,Negative
+anxiety disorders,anxiety disorder,"excessive worry,fear,anxiety that interfere with daily life","treatment for anxiety disorders may include therapy,medication,combination of both","psychologist,psychiatrist",varies depending on the type of anxiety disorder,False,True,False,False,29.0,Female,Normal,High,Negative
+aortic aneurysm,aortic aneurysm,"bulge in the wall of the aorta,the largest artery in the body",surgery,vascular surgeon,high (20%),,,,,,,,,
+appendicitis,appendicitis,"pain in the lower right abdomen,nausea,vomiting,fever",appendectomy,surgeon ,high (20%),True,False,True,False,55.0,Male,Normal,Normal,Negative
+arthritis,arthritis,"pain,stiffness,swelling,inflammation in the joints","medication,physical therapy,lifestyle changes",rheumatologist,varies depending on the type of arthritis,,,,,,,,,
+asperger syndrome,asperger syndrome,"difficulty with social interaction,repetitive behaviors,restricted interests","there is no cure for asperger syndrome,but there are treatments that can help manage the symptoms","psychologist,psychiatrist",varies,,,,,,,,,
+asthma,asthma,"wheezing,shortness of breath,coughing,chest tightness","treatment for asthmmay include medication,lifestyle changes,allergy shots"," allergist,pulmonologist",varies,True,True,False,True,25.0,Male,Normal,Normal,Positive
+atherosclerosis,,,,,,False,False,True,False,35.0,Male,Normal,Normal,Negative
+atopic dermatitis,atopic dermatitis,"itchy,red,inflamed skin","medication,lifestyle changes", dermatologist,varies,,,,,,,,,
+autism spectrum disorder,,,,,,False,False,True,False,45.0,Male,Normal,Normal,Negative
+bacterial meningitis,bacterial meningitis,"fever,headache,stiff neck,nausea,vomiting,sensitivity to light",antibiotics,"neurologist,neurosurgeon",high (20%),,,,,,,,,
+bipolar disorder,bipolar disorder,"extreme mood swings,from manito depression","treatment for bipolar disorder may include medication,therapy,combination of both"," psychologist,psychiatrist",varies,False,False,True,False,30.0,Female,High,High,Positive
+bladder cancer,bladder cancer,"blood in the urine,pain or burning when urinating,frequent urination,urgency to urinate,incontinence","surgery,chemotherapy,radiation therapy",urologist,high (70%),False,False,True,False,65.0,Male,Normal,Normal,Negative
+blood clot,blood clot,"pain,swelling,redness,warmth,tenderness in the affected area,shortness of breath,chest pain,difficulty breathing,coughing up blood","treatment for blood clot may include medication,surgery,combination of both","cardiologist,hematologist",high (20%),,,,,,,,,
+brain tumor,,,,,,False,False,True,False,40.0,Male,Normal,Normal,Negative
+breast cancer,,,,,,False,False,True,False,60.0,Male,High,High,Negative
+bronchitis,bronchitis,"cough,mucus production,shortness of breath,chest pain","antibiotics,over-the-counter medications,rest,fluids","family doctor,pulmonologist",low (0.5%,True,True,False,True,30.0,Female,Low,Normal,Positive
+bursitis,bursitis,"pain,swelling,inflammation in bursa,which is small sac of fluid that cushions joints","medication,rest,ice,compression,elevation","family doctor,orthopedist",varies depending on the bursa,,,,,,,,,
+cancer,cancer,"lump,unexplained weight loss,fatigue,changes in bowel,bladder habits,persistent cough,indigestion,unexplained bleeding or discharge","surgery,chemotherapy,radiation therapy ",oncologist,varies depending on the type of cancer,,,,,,,,,
+cataracts,,,,,,False,False,True,False,45.0,Female,Normal,High,Positive
+celiac,celiac disease,"diarrhea,bloating,weight loss,fatigue,abdominal pain",gluten-free diet,gastroenterologist,varies,,,,,,,,,
+cerebral palsy,,,,,,False,False,True,True,30.0,Female,Normal,Normal,Positive
+cervical cancer,cervical cancer,"abnormal pap test results,abnormal vaginal bleeding,pain during sex","surgery,chemotherapy,radiation therapy",gynecologist,high (70%),,,,,,,,,
+chickenpox,chickenpox,"rash,fever,headache,muscle aches,fatigue","antiviral medication,over-the-counter medications,rest,fluids","family doctor,urgent care",low (0.1%),False,True,False,False,40.0,Male,Normal,High,Positive
+cholecystitis,,,,,,False,False,True,False,70.0,Male,Normal,Normal,Negative
+cholera,,,,,,True,False,True,True,50.0,Female,High,High,Negative
+cholesterol,cholesterol,high levels of cholesterol in the blood,"diet,exercise,medication",cardiologist,varies depending on the level of cholesterol,,,,,,,,,
+chronic kidney,chronic kidney disease,"fatigue,shortness of breath,swelling,high blood pressure,changes in urination","treatment for the underlying cause,such as high blood pressure,diabetes,an infection",nephrologist,varies,False,False,True,False,60.0,Female,Normal,High,Positive
+chronic obstructive pulmonary,chronic obstructive pulmonary disease (copd),"chronic bronchitis,emphysema","treatment for copd may include medication,lifestyle changes,oxygen therapy",pulmonologist,varies depending on the type of copd ,True,True,True,True,35.0,Male,Normal,Normal,Negative
+cirrhosis,,,,,,False,False,True,False,35.0,Female,Normal,High,Positive
+colorectal cancer,colorectal cancer,"change in bowel habits,such as diarrhea,constipation,narrowing of the stool,blood in the stool,abdominal pain,unexplained weight loss","surgery,chemotherapy,radiation therapy",gastroenterologist,high (70%),False,False,True,False,30.0,Female,Normal,High,Positive
+common cold,common cold,"runny nose,sneezing,sore throat,cough,congestion","over-the-counter medications,rest,fluids","family doctor,urgent care",low (0.1%),False,True,True,False,25.0,Female,Normal,Normal,Negative
+conjunctivitis,conjunctivitis,"red,itchy,watery eyes","over-the-counter medications,warm compresses","family doctor,ophthalmologist",low (0.1%),False,True,False,False,35.0,Female,High,High,Positive
+coronary artery,,,,,,False,False,True,False,40.0,Female,High,High,Positive
+crohn s,crohn's disease,"diarrhea,bloody stool,abdominal pain,weight loss","medication,surgery",gastroenterologist,varies,True,False,True,False,45.0,Male,High,Normal,Negative
+cystic fibrosis,,,,,,False,False,True,True,40.0,Male,High,High,Negative
+dementia,dementia,"memory loss,confusion,difficulty thinking,changes in personality or behavior","there is no cure for dementia,but there are treatments that can help manage the symptoms",neurologist ,varies,False,False,True,False,65.0,Female,High,High,Positive
+dengue fever,,,,,,True,False,True,False,30.0,Female,Normal,Normal,Negative
+depression,depression ,"sadness,hopelessness,loss of interest in activities,changes in appetite,sleep,energy levels","treatment for depression may include medication,therapy,combination of both","psychologist,psychiatrist",varies,True,True,True,True,29.0,Male,High,Normal,Positive
+diabetes,diabetes,"increased thirst,frequent urination,unexplained weight loss,fatigue,blurred vision,cuts that are slow to heal","diet,exercise,medication",endocrinologist,high (25%),False,False,False,False,29.0,Male,Low,Normal,Negative
+diarrhea,diarrhea,"loose,watery stools","over-the-counter medications,rest,fluids","family doctor,urgent care",low (0.1%),,,,,,,,,
+diverticulitis,,,,,,False,False,True,False,65.0,Female,High,High,Positive
+down syndrome,,,,,,False,False,True,False,50.0,Female,High,High,Positive
+eating disorder,eating disorder,disturbance in eating behavior that can lead to serious health problems,"treatment for eating disorders may include therapy,medication,support groups","psychologist,psychiatrist",varies depending on the type of eating disorder,,,,,,,,,
+eating disorders anorexia,,,,,,False,False,True,False,40.0,Female,High,High,Positive
+ebola virus,,,,,,True,True,True,True,50.0,Male,Normal,Normal,Positive
+eczema,,,,,,False,True,True,False,25.0,Female,Normal,Normal,Negative
+endometriosis,,,,,,True,False,False,False,50.0,Male,High,Normal,Negative
+epilepsy,epilepsy,seizures,"medication,surgery", neurologist ,varies depending on the type of epilepsy,False,False,True,False,35.0,Male,High,High,Negative
+erectile dysfunction,erectile dysfunction,"difficulty getting,keeping an erection ","medication,lifestyle changes,surgery ",urologist,varies,,,,,,,,,
+esophageal cancer,,,,,,False,False,True,False,55.0,Male,Normal,Normal,Negative
+fever,fever,elevated body temperature ,"over-the-counter medications,rest,fluids","family doctor,urgent care",low (0.1%),,,,,,,,,
+fibromyalgia,fibromyalgi,"widespread pain,fatigue,tenderness","medication,lifestyle changes ",rheumatologist ,varies,False,False,True,False,40.0,Female,High,High,Positive
+flu,flu,"fever,cough,sore throat,runny or stuffy nose,muscle aches,headache,fatigue","over-the-counter medications,rest,fluids","family doctor,urgent care",low (0.1%,,,,,,,,,
+food poisoning,food poisoning,"nausea,vomiting,diarrhea,abdominal cramps","over-the-counter medications,rest,fluids","family doctor,urgent care",low (0.1%),,,,,,,,,
+gallstones,gallstones,"pain in the upper right abdomen,nausea,vomiting,fever",surgery,surgeon ,high (20%),,,,,,,,,
+gastroenteritis,,,,,,False,True,False,False,29.0,Female,Normal,Normal,Negative
+glaucoma,glaucoma,"increased pressure in the eye that can damage the optic nerve,lead to vision loss","medication,surgery ", ophthalmologist,varies,False,False,True,False,40.0,Male,High,Normal,Negative
+gonorrhea,gonorrhea,"sexually transmitted infection that can cause burning during urination,discharge from the penis or vagina,pain in the lower abdomen",antibiotics,"urologist,gynecologist",high (70%),,,,,,,,,
+gout,,,,,,True,False,True,False,70.0,Female,Normal,High,Positive
+graves,graves' disease,"hyperthyroidism,which is an overactive thyroid","medication,surgery",endocrinologist,varies,,,,,,,,,
+hashimoto s thyroiditis,hashimoto's thyroiditis ,"hypothyroidism,which is an underactive thyroid ",medication,endocrinologist,varies,,,,,,,,,
+heart,heart disease,"chest pain,shortness of breath,fatigue,dizziness,fainting","treatment for heart disease may include medication,lifestyle changes,surgery",cardiologist,high (20%),,,,,,,,,
+heart attack,heart attack,"chest pain,shortness of breath,nausea,vomiting,lightheadedness,sweating",emergency medical services,cardiologist,high (20%),,,,,,,,,
+heart failure,heart failure,condition in which the heart cannot pump blood as well as it should,"medication,lifestyle changes,surgery",cardiologist,high (20%),,,,,,,,,
+hemophilia,,,,,,False,False,True,False,40.0,Female,Normal,Normal,Positive
+hemorrhoids,,,,,,False,False,False,False,55.0,Female,High,High,Positive
+hepatitis,hepatitis,inflammation of the liver,"treatment for hepatitis may include medication,rest,lifestyle changes",gastroenterologist,varies depending on the type of hepatitis,True,True,True,True,30.0,Male,High,Normal,Negative
+hepatitis b,,,,,,False,True,True,False,60.0,Male,Normal,Low,Positive
+herpes,herpes,"sexually transmitted infection that can cause blisters on the genitals,mouth,other parts of the body","there is no cure for herpes,but there are treatments that can help manage the symptoms","urologist,gynecologist",high (70%),,,,,,,,,
+hiv aids,,,,,,True,False,False,False,55.0,Female,High,High,Negative
+hyperglycemia,,,,,,False,False,True,False,45.0,Male,Normal,Normal,Negative
+hypertension,,,,,,True,True,True,False,35.0,Female,High,Normal,Negative
+hypertensive heart,,,,,,False,False,True,False,30.0,Female,High,High,Positive
+hyperthyroidism,,,,,,False,True,False,False,28.0,Female,Normal,Normal,Negative
+hypoglycemia,,,,,,False,False,True,False,40.0,Female,High,High,Positive
+hypothyroidism,,,,,,True,True,True,False,42.0,Female,High,High,Positive
+influenza,influenza,"fever,cough,sore throat,runny or stuffy nose,muscle aches,headache,fatigue","over-the-counter medications,rest,fluids","family doctor,urgent care",low (0.1%),True,False,True,True,19.0,Female,Low,Normal,Positive
+irritable bowel syndrome,irritable bowel syndrome (ibs),"abdominal pain,bloating,constipation,diarrhea","treatment for ibs may include diet,lifestyle changes,medication"," family doctor,gastroenterologist",varies,,,,,,,,,
+kidney,kidney disease,damage to the kidneys that can lead to kidney failure,"treatment for the underlying cause,such as high blood pressure,diabetes,an infection",nephrologist,varies,False,False,True,False,38.0,Female,Low,Normal,Negative
+kidney cancer,,,,,,False,False,True,False,30.0,Male,Normal,Normal,Negative
+kidney stones,kidney stones ,"pain in the lower back or side,nausea,vomiting,blood in the urine",surgery,urologist,high (20%),,,,,,,,,
+klinefelter syndrome,,,,,,False,False,True,False,39.0,Female,Normal,Normal,Positive
+liver,,,,,,False,False,True,False,35.0,Male,High,High,Positive
+liver cancer,,,,,,True,True,True,True,29.0,Female,Normal,Normal,Positive
+lung,lung disease,"condition that affects the lungs,can make it difficult to breathe","treatment for the underlying cause,such as asthma,chronic obstructive pulmonary disease (copd),pneumonia",pulmonologist,varies,,,,,,,,,
+lung cancer,lung cancer,"cough that does not go away,shortness of breath,chest pain,unexplained weight loss,fatigue,blood in the sputum","surgery,chemotherapy,radiation therapy",oncologist,high (70%),True,False,True,True,42.0,Male,Normal,Low,Negative
+lupus,lupus,chronic autoimmune disease that can affect any part of the body,"medication,lifestyle changes",rheumatologist ,varies,,,,,,,,,
+lyme,,,,,,True,False,False,False,50.0,Male,Normal,High,Positive
+lymphoma,,,,,,False,True,False,False,40.0,Female,Normal,High,Positive
+malaria,malaria,"fever,chills,sweating,headache,muscle aches,fatigue,vomiting,diarrhea",antimalarial drugs,"family doctor,urgent care",high (20%),True,False,False,False,35.0,Male,High,High,Positive
+marfan syndrome,,,,,,False,False,True,False,55.0,Male,High,High,Negative
+measles,measles,"fever,cough,runny nose,red eyes,sore throat,rash",measles vaccine,"family doctor,urgent care",high (70%),True,True,False,False,60.0,Female,High,Normal,Negative
+melanoma,,,,,,True,False,True,False,45.0,Male,High,Normal,Negative
+meningitis,meningitis,"fever,headache,stiff neck,nausea,vomiting,sensitivity to light",antibiotics,"neurologist,neurosurgeon",high (20%),,,,,,,,,
+migraine,,,,,,True,False,False,False,30.0,Female,Normal,Normal,Negative
+mononucleosis,mononucleosis,"fever,sore throat,fatigue,swollen lymph nodes,rash","there is no cure for mononucleosis,but symptoms can be treated with rest,fluids,over-the-counter medications","family doctor,urgent care",low (0.1%),,,,,,,,,
+multiple sclerosis,,,,,,False,False,True,False,30.0,Female,High,High,Positive
+mumps,,,,,,False,False,True,False,65.0,Male,Normal,High,Positive
+muscular dystrophy,,,,,,False,False,True,False,30.0,Male,High,High,Negative
+myocardial infarction heart,,,,,,True,True,True,True,30.0,Female,High,High,Positive
+obsessive compulsive disorde,,,,,,False,False,True,False,35.0,Male,Normal,Normal,Negative
+osteoarthritis,,,,,,True,True,True,False,38.0,Male,High,High,Positive
+osteomyelitis,,,,,,False,False,True,False,60.0,Male,Normal,Normal,Negative
+osteoporosis,,,,,,False,False,False,True,31.0,Male,Low,Normal,Negative
+otitis media,,,,,,True,True,True,False,65.0,Male,Normal,Normal,Negative
+ovarian cancer,,,,,,False,False,True,False,45.0,Male,Normal,Normal,Negative
+pancreatic cancer,,,,,,False,False,True,False,50.0,Female,High,High,Positive
+pancreatitis,,,,,,True,False,False,False,29.0,Female,High,Normal,Negative
+parkinson s,parkinson's disease,"tremors,slow movement,stiffness,difficulty with balance,coordination "," medication,lifestyle changes",neurologist ,varies,False,False,True,False,55.0,Female,Normal,Low,Negative
+peptic ulcer,peptic ulcer disease ,"pain in the upper abdomen,indigestion,nausea,vomiting","medication,lifestyle changes,surgery ",gastroenterologist,varies,,,,,,,,,
+peripheral artery,peripheral artery disease,"pain,numbness,tingling in the arms or legs","medication,lifestyle changes,surgery",vascular surgeon,varies,,,,,,,,,
+pneumocystis pneumonia,,,,,,True,True,True,False,45.0,Female,High,High,Positive
+pneumonia,pneumonia,"fever,cough,shortness of breath,chest pain,fatigue","antibiotics,over-the-counter medications,rest,fluids","family doctor,pulmonologist",moderate (1%),True,False,True,True,32.0,Female,High,Normal,Positive
+pneumothorax,,,,,,False,False,True,True,50.0,Female,High,High,Positive
+polio,,,,,,True,True,True,False,60.0,Male,Normal,Normal,Negative
+polycystic ovary syndrome,,,,,,True,True,False,False,55.0,Female,Normal,Normal,Positive
+prader willi syndrome,,,,,,False,False,True,False,60.0,Female,Normal,Normal,Positive
+prostate cancer,prostate cancer,"difficulty urinating,blood in the urine,pain in the back or hips,erectile dysfunction"," surgery,radiation therapy,hormone therapy",urologist,high (70%),True,True,False,False,70.0,Male,High,Normal,Negative
+psoriasis,,,,,,True,False,False,False,35.0,Female,Normal,Low,Negative
+rabies,rabies,"fever,headache,muscle aches,tingling at the bite site,difficulty swallowing,hydrophobia,aerophobia",rabies vaccine,"doctor,urgent care",high (70%),True,True,False,False,40.0,Female,High,Normal,Negative
+rheumatoid arthritis,rheumatoid arthritis,"pain,swelling,stiffness in the joints","medication,lifestyle changes",rheumatologist,varies,False,True,True,True,29.0,Female,High,High,Negative
+rubella,,,,,,True,False,True,False,35.0,Female,High,Normal,Negative
+salmonella,salmonella,"fever,diarrhea,abdominal cramps,nausea,vomiting",antibiotics,"family doctor,urgent care ",low (0.1%),,,,,,,,,
+schizophrenia,,,,,,False,True,True,False,70.0,Male,Normal,Normal,Negative
+scoliosis,,,,,,False,False,False,False,45.0,Female,High,High,Positive
+sepsis,,,,,,True,True,True,False,50.0,Male,Normal,Normal,Negative
+shingles,shingles,painful rash that follows nerve path,antiviral medication,"family doctor,dermatologist ",low (0.1%),,,,,,,,,
+sickle cell anemia,,,,,,False,False,True,False,45.0,Female,Normal,Normal,Positive
+sinusitis,,,,,,False,True,True,False,30.0,Male,Normal,Normal,Negative
+sleep apnea,,,,,,True,False,True,True,50.0,Male,High,High,Negative
+spina bifida,,,,,,False,False,True,False,35.0,Female,Normal,Normal,Positive
+stomach cancer,stomach cancer,"pain in the upper abdomen,indigestion,nausea,vomiting,weight loss","surgery,chemotherapy,radiation therapy",gastroenterologist ,high (70%),,,,,,,,,
+stroke,stroke,"sudden weakness,numbness on one side of the body,confusion,difficulty speaking,trouble seeing in one eye,severe headache",emergency medical services,neurologist ,high (15%),True,True,True,True,29.0,Female,Normal,Normal,Positive
+systemic lupus erythematosus,,,,,,False,True,True,False,55.0,Female,High,High,Positive
+testicular cancer,,,,,,False,False,True,False,70.0,Female,High,High,Positive
+tetanus,,,,,,False,False,True,False,45.0,Male,Normal,High,Positive
+thyroid cancer,thyroid cancer,"lump in the neck,hoarseness,fatigue,weight loss,unexplained heat intolerance,sensitivity to cold","surgery,radiation therapy,hormone therapy",endocrinologist,high (70%),False,False,True,False,60.0,Female,High,High,Positive
+tonsillitis,,,,,,True,True,True,False,70.0,Female,High,High,Positive
+tourette syndrome,,,,,,False,False,True,False,65.0,Male,High,High,Negative
+tuberculosis,tuberculosis (tb),"cough that does not go away,fever,night sweats,weight loss,fatigue,chest pain",antibiotics,"family doctor,pulmonologist",high (20%),True,True,True,True,40.0,Male,High,High,Positive
+turner syndrome,,,,,,False,False,True,False,45.0,Male,High,High,Negative
+typhoid fever,,,,,,False,True,False,False,55.0,Male,Normal,Low,Positive
+ulcerative colitis,ulcerative colitis,"diarrhea,bloody stool,abdominal pain,weight loss","medication,surgery",gastroenterologist ,varies,True,True,False,False,30.0,Female,Normal,Normal,Negative
+urinary tract infection,urinary tract infection (uti),"painful urination,burning,frequent urination,urgency to urinate,blood in the urine",antibiotics,urologist,low (0.1%),True,True,True,False,29.0,Male,High,High,Positive
+varicose veins,varicose veins,"swollen,twisted veins,usually in the legs","surgery,compression stockings,lifestyle changes",vascular surgeon,varies,,,,,,,,,
+warts,warts ,"raised,rough growths on the skin","over-the-counter medications,prescription medications,cryotherapy,laser therapy",dermatologist,low (0.1%),,,,,,,,,
+williams syndrome,,,,,,False,False,True,False,70.0,Female,Normal,Normal,Positive
+yeast infection,yeast infection,"itching,burning,discharge from the vaginor penis","over-the-counter medications,prescription medications","urologist,gynecologist",low (0.1%),,,,,,,,,
+zika virus,,,,,,False,True,True,False,45.0,Female,High,High,Negative

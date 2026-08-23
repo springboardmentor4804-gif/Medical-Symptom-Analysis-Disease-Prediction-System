@@ -1,0 +1,20 @@
+# Normalise line endings so the repo is consistent across Windows/macOS/Linux
+# checkouts instead of producing whole-file diffs on the first commit from a
+# different platform.
+* text=auto eol=lf
+
+# Windows-only entry points must keep CRLF - cmd.exe mis-parses LF-only .bat
+# files, and the failure mode is a cryptic "not recognized as an internal or
+# external command".
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary artifacts: never diff, never convert.
+*.joblib binary
+*.pkl    binary
+*.npz    binary
+*.ipynb  -text diff=jupyternotebook
+*.pdf    binary
+*.png    binary
+*.jpg    binary
+*.ico    binary

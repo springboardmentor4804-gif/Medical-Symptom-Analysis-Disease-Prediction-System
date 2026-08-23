@@ -1,0 +1,117 @@
+{
+  "pipeline_version": "2.0.0",
+  "weights": {
+    "symptom_burden": 0.12,
+    "age_vulnerability": 0.13,
+    "diagnosis_confidence": 0.22,
+    "chronic_risk": 0.2,
+    "red_flags": 0.18,
+    "vitals": 0.15
+  },
+  "levels": [
+    {
+      "min_score": 0.75,
+      "level": "EMERGENCY",
+      "action": "Seek emergency care now"
+    },
+    {
+      "min_score": 0.5,
+      "level": "URGENT",
+      "action": "Seek same-day medical attention"
+    },
+    {
+      "min_score": 0.25,
+      "level": "MODERATE",
+      "action": "Book an appointment within a few days"
+    },
+    {
+      "min_score": 0.0,
+      "level": "MILD",
+      "action": "Self-care; monitor and review if it worsens"
+    }
+  ],
+  "critical_red_flags": [
+    "anaphylaxis",
+    "blue lips",
+    "chest pain",
+    "coughing blood",
+    "crushing chest pain",
+    "cyanosis",
+    "facial droop",
+    "loss of consciousness",
+    "seizure",
+    "severe abdominal pain",
+    "severe bleeding",
+    "slurred speech",
+    "stiff neck with fever",
+    "sudden severe headache",
+    "sudden weakness",
+    "suicidal ideation",
+    "uncontrolled bleeding",
+    "unresponsive",
+    "vomiting blood",
+    "worst headache of life"
+  ],
+  "serious_red_flags": [
+    "confusion",
+    "dehydration",
+    "difficulty breathing",
+    "dizziness on standing",
+    "fainting",
+    "high fever",
+    "numbness",
+    "palpitations",
+    "persistent vomiting",
+    "rapid heartbeat",
+    "severe pain",
+    "shortness of breath",
+    "swelling of face or throat",
+    "vision loss",
+    "wheezing"
+  ],
+  "vital_ranges": {
+    "heart_rate": {
+      "low": 50,
+      "high": 110,
+      "unit": "bpm"
+    },
+    "systolic_bp": {
+      "low": 90,
+      "high": 160,
+      "unit": "mmHg"
+    },
+    "diastolic_bp": {
+      "low": 60,
+      "high": 100,
+      "unit": "mmHg"
+    },
+    "temperature_c": {
+      "low": 36.0,
+      "high": 38.0,
+      "unit": "degC"
+    },
+    "respiratory_rate": {
+      "low": 12,
+      "high": 22,
+      "unit": "breaths/min"
+    },
+    "spo2": {
+      "low": 94,
+      "high": 100,
+      "unit": "%"
+    }
+  },
+  "overrides": [
+    "any single critical red flag -> EMERGENCY",
+    "two or more serious red flags -> EMERGENCY",
+    "any vital deviating >75% of its normal span -> EMERGENCY"
+  ],
+  "inputs": {
+    "symptoms": "list of lowercase symptom strings",
+    "age": "years",
+    "diagnosis_confidence": "top probability from model 1",
+    "chronic_risk": "composite 0-1, e.g. top risk percentile / 100",
+    "vitals": "any of ['diastolic_bp', 'heart_rate', 'respiratory_rate', 'spo2', 'systolic_bp', 'temperature_c']"
+  },
+  "rationale": "Rule-weighted rather than learned: no dataset in this pipeline carries labelled triage outcomes, so a learned severity model would fit noise. Auditable and clinician-tunable by design."
+}

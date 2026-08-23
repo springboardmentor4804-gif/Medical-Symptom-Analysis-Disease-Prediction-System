@@ -1,0 +1,1123 @@
+{
+  "pipeline_version": "2.0.0",
+  "n_conditions": 10,
+  "n_rows_loaded": 1100000,
+  "features": [
+    {
+      "name": "_BMI5",
+      "label": "Body mass index"
+    },
+    {
+      "name": "_AGEG5YR",
+      "label": "Age band"
+    },
+    {
+      "name": "SEX",
+      "label": "Sex"
+    },
+    {
+      "name": "_SMOKER3",
+      "label": "Smoking status"
+    },
+    {
+      "name": "EXERANY2",
+      "label": "Any exercise (30d)"
+    },
+    {
+      "name": "BPHIGH4",
+      "label": "Told high blood pressure"
+    },
+    {
+      "name": "TOLDHI2",
+      "label": "Told high cholesterol"
+    },
+    {
+      "name": "ALCDAY5",
+      "label": "Alcohol days/month"
+    },
+    {
+      "name": "GENHLTH",
+      "label": "Self-rated general health"
+    },
+    {
+      "name": "PHYSHLTH",
+      "label": "Physically unwell days/30"
+    },
+    {
+      "name": "MENTHLTH",
+      "label": "Mentally unwell days/30"
+    },
+    {
+      "name": "SLEPTIM1",
+      "label": "Sleep hours"
+    },
+    {
+      "name": "_EDUCAG",
+      "label": "Education level"
+    },
+    {
+      "name": "_INCOMG",
+      "label": "Income band"
+    },
+    {
+      "name": "_TOTINDA",
+      "label": "Meets activity guidance"
+    },
+    {
+      "name": "_FRTLT1",
+      "label": "Fruit >=1/day"
+    },
+    {
+      "name": "_VEGLT1",
+      "label": "Vegetables >=1/day"
+    },
+    {
+      "name": "_RACE",
+      "label": "Race/ethnicity"
+    },
+    {
+      "name": "survey_year",
+      "label": "Survey year"
+    }
+  ],
+  "categorical_features": [
+    "SEX",
+    "_SMOKER3",
+    "_RACE"
+  ],
+  "mean_roc_auc": 0.7967,
+  "conditions": {
+    "diabetes": {
+      "n_total": 1067501,
+      "n_test": 213501,
+      "positive_rate": 0.1316,
+      "roc_auc": 0.8392,
+      "pr_auc": 0.4309,
+      "pr_auc_baseline": 0.1316,
+      "brier": 0.0911,
+      "brier_uncalibrated": 0.17039,
+      "decision_threshold": 0.238,
+      "precision": 0.3867,
+      "recall": 0.6063,
+      "f1": 0.4722,
+      "n_iter": 246,
+      "reliability": [
+        {
+          "predicted": 0.032,
+          "observed": 0.0317,
+          "n": 125920
+        },
+        {
+          "predicted": 0.1424,
+          "observed": 0.1412,
+          "n": 30223
+        },
+        {
+          "predicted": 0.2492,
+          "observed": 0.2526,
+          "n": 31918
+        },
+        {
+          "predicted": 0.3663,
+          "observed": 0.3747,
+          "n": 10565
+        },
+        {
+          "predicted": 0.4448,
+          "observed": 0.4518,
+          "n": 6987
+        },
+        {
+          "predicted": 0.5324,
+          "observed": 0.537,
+          "n": 3918
+        },
+        {
+          "predicted": 0.6334,
+          "observed": 0.6243,
+          "n": 3354
+        },
+        {
+          "predicted": 0.7391,
+          "observed": 0.7409,
+          "n": 548
+        },
+        {
+          "predicted": 0.8638,
+          "observed": 0.806,
+          "n": 67
+        }
+      ],
+      "top_features": [
+        {
+          "feature": "_AGEG5YR",
+          "label": "Age band",
+          "auc_drop": 0.06247
+        },
+        {
+          "feature": "GENHLTH",
+          "label": "Self-rated general health",
+          "auc_drop": 0.0519
+        },
+        {
+          "feature": "_BMI5",
+          "label": "Body mass index",
+          "auc_drop": 0.04089
+        },
+        {
+          "feature": "BPHIGH4",
+          "label": "Told high blood pressure",
+          "auc_drop": 0.02539
+        },
+        {
+          "feature": "ALCDAY5",
+          "label": "Alcohol days/month",
+          "auc_drop": 0.01451
+        },
+        {
+          "feature": "TOLDHI2",
+          "label": "Told high cholesterol",
+          "auc_drop": 0.01442
+        },
+        {
+          "feature": "SEX",
+          "label": "Sex",
+          "auc_drop": 0.00679
+        },
+        {
+          "feature": "_RACE",
+          "label": "Race/ethnicity",
+          "auc_drop": 0.00253
+        },
+        {
+          "feature": "PHYSHLTH",
+          "label": "Physically unwell days/30",
+          "auc_drop": 0.00073
+        },
+        {
+          "feature": "_INCOMG",
+          "label": "Income band",
+          "auc_drop": 0.00073
+        }
+      ]
+    },
+    "heart_attack": {
+      "n_total": 1094776,
+      "n_test": 218956,
+      "positive_rate": 0.06001,
+      "roc_auc": 0.8431,
+      "pr_auc": 0.2481,
+      "pr_auc_baseline": 0.06,
+      "brier": 0.04966,
+      "brier_uncalibrated": 0.16976,
+      "decision_threshold": 0.1659,
+      "precision": 0.2467,
+      "recall": 0.4783,
+      "f1": 0.3255,
+      "n_iter": 251,
+      "reliability": [
+        {
+          "predicted": 0.0247,
+          "observed": 0.025,
+          "n": 174410
+        },
+        {
+          "predicted": 0.1387,
+          "observed": 0.1414,
+          "n": 25041
+        },
+        {
+          "predicted": 0.231,
+          "observed": 0.2267,
+          "n": 13805
+        },
+        {
+          "predicted": 0.3486,
+          "observed": 0.3437,
+          "n": 4425
+        },
+        {
+          "predicted": 0.4569,
+          "observed": 0.4366,
+          "n": 923
+        },
+        {
+          "predicted": 0.5413,
+          "observed": 0.5028,
+          "n": 352
+        }
+      ],
+      "top_features": [
+        {
+          "feature": "_AGEG5YR",
+          "label": "Age band",
+          "auc_drop": 0.11829
+        },
+        {
+          "feature": "GENHLTH",
+          "label": "Self-rated general health",
+          "auc_drop": 0.05224
+        },
+        {
+          "feature": "SEX",
+          "label": "Sex",
+          "auc_drop": 0.03127
+        },
+        {
+          "feature": "BPHIGH4",
+          "label": "Told high blood pressure",
+          "auc_drop": 0.0148
+        },
+        {
+          "feature": "TOLDHI2",
+          "label": "Told high cholesterol",
+          "auc_drop": 0.00712
+        },
+        {
+          "feature": "_SMOKER3",
+          "label": "Smoking status",
+          "auc_drop": 0.00541
+        },
+        {
+          "feature": "ALCDAY5",
+          "label": "Alcohol days/month",
+          "auc_drop": 0.00308
+        },
+        {
+          "feature": "_INCOMG",
+          "label": "Income band",
+          "auc_drop": 0.00254
+        },
+        {
+          "feature": "PHYSHLTH",
+          "label": "Physically unwell days/30",
+          "auc_drop": 0.00252
+        },
+        {
+          "feature": "_RACE",
+          "label": "Race/ethnicity",
+          "auc_drop": 0.00128
+        }
+      ]
+    },
+    "coronary_hd": {
+      "n_total": 1090519,
+      "n_test": 218104,
+      "positive_rate": 0.06086,
+      "roc_auc": 0.8479,
+      "pr_auc": 0.2575,
+      "pr_auc_baseline": 0.0609,
+      "brier": 0.04995,
+      "brier_uncalibrated": 0.16892,
+      "decision_threshold": 0.1752,
+      "precision": 0.267,
+      "recall": 0.4455,
+      "f1": 0.3339,
+      "n_iter": 174,
+      "reliability": [
+        {
+          "predicted": 0.0219,
+          "observed": 0.0222,
+          "n": 168203
+        },
+        {
+          "predicted": 0.1377,
+          "observed": 0.1379,
+          "n": 32410
+        },
+        {
+          "predicted": 0.2403,
+          "observed": 0.2404,
+          "n": 10297
+        },
+        {
+          "predicted": 0.3454,
+          "observed": 0.3371,
+          "n": 6082
+        },
+        {
+          "predicted": 0.4571,
+          "observed": 0.4503,
+          "n": 724
+        },
+        {
+          "predicted": 0.547,
+          "observed": 0.5489,
+          "n": 368
+        }
+      ],
+      "top_features": [
+        {
+          "feature": "_AGEG5YR",
+          "label": "Age band",
+          "auc_drop": 0.12863
+        },
+        {
+          "feature": "GENHLTH",
+          "label": "Self-rated general health",
+          "auc_drop": 0.06576
+        },
+        {
+          "feature": "BPHIGH4",
+          "label": "Told high blood pressure",
+          "auc_drop": 0.02323
+        },
+        {
+          "feature": "TOLDHI2",
+          "label": "Told high cholesterol",
+          "auc_drop": 0.01722
+        },
+        {
+          "feature": "SEX",
+          "label": "Sex",
+          "auc_drop": 0.01534
+        },
+        {
+          "feature": "PHYSHLTH",
+          "label": "Physically unwell days/30",
+          "auc_drop": 0.00297
+        },
+        {
+          "feature": "_SMOKER3",
+          "label": "Smoking status",
+          "auc_drop": 0.00293
+        },
+        {
+          "feature": "_RACE",
+          "label": "Race/ethnicity",
+          "auc_drop": 0.00237
+        },
+        {
+          "feature": "_EDUCAG",
+          "label": "Education level",
+          "auc_drop": 0.00149
+        },
+        {
+          "feature": "_BMI5",
+          "label": "Body mass index",
+          "auc_drop": 0.00125
+        }
+      ]
+    },
+    "stroke": {
+      "n_total": 1096909,
+      "n_test": 219382,
+      "positive_rate": 0.04212,
+      "roc_auc": 0.8141,
+      "pr_auc": 0.1512,
+      "pr_auc_baseline": 0.0421,
+      "brier": 0.03764,
+      "brier_uncalibrated": 0.18193,
+      "decision_threshold": 0.1212,
+      "precision": 0.1682,
+      "recall": 0.3811,
+      "f1": 0.2334,
+      "n_iter": 132,
+      "reliability": [
+        {
+          "predicted": 0.0248,
+          "observed": 0.0252,
+          "n": 189763
+        },
+        {
+          "predicted": 0.1369,
+          "observed": 0.137,
+          "n": 25678
+        },
+        {
+          "predicted": 0.2301,
+          "observed": 0.2234,
+          "n": 3191
+        },
+        {
+          "predicted": 0.3039,
+          "observed": 0.3064,
+          "n": 692
+        },
+        {
+          "predicted": 0.5333,
+          "observed": 0.3621,
+          "n": 58
+        }
+      ],
+      "top_features": [
+        {
+          "feature": "_AGEG5YR",
+          "label": "Age band",
+          "auc_drop": 0.10377
+        },
+        {
+          "feature": "GENHLTH",
+          "label": "Self-rated general health",
+          "auc_drop": 0.04194
+        },
+        {
+          "feature": "BPHIGH4",
+          "label": "Told high blood pressure",
+          "auc_drop": 0.01425
+        },
+        {
+          "feature": "_INCOMG",
+          "label": "Income band",
+          "auc_drop": 0.00671
+        },
+        {
+          "feature": "PHYSHLTH",
+          "label": "Physically unwell days/30",
+          "auc_drop": 0.00591
+        },
+        {
+          "feature": "TOLDHI2",
+          "label": "Told high cholesterol",
+          "auc_drop": 0.00326
+        },
+        {
+          "feature": "ALCDAY5",
+          "label": "Alcohol days/month",
+          "auc_drop": 0.00274
+        },
+        {
+          "feature": "_BMI5",
+          "label": "Body mass index",
+          "auc_drop": 0.00157
+        },
+        {
+          "feature": "_EDUCAG",
+          "label": "Education level",
+          "auc_drop": 0.00127
+        },
+        {
+          "feature": "_SMOKER3",
+          "label": "Smoking status",
+          "auc_drop": 0.00115
+        }
+      ]
+    },
+    "asthma": {
+      "n_total": 1096593,
+      "n_test": 219319,
+      "positive_rate": 0.1349,
+      "roc_auc": 0.6797,
+      "pr_auc": 0.2611,
+      "pr_auc_baseline": 0.1349,
+      "brier": 0.10982,
+      "brier_uncalibrated": 0.22217,
+      "decision_threshold": 0.1548,
+      "precision": 0.2404,
+      "recall": 0.5054,
+      "f1": 0.3258,
+      "n_iter": 190,
+      "reliability": [
+        {
+          "predicted": 0.0738,
+          "observed": 0.0742,
+          "n": 97962
+        },
+        {
+          "predicted": 0.1432,
+          "observed": 0.1417,
+          "n": 86978
+        },
+        {
+          "predicted": 0.2468,
+          "observed": 0.2484,
+          "n": 24154
+        },
+        {
+          "predicted": 0.3559,
+          "observed": 0.344,
+          "n": 6372
+        },
+        {
+          "predicted": 0.4218,
+          "observed": 0.4476,
+          "n": 3132
+        },
+        {
+          "predicted": 0.5394,
+          "observed": 0.5425,
+          "n": 706
+        }
+      ],
+      "top_features": [
+        {
+          "feature": "_AGEG5YR",
+          "label": "Age band",
+          "auc_drop": 0.02953
+        },
+        {
+          "feature": "GENHLTH",
+          "label": "Self-rated general health",
+          "auc_drop": 0.02372
+        },
+        {
+          "feature": "PHYSHLTH",
+          "label": "Physically unwell days/30",
+          "auc_drop": 0.02175
+        },
+        {
+          "feature": "SEX",
+          "label": "Sex",
+          "auc_drop": 0.01916
+        },
+        {
+          "feature": "_BMI5",
+          "label": "Body mass index",
+          "auc_drop": 0.01365
+        },
+        {
+          "feature": "MENTHLTH",
+          "label": "Mentally unwell days/30",
+          "auc_drop": 0.00612
+        },
+        {
+          "feature": "_EDUCAG",
+          "label": "Education level",
+          "auc_drop": 0.00447
+        },
+        {
+          "feature": "_SMOKER3",
+          "label": "Smoking status",
+          "auc_drop": 0.00409
+        },
+        {
+          "feature": "BPHIGH4",
+          "label": "Told high blood pressure",
+          "auc_drop": 0.00294
+        },
+        {
+          "feature": "_RACE",
+          "label": "Race/ethnicity",
+          "auc_drop": 0.00235
+        }
+      ]
+    },
+    "skin_cancer": {
+      "n_total": 1095959,
+      "n_test": 219192,
+      "positive_rate": 0.0952,
+      "roc_auc": 0.7839,
+      "pr_auc": 0.2525,
+      "pr_auc_baseline": 0.0952,
+      "brier": 0.07777,
+      "brier_uncalibrated": 0.19966,
+      "decision_threshold": 0.1823,
+      "precision": 0.257,
+      "recall": 0.4682,
+      "f1": 0.3318,
+      "n_iter": 189,
+      "reliability": [
+        {
+          "predicted": 0.0357,
+          "observed": 0.0353,
+          "n": 133001
+        },
+        {
+          "predicted": 0.1423,
+          "observed": 0.1402,
+          "n": 55159
+        },
+        {
+          "predicted": 0.2365,
+          "observed": 0.2376,
+          "n": 21665
+        },
+        {
+          "predicted": 0.3291,
+          "observed": 0.342,
+          "n": 8340
+        },
+        {
+          "predicted": 0.4262,
+          "observed": 0.4249,
+          "n": 965
+        },
+        {
+          "predicted": 0.5106,
+          "observed": 0.449,
+          "n": 49
+        }
+      ],
+      "top_features": [
+        {
+          "feature": "_AGEG5YR",
+          "label": "Age band",
+          "auc_drop": 0.22019
+        },
+        {
+          "feature": "_RACE",
+          "label": "Race/ethnicity",
+          "auc_drop": 0.05031
+        },
+        {
+          "feature": "SEX",
+          "label": "Sex",
+          "auc_drop": 0.00543
+        },
+        {
+          "feature": "PHYSHLTH",
+          "label": "Physically unwell days/30",
+          "auc_drop": 0.00284
+        },
+        {
+          "feature": "GENHLTH",
+          "label": "Self-rated general health",
+          "auc_drop": 0.00271
+        },
+        {
+          "feature": "_EDUCAG",
+          "label": "Education level",
+          "auc_drop": 0.00261
+        },
+        {
+          "feature": "BPHIGH4",
+          "label": "Told high blood pressure",
+          "auc_drop": 0.00257
+        },
+        {
+          "feature": "_BMI5",
+          "label": "Body mass index",
+          "auc_drop": 0.00254
+        },
+        {
+          "feature": "TOLDHI2",
+          "label": "Told high cholesterol",
+          "auc_drop": 0.00246
+        },
+        {
+          "feature": "_INCOMG",
+          "label": "Income band",
+          "auc_drop": 0.00198
+        }
+      ]
+    },
+    "other_cancer": {
+      "n_total": 1096296,
+      "n_test": 219260,
+      "positive_rate": 0.09728,
+      "roc_auc": 0.7557,
+      "pr_auc": 0.22,
+      "pr_auc_baseline": 0.0973,
+      "brier": 0.08134,
+      "brier_uncalibrated": 0.20776,
+      "decision_threshold": 0.1497,
+      "precision": 0.2075,
+      "recall": 0.5784,
+      "f1": 0.3054,
+      "n_iter": 167,
+      "reliability": [
+        {
+          "predicted": 0.0398,
+          "observed": 0.0395,
+          "n": 128687
+        },
+        {
+          "predicted": 0.1454,
+          "observed": 0.1495,
+          "n": 62993
+        },
+        {
+          "predicted": 0.2465,
+          "observed": 0.2333,
+          "n": 23197
+        },
+        {
+          "predicted": 0.3257,
+          "observed": 0.3203,
+          "n": 4062
+        },
+        {
+          "predicted": 0.4343,
+          "observed": 0.3774,
+          "n": 265
+        },
+        {
+          "predicted": 0.5185,
+          "observed": 0.383,
+          "n": 47
+        }
+      ],
+      "top_features": [
+        {
+          "feature": "_AGEG5YR",
+          "label": "Age band",
+          "auc_drop": 0.15455
+        },
+        {
+          "feature": "GENHLTH",
+          "label": "Self-rated general health",
+          "auc_drop": 0.04867
+        },
+        {
+          "feature": "SEX",
+          "label": "Sex",
+          "auc_drop": 0.01216
+        },
+        {
+          "feature": "_RACE",
+          "label": "Race/ethnicity",
+          "auc_drop": 0.00594
+        },
+        {
+          "feature": "PHYSHLTH",
+          "label": "Physically unwell days/30",
+          "auc_drop": 0.0042
+        },
+        {
+          "feature": "_SMOKER3",
+          "label": "Smoking status",
+          "auc_drop": 0.00256
+        },
+        {
+          "feature": "_EDUCAG",
+          "label": "Education level",
+          "auc_drop": 0.00247
+        },
+        {
+          "feature": "_INCOMG",
+          "label": "Income band",
+          "auc_drop": 0.00221
+        },
+        {
+          "feature": "TOLDHI2",
+          "label": "Told high cholesterol",
+          "auc_drop": 0.00142
+        },
+        {
+          "feature": "_BMI5",
+          "label": "Body mass index",
+          "auc_drop": 0.00081
+        }
+      ]
+    },
+    "arthritis": {
+      "n_total": 1092581,
+      "n_test": 218517,
+      "positive_rate": 0.34388,
+      "roc_auc": 0.8059,
+      "pr_auc": 0.6656,
+      "pr_auc_baseline": 0.3439,
+      "brier": 0.16729,
+      "brier_uncalibrated": 0.18165,
+      "decision_threshold": 0.353,
+      "precision": 0.5552,
+      "recall": 0.7865,
+      "f1": 0.6509,
+      "n_iter": 202,
+      "reliability": [
+        {
+          "predicted": 0.0485,
+          "observed": 0.0488,
+          "n": 47869
+        },
+        {
+          "predicted": 0.1438,
+          "observed": 0.1475,
+          "n": 27771
+        },
+        {
+          "predicted": 0.2426,
+          "observed": 0.2466,
+          "n": 26320
+        },
+        {
+          "predicted": 0.3491,
+          "observed": 0.3433,
+          "n": 28933
+        },
+        {
+          "predicted": 0.4531,
+          "observed": 0.4425,
+          "n": 24191
+        },
+        {
+          "predicted": 0.5479,
+          "observed": 0.5477,
+          "n": 25393
+        },
+        {
+          "predicted": 0.6523,
+          "observed": 0.6631,
+          "n": 18882
+        },
+        {
+          "predicted": 0.7524,
+          "observed": 0.7562,
+          "n": 12009
+        },
+        {
+          "predicted": 0.8361,
+          "observed": 0.8366,
+          "n": 6010
+        },
+        {
+          "predicted": 0.9194,
+          "observed": 0.9192,
+          "n": 1139
+        }
+      ],
+      "top_features": [
+        {
+          "feature": "_AGEG5YR",
+          "label": "Age band",
+          "auc_drop": 0.14594
+        },
+        {
+          "feature": "PHYSHLTH",
+          "label": "Physically unwell days/30",
+          "auc_drop": 0.02566
+        },
+        {
+          "feature": "GENHLTH",
+          "label": "Self-rated general health",
+          "auc_drop": 0.02153
+        },
+        {
+          "feature": "_BMI5",
+          "label": "Body mass index",
+          "auc_drop": 0.00966
+        },
+        {
+          "feature": "SEX",
+          "label": "Sex",
+          "auc_drop": 0.00957
+        },
+        {
+          "feature": "BPHIGH4",
+          "label": "Told high blood pressure",
+          "auc_drop": 0.00524
+        },
+        {
+          "feature": "TOLDHI2",
+          "label": "Told high cholesterol",
+          "auc_drop": 0.00485
+        },
+        {
+          "feature": "MENTHLTH",
+          "label": "Mentally unwell days/30",
+          "auc_drop": 0.00368
+        },
+        {
+          "feature": "_RACE",
+          "label": "Race/ethnicity",
+          "auc_drop": 0.0026
+        },
+        {
+          "feature": "_SMOKER3",
+          "label": "Smoking status",
+          "auc_drop": 0.00184
+        }
+      ]
+    },
+    "depression": {
+      "n_total": 1093930,
+      "n_test": 218786,
+      "positive_rate": 0.18612,
+      "roc_auc": 0.8161,
+      "pr_auc": 0.5582,
+      "pr_auc_baseline": 0.1861,
+      "brier": 0.11315,
+      "brier_uncalibrated": 0.16864,
+      "decision_threshold": 0.2851,
+      "precision": 0.518,
+      "recall": 0.5785,
+      "f1": 0.5466,
+      "n_iter": 295,
+      "reliability": [
+        {
+          "predicted": 0.0548,
+          "observed": 0.0557,
+          "n": 105798
+        },
+        {
+          "predicted": 0.1396,
+          "observed": 0.1373,
+          "n": 47936
+        },
+        {
+          "predicted": 0.2446,
+          "observed": 0.2413,
+          "n": 19995
+        },
+        {
+          "predicted": 0.3538,
+          "observed": 0.3559,
+          "n": 16745
+        },
+        {
+          "predicted": 0.4602,
+          "observed": 0.46,
+          "n": 7318
+        },
+        {
+          "predicted": 0.5405,
+          "observed": 0.5282,
+          "n": 5977
+        },
+        {
+          "predicted": 0.6177,
+          "observed": 0.6276,
+          "n": 5295
+        },
+        {
+          "predicted": 0.739,
+          "observed": 0.7332,
+          "n": 5683
+        },
+        {
+          "predicted": 0.8608,
+          "observed": 0.8502,
+          "n": 3858
+        },
+        {
+          "predicted": 0.9287,
+          "observed": 0.9392,
+          "n": 181
+        }
+      ],
+      "top_features": [
+        {
+          "feature": "MENTHLTH",
+          "label": "Mentally unwell days/30",
+          "auc_drop": 0.1463
+        },
+        {
+          "feature": "SEX",
+          "label": "Sex",
+          "auc_drop": 0.01446
+        },
+        {
+          "feature": "_AGEG5YR",
+          "label": "Age band",
+          "auc_drop": 0.01049
+        },
+        {
+          "feature": "GENHLTH",
+          "label": "Self-rated general health",
+          "auc_drop": 0.00939
+        },
+        {
+          "feature": "_SMOKER3",
+          "label": "Smoking status",
+          "auc_drop": 0.00797
+        },
+        {
+          "feature": "_RACE",
+          "label": "Race/ethnicity",
+          "auc_drop": 0.00761
+        },
+        {
+          "feature": "_INCOMG",
+          "label": "Income band",
+          "auc_drop": 0.00572
+        },
+        {
+          "feature": "TOLDHI2",
+          "label": "Told high cholesterol",
+          "auc_drop": 0.00561
+        },
+        {
+          "feature": "PHYSHLTH",
+          "label": "Physically unwell days/30",
+          "auc_drop": 0.00523
+        },
+        {
+          "feature": "_EDUCAG",
+          "label": "Education level",
+          "auc_drop": 0.00382
+        }
+      ]
+    },
+    "kidney_disease": {
+      "n_total": 1095297,
+      "n_test": 219060,
+      "positive_rate": 0.03421,
+      "roc_auc": 0.781,
+      "pr_auc": 0.117,
+      "pr_auc_baseline": 0.0342,
+      "brier": 0.0315,
+      "brier_uncalibrated": 0.1865,
+      "decision_threshold": 0.1056,
+      "precision": 0.1487,
+      "recall": 0.2873,
+      "f1": 0.196,
+      "n_iter": 188,
+      "reliability": [
+        {
+          "predicted": 0.0249,
+          "observed": 0.0253,
+          "n": 202329
+        },
+        {
+          "predicted": 0.1398,
+          "observed": 0.136,
+          "n": 16041
+        },
+        {
+          "predicted": 0.2462,
+          "observed": 0.2666,
+          "n": 664
+        }
+      ],
+      "top_features": [
+        {
+          "feature": "GENHLTH",
+          "label": "Self-rated general health",
+          "auc_drop": 0.07385
+        },
+        {
+          "feature": "_AGEG5YR",
+          "label": "Age band",
+          "auc_drop": 0.04951
+        },
+        {
+          "feature": "BPHIGH4",
+          "label": "Told high blood pressure",
+          "auc_drop": 0.02378
+        },
+        {
+          "feature": "PHYSHLTH",
+          "label": "Physically unwell days/30",
+          "auc_drop": 0.00621
+        },
+        {
+          "feature": "TOLDHI2",
+          "label": "Told high cholesterol",
+          "auc_drop": 0.00326
+        },
+        {
+          "feature": "_EDUCAG",
+          "label": "Education level",
+          "auc_drop": 0.00256
+        },
+        {
+          "feature": "MENTHLTH",
+          "label": "Mentally unwell days/30",
+          "auc_drop": 0.00239
+        },
+        {
+          "feature": "_BMI5",
+          "label": "Body mass index",
+          "auc_drop": 0.0021
+        },
+        {
+          "feature": "ALCDAY5",
+          "label": "Alcohol days/month",
+          "auc_drop": 0.0018
+        },
+        {
+          "feature": "SEX",
+          "label": "Sex",
+          "auc_drop": 0.0014
+        }
+      ]
+    }
+  },
+  "scoring_note": "Each model exposes `percentiles`: a 101-point grid mapping a calibrated probability to a population percentile. np.searchsorted(percentiles, p) gives the 0-100 risk score to display.",
+  "caveats": [
+    "BRFSS is cross-sectional and self-reported: these models estimate prevalence given a profile, not incidence or future onset.",
+    "Probabilities are isotonically calibrated on a held-out slice - compare 'brier' against 'brier_uncalibrated' to see the gain.",
+    "Percentiles are relative to US adult respondents and do not transfer to other populations.",
+    "BPHIGH4 and TOLDHI2 are themselves diagnosed conditions, so high importance on them reflects clinical correlation, not causation."
+  ]
+}

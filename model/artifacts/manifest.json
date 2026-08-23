@@ -1,0 +1,137 @@
+{
+  "pipeline_version": "2.0.0",
+  "built_at_unix": 1786555826,
+  "python": "3.12.13",
+  "low_mem": false,
+  "duckdb": true,
+  "stage_results": {
+    "1": {
+      "label": "Disease prediction",
+      "ok": true,
+      "exit_code": 0,
+      "error": null,
+      "seconds": 73.4
+    },
+    "severity": {
+      "label": "Severity configuration",
+      "ok": true,
+      "exit_code": 0,
+      "error": null,
+      "seconds": 0.0
+    },
+    "2": {
+      "label": "Chronic risk screening",
+      "ok": true,
+      "exit_code": 0,
+      "error": null,
+      "seconds": 314.5
+    },
+    "3": {
+      "label": "Treatment recommendation",
+      "ok": true,
+      "exit_code": 0,
+      "error": null,
+      "seconds": 55.5
+    }
+  },
+  "headline_metrics": {
+    "disease_top1_accuracy": 0.8703557312252964,
+    "disease_top3_accuracy": 0.9649741562785041,
+    "disease_macro_f1": 0.8658684173863416,
+    "disease_n_classes": 684,
+    "risk_mean_roc_auc": 0.7967,
+    "risk_n_conditions": 10,
+    "treatment_hit_rate_at_5": 0.5379,
+    "treatment_random_baseline_at_5": 0.2828
+  },
+  "artifacts": [
+    {
+      "file": "model3_text_condition.joblib",
+      "bytes": 104337880
+    },
+    {
+      "file": "model2_risk_models.joblib",
+      "bytes": 3232257
+    },
+    {
+      "file": "model3_note_reference.csv",
+      "bytes": 585398
+    },
+    {
+      "file": "model1_symptom_evidence.json",
+      "bytes": 485782
+    },
+    {
+      "file": "model3_treatment_table.csv",
+      "bytes": 164872
+    },
+    {
+      "file": "model1_classifier.joblib",
+      "bytes": 116802
+    },
+    {
+      "file": "model3_note_matrix.npz",
+      "bytes": 37955
+    },
+    {
+      "file": "model2_metrics.json",
+      "bytes": 25775
+    },
+    {
+      "file": "model1_disease_lookup.csv",
+      "bytes": 22451
+    },
+    {
+      "file": "model3_note_vectorizer.joblib",
+      "bytes": 14985
+    },
+    {
+      "file": "model1_symptom_columns.json",
+      "bytes": 8606
+    },
+    {
+      "file": "model3_disease_condition_link.json",
+      "bytes": 8598
+    },
+    {
+      "file": "model1_metrics.json",
+      "bytes": 6914
+    },
+    {
+      "file": "model1_label_encoder.joblib",
+      "bytes": 6220
+    },
+    {
+      "file": "manifest.json",
+      "bytes": 3898
+    },
+    {
+      "file": "model3_metrics.json",
+      "bytes": 2810
+    },
+    {
+      "file": "severity_config.json",
+      "bytes": 2807
+    },
+    {
+      "file": "model2_condition_metrics.csv",
+      "bytes": 1152
+    }
+  ],
+  "total_bytes": 109065162,
+  "artifact_guide": {
+    "model1_classifier.joblib": "disease classifier; .predict_proba(csr 1 x n_symptoms)",
+    "model1_label_encoder.joblib": "LabelEncoder; .classes_[i] maps a column index to a name",
+    "model1_symptom_columns.json": "ordered symptom feature space - build the input vector from this",
+    "model1_symptom_evidence.json": "per-disease top symptoms, for the 'why this diagnosis' panel",
+    "model1_disease_lookup.csv": "display-only reference (symptoms / cures / specialist)",
+    "model2_risk_models.joblib": "{condition: {model, calibrator, features, threshold, percentiles}}",
+    "model2_condition_metrics.csv": "flat per-condition metrics table",
+    "model3_treatment_table.csv": "condition_key -> ranked drugs with scores and review counts",
+    "model3_text_condition.joblib": "{vectorizer, classifier, classes} for free-text input",
+    "model3_disease_condition_link.json": "stage-1 disease name -> stage-3 condition_key",
+    "severity_config.json": "triage weights, red flags, vital ranges, escalation overrides",
+    "*_metrics.json": "held-out metrics WITH baselines and caveats - read before quoting"
+  },
+  "inference_sketch": "p = model1.predict_proba(x)[0]; conf = p.max()\nrisk_p = cal.predict(model.predict_proba(row)[:, 1])[0]\nscore  = np.searchsorted(percentiles, risk_p)   # 0-100\nsev    = compute_severity(symptoms, age, conf, score/100, vitals)\ndrugs  = treatment_table[treatment_table.condition_key == link[dx]]"
+}
