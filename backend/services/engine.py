@@ -52,8 +52,8 @@ class MedAssistEngine:
     # ------------------------------------------------------------------
     # Delegating wrappers, kept so callers have one object to talk to.
     # ------------------------------------------------------------------
-    def predict_diseases(self, symptoms, top_k: int = 5) -> Dict:
-        return self.disease.predict(symptoms, top_k=top_k)
+    def predict_diseases(self, symptoms, top_k: int = 5, sex=None, age=None) -> Dict:
+        return self.disease.predict(symptoms, top_k=top_k, sex=sex, age=age)
 
     def assess_risk(self, profile: Optional[Dict]) -> Dict:
         return self.risk.assess(profile)
@@ -111,7 +111,12 @@ class MedAssistEngine:
         if sex is not None:
             profile.setdefault("sex", sex)
 
-        diagnosis = self.predict_diseases(symptoms or [], top_k=top_k)
+        # Sex is passed so anatomically impossible conditions are excluded -
+        # the classifier has no sex feature and will otherwise rank
+        # "hypertension of pregnancy" first for a male patient.
+        diagnosis = self.predict_diseases(symptoms or [], top_k=top_k,
+                                          sex=profile.get("sex"),
+                                          age=profile.get("age"))
         risk = self.assess_risk(profile if has_profile else None)
 
         chronic = 0.0

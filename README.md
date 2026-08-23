@@ -182,6 +182,20 @@ You **cannot** compute diabetes risk from symptoms alone, and you **cannot** dia
 - Handles sparse binary data naturally
 - Provides calibrated probability scores
 
+#### Anatomical plausibility filter
+
+The symptom matrix has no sex or age feature, so nothing in the classifier
+stops it ranking `hypertension of pregnancy` first for a 35-year-old man - it
+did, at 42.6%. Conditions that are **impossible** for the patient are removed
+before ranking and the remaining probabilities are renormalised; the removed
+names come back in `diagnosis.excluded_sex_specific` so the filter is visible
+rather than silent.
+
+Only the impossible is filtered. Conditions that are merely *rare* in one sex —
+breast cyst or breast infection in a man — stay in the differential, because
+expressing "unlikely" is the model's job and hiding them would conceal real
+presentations.
+
 ### Model 2: Chronic Risk Assessment
 
 **Algorithm:** **Histogram Gradient Boosting + Isotonic Calibration**

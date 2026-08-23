@@ -60,6 +60,89 @@ SYMPTOM_ALIASES = {
 FUZZY_CUTOFF = 0.86
 
 
+# ---------------------------------------------------------------------------
+# Anatomical plausibility
+# ---------------------------------------------------------------------------
+# The symptom matrix carries no sex feature, so the classifier will happily
+# return "hypertension of pregnancy" at 42% for a 35-year-old man - which it
+# did. That is not a ranking problem to be tuned away; the condition is
+# anatomically impossible for that patient and must not appear at all.
+#
+# Matched with word boundaries against the label encoder's class names, so a
+# retrain that adds conditions is covered without editing a hand-listed set of
+# 684 strings. Word boundaries matter: a bare "male" substring also matches
+# "female genitalia infection".
+#
+# Deliberately restricted to the anatomically impossible. Conditions that are
+# merely RARE in one sex - breast cyst, breast infection, osteoporosis - stay
+# in the differential, because "unlikely" is the model's job to express through
+# its probability and suppressing it would hide real presentations.
+
+_FEMALE_ONLY = re.compile(
+    r"\b(pregnan\w*|obstetric\w*|postpartum|eclampsia|preeclampsia|"
+    r"uterine|uterus|vagina\w*|vaginismus|vaginitis|vulva\w*|vulvodynia|"
+    r"ovar\w*|oophor\w*|endometri\w*|menstrual|menstruation|menopause|"
+    r"premenstrual|placenta\w*|abortion|miscarriage|ectopic|"
+    r"hysterectomy|cervical cancer|pelvic inflammatory|female)\b",
+    re.IGNORECASE,
+)
+
+_MALE_ONLY = re.compile(
+    r"\b(prostat\w*|testic\w*|testis|epididym\w*|scrotum|scrotal|"
+    r"penis|penile|balanitis|phimosis|varicocele|spermatocele|male)\b",
+    re.IGNORECASE,
+)
+
+
+def _normalise_sex(sex) -> Optional[str]:
+    s = str(sex or "").strip().lower()
+    if s in ("m", "male"):
+        return "male"
+    if s in ("f", "female"):
+        return "female"
+    return None
+
+
+# Conditions that require an ongoing or recent pregnancy. Excluded outside a
+# plausible reproductive age for the same reason as the sex filter: the answer
+# is impossible, not merely unlikely. The bounds are deliberately generous -
+# pregnancy outside them is rare, not unheard of, and under-filtering is the
+# safer error here.
+PREGNANCY_PATTERN = (
+    r"\b(pregnan\w*|obstetric\w*|postpartum|eclampsia|preeclampsia|"
+    r"placenta\w*|abortion|miscarriage|ectopic|uterine atony)\b"
+)
+_PREGNANCY_ONLY = re.compile(PREGNANCY_PATTERN, re.IGNORECASE)
+PREGNANCY_MIN_AGE = 10
+PREGNANCY_MAX_AGE = 60
+
+
+def incompatible_with_sex(disease: str, sex: Optional[str]) -> bool:
+    """True when `disease` cannot occur in a patient of this sex."""
+    sex = _normalise_sex(sex)
+    if sex is None:
+        return False
+    name = str(disease)
+    if sex == "male":
+        # "female genitalia infection" matches _MALE_ONLY on the "male" inside
+        # "female", so the female test has to win.
+        return bool(_FEMALE_ONLY.search(name))
+    return bool(_MALE_ONLY.search(name) and not _FEMALE_ONLY.search(name))
+
+
+def implausible_for_age(disease: str, age) -> bool:
+    """True when `disease` requires a pregnancy this patient cannot have."""
+    if age is None:
+        return False
+    try:
+        years = int(age)
+    except (TypeError, ValueError):
+        return False
+    if PREGNANCY_MIN_AGE <= years <= PREGNANCY_MAX_AGE:
+        return False
+    return bool(_PREGNANCY_ONLY.search(str(disease)))
+
+
 def _norm(s: str) -> str:
     return re.sub(r"\s+", " ", str(s).lower().strip())
 
@@ -152,7 +235,20 @@ class DiseaseModel:
                 return float(b["empirical_accuracy"])
         return None
 
-    def predict(self, symptoms: Iterable, top_k: int = 5) -> Dict:
+    def _implausible_mask(self, sex: Optional[str], age):
+        """Indices of classes impossible for this patient, cached per bucket."""
+        # Age only matters via the pregnancy window, so bucket on that rather
+        # than on every distinct age.
+        in_window = (age is not None
+                     and PREGNANCY_MIN_AGE <= int(age) <= PREGNANCY_MAX_AGE)
+        key = f"implausible:{_normalise_sex(sex)}:{None if age is None else in_window}"
+        def _build():
+            return [i for i, n in enumerate(self.art.disease_names)
+                    if incompatible_with_sex(n, sex) or implausible_for_age(n, age)]
+        return self.art._get(key, _build)
+
+    def predict(self, symptoms: Iterable, top_k: int = 5,
+                sex: Optional[str] = None, age=None) -> Dict:
         X, matched, unmatched, raw_names = self.encode(symptoms)
 
         if not matched:
@@ -166,9 +262,24 @@ class DiseaseModel:
             }
 
         proba = self.art.disease_model.predict_proba(X)[0]
-        order = np.argsort(proba)[::-1][:top_k]
-
         names = self.art.disease_names
+
+        # Drop anatomically impossible conditions BEFORE ranking, then
+        # renormalise so the remaining probabilities still sum to 1. Without
+        # the renormalisation the displayed confidences would silently shrink
+        # by whatever share the removed classes held.
+        excluded = []
+        blocked = (self._implausible_mask(sex, age)
+                   if (_normalise_sex(sex) or age is not None) else [])
+        if blocked:
+            excluded = [names[i] for i in blocked if proba[i] > 0.001]
+            proba = proba.copy()
+            proba[blocked] = 0.0
+            total = proba.sum()
+            if total > 0:
+                proba /= total
+
+        order = np.argsort(proba)[::-1][:top_k]
         evidence = self.art.symptom_evidence
         lookup = self.art.disease_lookup
         matched_set = {m.lower() for m in matched}
@@ -218,6 +329,11 @@ class DiseaseModel:
             "matched_symptoms": matched,
             "unmatched_symptoms": unmatched,
             "symptom_coverage": round(len(matched) / max(len(raw_names), 1), 3),
+            # Surfaced rather than silently dropped: a clinician reviewing the
+            # differential should be able to see that the filter fired.
+            "excluded_sex_specific": sorted(excluded),
+            "filtered_for_sex": _normalise_sex(sex),
+            "filtered_for_age": age,
         }
 
 
