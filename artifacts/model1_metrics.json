@@ -1,0 +1,330 @@
+{
+  "selected_model": "bernoulli_nb",
+  "n_classes": 684,
+  "n_features": 377,
+  "n_train_rows": 197339,
+  "n_test_rows": 49335,
+  "majority_baseline": 0.00917,
+  "candidates": {
+    "bernoulli_nb": {
+      "accuracy": 0.8703557312252964,
+      "macro_f1": 0.8658684173863416,
+      "fit_seconds": 3.9,
+      "top1_accuracy": 0.8703557312252964,
+      "top3_accuracy": 0.9649741562785041,
+      "top5_accuracy": 0.9838856795378534
+    },
+    "complement_nb": {
+      "accuracy": 0.4878686530860444,
+      "macro_f1": 0.21356271558136602,
+      "fit_seconds": 3.7,
+      "top1_accuracy": 0.4878686530860444,
+      "top3_accuracy": 0.7359481098611533,
+      "top5_accuracy": 0.8249721293199554
+    },
+    "softmax_ridge": {
+      "accuracy": 0.6364447147055843,
+      "macro_f1": 0.3405427246216795,
+      "fit_seconds": 1.4,
+      "top1_accuracy": 0.6364447147055843,
+      "top3_accuracy": 0.8447147055842708,
+      "top5_accuracy": 0.9033546163980947
+    },
+    "ensemble": {
+      "accuracy": 0.8692409040235127,
+      "macro_f1": 0.8635298017057427,
+      "log_loss": 1.069456621304163,
+      "top1_accuracy": 0.8692409040235127,
+      "top3_accuracy": 0.9649538866930172,
+      "top5_accuracy": 0.9839464882943144
+    }
+  },
+  "headline": {
+    "accuracy": 0.8703557312252964,
+    "macro_f1": 0.8658684173863416,
+    "fit_seconds": 3.9,
+    "top1_accuracy": 0.8703557312252964,
+    "top3_accuracy": 0.9649741562785041,
+    "top5_accuracy": 0.9838856795378534
+  },
+  "worst_classes_by_f1": [
+    {
+      "disease": "vacterl syndrome",
+      "f1": 0.0,
+      "test_n": 2
+    },
+    {
+      "disease": "spinocerebellar ataxia",
+      "f1": 0.0,
+      "test_n": 1
+    },
+    {
+      "disease": "aphakia",
+      "f1": 0.0,
+      "test_n": 2
+    },
+    {
+      "disease": "optic neuritis",
+      "f1": 0.0,
+      "test_n": 2
+    },
+    {
+      "disease": "open wound of the nose",
+      "f1": 0.0,
+      "test_n": 2
+    },
+    {
+      "disease": "ovarian cancer",
+      "f1": 0.0,
+      "test_n": 4
+    },
+    {
+      "disease": "pneumoconiosis",
+      "f1": 0.0,
+      "test_n": 3
+    },
+    {
+      "disease": "poisoning due to antipsychotics",
+      "f1": 0.0,
+      "test_n": 2
+    },
+    {
+      "disease": "insulin overdose",
+      "f1": 0.0,
+      "test_n": 2
+    },
+    {
+      "disease": "acute fatty liver of pregnancy",
+      "f1": 0.0,
+      "test_n": 2
+    },
+    {
+      "disease": "vitreous hemorrhage",
+      "f1": 0.0,
+      "test_n": 5
+    },
+    {
+      "disease": "floaters",
+      "f1": 0.0,
+      "test_n": 5
+    },
+    {
+      "disease": "fracture of the finger",
+      "f1": 0.0,
+      "test_n": 1
+    },
+    {
+      "disease": "diabetes insipidus",
+      "f1": 0.0,
+      "test_n": 2
+    },
+    {
+      "disease": "epidural hemorrhage",
+      "f1": 0.0,
+      "test_n": 2
+    },
+    {
+      "disease": "ectropion",
+      "f1": 0.3158,
+      "test_n": 8
+    },
+    {
+      "disease": "skin disorder",
+      "f1": 0.4216,
+      "test_n": 317
+    },
+    {
+      "disease": "intertrigo",
+      "f1": 0.4375,
+      "test_n": 21
+    },
+    {
+      "disease": "atrial fibrillation",
+      "f1": 0.4444,
+      "test_n": 14
+    },
+    {
+      "disease": "skin polyp",
+      "f1": 0.4457,
+      "test_n": 179
+    },
+    {
+      "disease": "seborrheic keratosis",
+      "f1": 0.4678,
+      "test_n": 174
+    },
+    {
+      "disease": "post traumatic stress disorder",
+      "f1": 0.4781,
+      "test_n": 121
+    },
+    {
+      "disease": "colorectal cancer",
+      "f1": 0.5,
+      "test_n": 3
+    },
+    {
+      "disease": "hypothermia",
+      "f1": 0.5,
+      "test_n": 3
+    },
+    {
+      "disease": "fracture of the foot",
+      "f1": 0.5,
+      "test_n": 3
+    },
+    {
+      "disease": "poisoning due to antidepressants",
+      "f1": 0.5,
+      "test_n": 6
+    },
+    {
+      "disease": "raynaud",
+      "f1": 0.5,
+      "test_n": 2
+    },
+    {
+      "disease": "whooping cough",
+      "f1": 0.5263,
+      "test_n": 9
+    },
+    {
+      "disease": "corneal abrasion",
+      "f1": 0.5424,
+      "test_n": 100
+    },
+    {
+      "disease": "retinal detachment",
+      "f1": 0.5578,
+      "test_n": 56
+    },
+    {
+      "disease": "acute glaucoma",
+      "f1": 0.56,
+      "test_n": 42
+    },
+    {
+      "disease": "personality disorder",
+      "f1": 0.5606,
+      "test_n": 182
+    },
+    {
+      "disease": "gestational diabetes",
+      "f1": 0.5714,
+      "test_n": 5
+    },
+    {
+      "disease": "vitreous degeneration",
+      "f1": 0.573,
+      "test_n": 68
+    },
+    {
+      "disease": "diabetic retinopathy",
+      "f1": 0.5775,
+      "test_n": 91
+    },
+    {
+      "disease": "dry eye of unknown cause",
+      "f1": 0.5796,
+      "test_n": 172
+    },
+    {
+      "disease": "psychotic disorder",
+      "f1": 0.58,
+      "test_n": 180
+    },
+    {
+      "disease": "open wound of the eye",
+      "f1": 0.6,
+      "test_n": 6
+    },
+    {
+      "disease": "corneal disorder",
+      "f1": 0.6,
+      "test_n": 135
+    },
+    {
+      "disease": "bladder disorder",
+      "f1": 0.6024,
+      "test_n": 91
+    }
+  ],
+  "confidence_calibration": [
+    {
+      "bin_low": 0.0,
+      "bin_high": 0.1,
+      "n": 130,
+      "mean_confidence": 0.0759,
+      "empirical_accuracy": 0.0692
+    },
+    {
+      "bin_low": 0.1,
+      "bin_high": 0.2,
+      "n": 720,
+      "mean_confidence": 0.1564,
+      "empirical_accuracy": 0.15
+    },
+    {
+      "bin_low": 0.2,
+      "bin_high": 0.3,
+      "n": 1406,
+      "mean_confidence": 0.2539,
+      "empirical_accuracy": 0.2404
+    },
+    {
+      "bin_low": 0.3,
+      "bin_high": 0.4,
+      "n": 1851,
+      "mean_confidence": 0.3518,
+      "empirical_accuracy": 0.3414
+    },
+    {
+      "bin_low": 0.4,
+      "bin_high": 0.5,
+      "n": 1483,
+      "mean_confidence": 0.45,
+      "empirical_accuracy": 0.4471
+    },
+    {
+      "bin_low": 0.5,
+      "bin_high": 0.6,
+      "n": 2857,
+      "mean_confidence": 0.5379,
+      "empirical_accuracy": 0.5117
+    },
+    {
+      "bin_low": 0.6,
+      "bin_high": 0.7,
+      "n": 2023,
+      "mean_confidence": 0.6512,
+      "empirical_accuracy": 0.6431
+    },
+    {
+      "bin_low": 0.7,
+      "bin_high": 0.8,
+      "n": 1152,
+      "mean_confidence": 0.7454,
+      "empirical_accuracy": 0.7161
+    },
+    {
+      "bin_low": 0.8,
+      "bin_high": 0.9,
+      "n": 621,
+      "mean_confidence": 0.8429,
+      "empirical_accuracy": 0.8438
+    },
+    {
+      "bin_low": 0.9,
+      "bin_high": 1.0,
+      "n": 36951,
+      "mean_confidence": 0.9992,
+      "empirical_accuracy": 0.9996
+    }
+  ],
+  "caveats": [
+    "The source symptom matrix is synthetically augmented from disease-symptom profiles; held-out accuracy overstates real clinical performance and should not be quoted as diagnostic accuracy.",
+    "Symptom-checker / triage aid, not a diagnostic device.",
+    "Diseases with fewer than 8 samples were excluded and cannot be predicted at all.",
+    "Check worst_classes_by_f1 before trusting any single prediction."
+  ]
+}

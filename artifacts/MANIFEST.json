@@ -1,0 +1,101 @@
+{
+  "created": "2026-08-23T07:25:05",
+  "n_files": 21,
+  "files": {
+    "model1_classifier.joblib": 116802,
+    "model1_label_encoder.joblib": 6220,
+    "model1_metrics.json": 6935,
+    "model1_symptom_columns.json": 7850,
+    "model1_symptom_evidence.json": 339050,
+    "model2_condition_metrics.csv": 1053,
+    "model2_metrics.json": 18148,
+    "model2_risk_models.joblib": 3232252,
+    "model3_cascade_metrics.json": 2586,
+    "model3_disease_condition_link.json": 8598,
+    "model3_metrics.json": 1962,
+    "model3_mimic_layer.joblib": 1420706,
+    "model3_mimic_matrix.npz": 33392,
+    "model3_mimic_records.csv": 130465,
+    "model3_note_matrix.npz": 50399,
+    "model3_note_metrics.json": 517,
+    "model3_note_reference.csv": 735664,
+    "model3_note_vectorizer.joblib": 18402,
+    "model3_text_condition.joblib": 104341376,
+    "model3_treatment_table.csv": 197096,
+    "severity_config.json": 2441
+  },
+  "layer_a_included": true,
+  "gate": {
+    "sim_floor": 0.1,
+    "min_support": 3,
+    "cat_threshold": 0.3,
+    "coverage_on_notes": 0.9470198675496688,
+    "layerB_only_hit": 0.1921,
+    "layerA_ungated_hit": 0.8344,
+    "cascade_hit": 0.8079,
+    "cascade_beats_layerB": true,
+    "sweep": [
+      {
+        "floor": 0.05,
+        "coverage": 0.947,
+        "cascade_hit": 0.8079,
+        "layerA_hit_when_fired": 0.8392
+      },
+      {
+        "floor": 0.1,
+        "coverage": 0.947,
+        "cascade_hit": 0.8079,
+        "layerA_hit_when_fired": 0.8392
+      },
+      {
+        "floor": 0.15,
+        "coverage": 0.8675,
+        "cascade_hit": 0.755,
+        "layerA_hit_when_fired": 0.8397
+      },
+      {
+        "floor": 0.2,
+        "coverage": 0.7417,
+        "cascade_hit": 0.6623,
+        "layerA_hit_when_fired": 0.8482
+      },
+      {
+        "floor": 0.25,
+        "coverage": 0.5762,
+        "cascade_hit": 0.5563,
+        "layerA_hit_when_fired": 0.8621
+      },
+      {
+        "floor": 0.3,
+        "coverage": 0.4371,
+        "cascade_hit": 0.4702,
+        "layerA_hit_when_fired": 0.8788
+      },
+      {
+        "floor": 0.4,
+        "coverage": 0.245,
+        "cascade_hit": 0.351,
+        "layerA_hit_when_fired": 0.8919
+      },
+      {
+        "floor": 0.5,
+        "coverage": 0.106,
+        "cascade_hit": 0.2715,
+        "layerA_hit_when_fired": 0.9375
+      },
+      {
+        "floor": 0.65,
+        "coverage": 0.0397,
+        "cascade_hit": 0.2252,
+        "layerA_hit_when_fired": 1.0
+      },
+      {
+        "floor": 0.8,
+        "coverage": 0.0132,
+        "cascade_hit": 0.2053,
+        "layerA_hit_when_fired": 1.0
+      }
+    ]
+  },
+  "app_entry_point": "TreatmentCascade(artifacts_dir).recommend(query, disease=...)"
+}

@@ -1,0 +1,13 @@
+{
+  "skipped": false,
+  "n_usable_notes": 942,
+  "n_drug_tokens": 2370,
+  "n_conditions_with_notes": 249,
+  "n_conditions_strict_match": 63,
+  "n_conditions_loose_match": 186,
+  "drug_rows_confirmed": 544,
+  "drug_rows_total": 2283,
+  "top5_confirmed_rate": 0.2582,
+  "role": "corroboration and dosing illustration only - NOT a ranker",
+  "caveat": "A discharge note lists every drug for a patient who often has several problems at once, so a drug appearing alongside a diagnosis is co-occurrence, not attribution."
+}

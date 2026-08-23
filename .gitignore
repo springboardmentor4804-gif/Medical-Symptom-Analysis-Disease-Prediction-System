@@ -45,7 +45,9 @@ yarn-error.log*
 # These patterns MUST be anchored with a leading slash. A bare `artifacts/`
 # matches at every depth in git, so it silently excludes model/artifacts/ too
 # and the repo clones without the models the API needs to start.
-/artifacts/
+#
+# /artifacts/ is now tracked via Git LFS (see .gitattributes) because it holds
+# the model3 text/mimic layers that model/artifacts/ does not carry.
 /training/artifacts/
 .kagglehub/
 

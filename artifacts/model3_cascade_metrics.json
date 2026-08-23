@@ -1,0 +1,96 @@
+{
+  "layer_a_enabled": true,
+  "n_admissions": 754,
+  "stage1": {
+    "precision_micro": 0.6109,
+    "recall_micro": 0.5817,
+    "f1_micro": 0.596,
+    "f1_macro": 0.5016,
+    "exact_match": 0.0397
+  },
+  "stage1_baseline": {
+    "precision_micro": 0.6954,
+    "recall_micro": 0.2861,
+    "f1_micro": 0.4054,
+    "f1_macro": 0.1243,
+    "exact_match": 0.0066
+  },
+  "gate": {
+    "sim_floor": 0.1,
+    "min_support": 3,
+    "cat_threshold": 0.3,
+    "coverage_on_notes": 0.9470198675496688,
+    "layerB_only_hit": 0.1921,
+    "layerA_ungated_hit": 0.8344,
+    "cascade_hit": 0.8079,
+    "cascade_beats_layerB": true,
+    "sweep": [
+      {
+        "floor": 0.05,
+        "coverage": 0.947,
+        "cascade_hit": 0.8079,
+        "layerA_hit_when_fired": 0.8392
+      },
+      {
+        "floor": 0.1,
+        "coverage": 0.947,
+        "cascade_hit": 0.8079,
+        "layerA_hit_when_fired": 0.8392
+      },
+      {
+        "floor": 0.15,
+        "coverage": 0.8675,
+        "cascade_hit": 0.755,
+        "layerA_hit_when_fired": 0.8397
+      },
+      {
+        "floor": 0.2,
+        "coverage": 0.7417,
+        "cascade_hit": 0.6623,
+        "layerA_hit_when_fired": 0.8482
+      },
+      {
+        "floor": 0.25,
+        "coverage": 0.5762,
+        "cascade_hit": 0.5563,
+        "layerA_hit_when_fired": 0.8621
+      },
+      {
+        "floor": 0.3,
+        "coverage": 0.4371,
+        "cascade_hit": 0.4702,
+        "layerA_hit_when_fired": 0.8788
+      },
+      {
+        "floor": 0.4,
+        "coverage": 0.245,
+        "cascade_hit": 0.351,
+        "layerA_hit_when_fired": 0.8919
+      },
+      {
+        "floor": 0.5,
+        "coverage": 0.106,
+        "cascade_hit": 0.2715,
+        "layerA_hit_when_fired": 0.9375
+      },
+      {
+        "floor": 0.65,
+        "coverage": 0.0397,
+        "cascade_hit": 0.2252,
+        "layerA_hit_when_fired": 1.0
+      },
+      {
+        "floor": 0.8,
+        "coverage": 0.0132,
+        "cascade_hit": 0.2053,
+        "layerA_hit_when_fired": 1.0
+      }
+    ]
+  },
+  "caveats": [
+    "Layer A is gated on similarity AND support - it declines most queries by design, and every decline is recorded as a gate_reason.",
+    "The gate was tuned on held-out MIMIC diagnoses, which favour Layer A's phrasing. It measures routing quality, not that notes beat reviews in general.",
+    "A discharge note lists every drug for a patient who often had several problems at once - co-occurrence, not attribution.",
+    "Layer A predicts a drug CLASS then a drug within it; classes with under 15 admissions use a frequency fallback, not a model."
+  ]
+}

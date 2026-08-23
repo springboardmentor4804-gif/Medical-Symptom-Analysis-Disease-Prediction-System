@@ -1,0 +1,74 @@
+{
+  "primary_source": "UCI ML Drug Review",
+  "n_reviews": 209349,
+  "n_conditions_rankable": 329,
+  "n_drugs": 3324,
+  "global_mean_rating": 6.9924,
+  "ranking": {
+    "gamma": 0.5,
+    "gamma_sweep": [
+      {
+        "gamma": 0.0,
+        "hit_rate_at_5": 0.3383
+      },
+      {
+        "gamma": 0.15,
+        "hit_rate_at_5": 0.5012
+      },
+      {
+        "gamma": 0.3,
+        "hit_rate_at_5": 0.538
+      },
+      {
+        "gamma": 0.5,
+        "hit_rate_at_5": 0.5402
+      },
+      {
+        "gamma": 0.75,
+        "hit_rate_at_5": 0.5401
+      },
+      {
+        "gamma": 1.0,
+        "hit_rate_at_5": 0.5394
+      }
+    ],
+    "n_eval_at_1": 25247,
+    "hit_rate_at_1": 0.1935,
+    "popularity_baseline_at_1": 0.1932,
+    "random_baseline_at_1": 0.0732,
+    "n_eval_at_3": 25247,
+    "hit_rate_at_3": 0.4163,
+    "popularity_baseline_at_3": 0.4069,
+    "random_baseline_at_3": 0.1907,
+    "n_eval_at_5": 25247,
+    "hit_rate_at_5": 0.5402,
+    "popularity_baseline_at_5": 0.5329,
+    "random_baseline_at_5": 0.2849,
+    "beats_popularity_baseline": true
+  },
+  "text_condition_classifier": {
+    "n_classes": 329,
+    "n_train": 167479,
+    "accuracy": 0.6555,
+    "macro_f1": 0.3127,
+    "top3_accuracy": 0.8507,
+    "majority_baseline": 0.1836
+  },
+  "disease_condition_link": {
+    "linked": 219,
+    "by_method": {
+      "substring": 112,
+      "exact": 69,
+      "fuzzy_loose": 30,
+      "fuzzy_strict": 5,
+      "token_subset": 3
+    }
+  },
+  "caveats": [
+    "`rank` blends outcome rating with prevalence (gamma tuned on held-out data). `rank_by_rating` is the pure-quality order. Show both.",
+    "Links from 'fuzzy_loose' are weakest; check by_method before trusting coverage.",
+    "Ratings are patient-reported satisfaction, not clinical efficacy or safety.",
+    "Rankings track prescribing fashion and marketing as much as effectiveness.",
+    "Clinician-facing decision support only - never show to a patient as a prescription."
+  ]
+}
