@@ -34,9 +34,16 @@ def cascade():
 # Routing - the contract from the integration spec
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("query", ["sepsis", "pneumonia"])
+@pytest.mark.parametrize("query", ["pneumonia", "heart failure", "atrial fibrillation"])
 def test_in_domain_queries_route_to_mimic(cascade, query):
-    """Hospital-domain diagnoses should clear all three gates."""
+    """
+    Hospital-domain diagnoses with a real prescribing pattern clear the gates.
+
+    "sepsis" was in this list while Layer A still fell back to stage 2's modal
+    drug per class. It has only six heterogeneous neighbours in the corpus and
+    no drug shared by even min_support of them, so it now correctly returns no
+    pattern - see test_sepsis_has_no_prescribing_pattern.
+    """
     if not cascade.layer_a_enabled:
         pytest.skip("Layer A artifacts absent; cascade is Layer B only")
     result = cascade.recommend(query)
@@ -78,7 +85,7 @@ def test_nonsense_returns_empty_panel(cascade, query):
 # Response contract
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("query", ["sepsis", "acne", "xyzzy nonsense"])
+@pytest.mark.parametrize("query", ["pneumonia", "acne", "xyzzy nonsense"])
 def test_every_response_carries_the_required_fields(cascade, query):
     result = cascade.recommend(query)
     for field in ("layer", "gate_reason", "drugs", "evidence"):
@@ -92,7 +99,7 @@ def test_layers_carry_different_caveats(cascade):
     """The whole point of the cascade: the sources must not read alike."""
     if not cascade.layer_a_enabled:
         pytest.skip("Layer A artifacts absent")
-    mimic = cascade.recommend("sepsis")["evidence"]["caveat"]
+    mimic = cascade.recommend("pneumonia")["evidence"]["caveat"]
     reviews = cascade.recommend("acne")["evidence"]["caveat"]
     assert mimic != reviews
     assert "co-occurrence" in mimic
@@ -168,3 +175,115 @@ def test_match_score_finds_condition_inside_longer_text():
 
 def test_match_score_tolerates_a_typo():
     assert _match_score("diabetis", "diabetes") >= CONDITION_MATCH_FLOOR
+
+
+# ---------------------------------------------------------------------------
+# Regressions: Layer A used to answer everything with ward-routine drugs
+# ---------------------------------------------------------------------------
+
+def test_sepsis_has_no_prescribing_pattern(cascade):
+    """
+    Honest emptiness beats a confident generic answer.
+
+    Sepsis has six neighbours in the corpus, all with different underlying
+    causes, and no drug appears in min_support of them. The drug-review corpus
+    has no sepsis condition either - nobody reviews sepsis medication. Both
+    layers therefore have nothing to say, and saying so is the correct output.
+    """
+    if not cascade.layer_a_enabled:
+        pytest.skip("Layer A artifacts absent")
+    result = cascade.recommend("sepsis")
+    assert result["drugs"] == []
+    assert result["layer"] == "none"
+
+
+@pytest.mark.parametrize("query,banned", [
+    ("migraine", {"docusate sodium", "aspirin"}),
+    ("depression", {"ciprofloxacin", "docusate sodium"}),
+    ("anxiety", {"metronidazole", "docusate sodium"}),
+])
+def test_no_ward_routine_drugs_for_outpatient_conditions(cascade, query, banned):
+    """
+    The regression this whole layer was rebuilt for.
+
+    Stage 1's prior clears cat_threshold for all 13 drug classes, so taking it
+    at face value named one drug per class and returned inpatient routine -
+    docusate for migraine, ciprofloxacin for depression. Classes are now
+    filtered by lift over that prior.
+    """
+    result = cascade.recommend(query)
+    names = {d["drug"].lower() for d in result["drugs"]}
+    assert not (names & banned), (
+        f"{query!r} returned ward-routine drugs {names & banned} "
+        f"from layer {result['layer']!r}")
+    assert result["drugs"], f"{query!r} should still get an answer from Layer B"
+
+
+def test_nonspecific_match_is_rejected(cascade):
+    """
+    "acute bronchiolitis" matched "acute cholecystitis" at 0.39 similarity on
+    the word "acute" alone, cleared every gate and recommended metformin.
+    """
+    if not cascade.layer_a_enabled:
+        pytest.skip("Layer A artifacts absent")
+    result = cascade.recommend("acute bronchiolitis")
+    assert result["layer"] != "mimic"
+    assert "metformin" not in {d["drug"].lower() for d in result["drugs"]}
+
+
+def test_substring_collision_links_are_dropped(cascade):
+    """
+    The artifact maps 27 unrelated diseases onto the two-letter fragment "ge",
+    whose only drug is an antihypertensive. Those links must not be used.
+    """
+    link = get_artifacts().disease_condition_link
+    assert "ge" not in link.values()
+    assert "min" not in link.values()
+    # ...while genuine short links from the same matcher survive.
+    assert link.get("flu") == "influenza"
+    assert link.get("allergy") == "allergies"
+
+
+def test_dropped_links_are_reported(cascade):
+    """A silent repair is a repair nobody fixes upstream."""
+    dropped = get_artifacts().disease_link_dropped
+    assert dropped, "expected the known substring collisions to be reported"
+    assert any("ge" in v for v in dropped.values())
+
+
+@pytest.mark.parametrize("disease,wrong_condition", [
+    # Every one of these was an accepted match under linear coverage scoring,
+    # and every one would have prescribed for a different disease.
+    ("interstitial lung", "interstitial cystitis"),       # lung -> bladder drugs
+    ("amyotrophic lateral sclerosis", "multiple sclerosis"),
+    ("acute respiratory distress syndrome", "acute coronary syndrome"),
+    ("acute bronchospasm", "gout acute"),
+    ("abscess of the lung", "dental abscess"),
+    ("arthritis of the hip", "rheumatoid arthritis"),
+    ("alcohol abuse", "alcohol withdrawal"),
+    ("asperger syndrome", "tourette s syndrome"),
+])
+def test_half_word_overlap_is_not_a_condition_match(disease, wrong_condition):
+    """
+    Sharing one word out of two is usually a DIFFERENT disease, not a partial
+    match. Linear coverage scored all of these at exactly 0.45 - the floor -
+    and served the wrong drug list. Coverage is squared for that reason.
+    """
+    assert _match_score(disease, wrong_condition) < CONDITION_MATCH_FLOOR
+
+
+@pytest.mark.parametrize("query,condition", [
+    ("diabetes", "diabetes type 2"),      # narrowed, same disease
+    ("herpes", "herpes simplex"),
+])
+def test_a_query_that_prefixes_a_condition_still_matches(query, condition):
+    """The extra words specialise the condition; they do not relocate it."""
+    assert _match_score(query, condition) >= CONDITION_MATCH_FLOOR
+
+
+def test_interstitial_lung_returns_nothing_rather_than_bladder_drugs(cascade):
+    """End-to-end guard on the worst observed failure."""
+    result = cascade.recommend("interstitial lung", disease="interstitial lung")
+    names = {d["drug"].lower() for d in result["drugs"]}
+    assert not (names & {"elmiron", "pentosan polysulfate sodium",
+                         "phenazopyridine"})

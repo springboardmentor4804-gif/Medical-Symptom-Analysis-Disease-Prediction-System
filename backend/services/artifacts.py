@@ -36,7 +36,9 @@ feature and says so. Nothing here substitutes a default for absent data.
 
 from __future__ import annotations
 
+import difflib
 import json
+import re
 import logging
 import sys
 import threading
@@ -174,6 +176,26 @@ def _register_unpickle_shim():
 
 
 _register_unpickle_shim()
+
+
+def _link_plausibility(disease: str, condition: str) -> float:
+    """
+    Is `condition` a recognisable name for `disease`? 0..1.
+
+    Deliberately local and simple rather than importing the cascade's matcher -
+    artifacts.py must not depend on the modules that consume it. It only has to
+    separate a real (if misspelt) condition name from a two-letter fragment.
+    """
+    d = {t for t in re.sub(r"[^a-z0-9]+", " ", str(disease).lower().strip()).split() if t}
+    c = {t for t in re.sub(r"[^a-z0-9]+", " ", str(condition).lower().strip()).split() if t}
+    if not d or not c:
+        return 0.0
+    hits = 0
+    for word in c:
+        if word in d or any(
+                difflib.SequenceMatcher(None, word, dw).ratio() >= 0.8 for dw in d):
+            hits += 1
+    return hits / len(c)
 
 
 class ArtifactsUnavailable(RuntimeError):
@@ -340,9 +362,79 @@ class Artifacts:
 
     @property
     def disease_condition_link(self):
-        """Model 1 disease name -> drug-review condition_key."""
-        return self._get(
-            "link", lambda: self.load_json("model3_disease_condition_link.json"))
+        """
+        Model 1 disease name -> drug-review condition_key, with the artifact's
+        substring-collision links removed.
+
+        The notebook builds 112 of these 219 links by substring match, and that
+        matcher has no word-boundary check. The result is a set of two- and
+        three-letter fragments acting as catch-all buckets:
+
+            'ge'  <- asper(ge)r syndrome, (ge)nital herpes, esophageal cancer,
+                     intracerebral hemorrhage, ... 27 diseases, 1 drug total
+                     (amlodipine/valsartan - a blood-pressure drug)
+            'min' <- abdo(min)al aortic aneurysm, vita(min) b12 deficiency ...
+            'gas' <- (gas)tritis, (gas)troesophageal reflux ...
+
+        Serving one antihypertensive as "the treatment" for 27 unrelated
+        diseases is worse than serving nothing, so those links are dropped and
+        the diseases fall through to the cascade's normal resolution.
+
+        The test is deliberately narrow - the condition key must appear inside
+        the disease name WITHOUT word boundaries. That is the exact signature of
+        the collision, and it spares the legitimate short links the same
+        matcher produced:
+
+            'flu' -> 'influenza'      (target is not a substring of the source)
+            'allergy' -> 'allergies'  (morphological variant, not a fragment)
+
+        Repairing here rather than by rewriting the JSON means a fresh export
+        from the notebook is corrected too, instead of silently reintroducing
+        the bug. Fixing it upstream in the link builder is still the right
+        long-term move.
+        """
+        def _load():
+            raw = self.load_json("model3_disease_condition_link.json")
+            table = self.treatment_table
+            kept, dropped = {}, {}
+            for disease, condition in raw.items():
+                if condition not in table:
+                    dropped[disease] = f"{condition} (not in treatment table)"
+                    continue
+                d_norm = re.sub(r"[^a-z0-9]+", " ", str(disease).lower())
+                c_norm = re.sub(r"[^a-z0-9]+", " ", str(condition).lower()).strip()
+                # A collision needs BOTH signals: the key hides inside the
+                # disease name without word boundaries, AND it is not a
+                # recognisable name for that disease.
+                #
+                # The second test matters because the treatment table also
+                # contains keys with a character lopped off the end or front -
+                # 'skin cance', 'bipolar disorde', 'ibromyalgia'. Those trip
+                # the substring test too, but they are the RIGHT condition and
+                # dropping them would throw away real coverage. They score well
+                # above the floor against their disease, so they survive.
+                collides = (c_norm in d_norm
+                            and not re.search(rf"\b{re.escape(c_norm)}\b", d_norm))
+                if collides and _link_plausibility(disease, condition) < 0.45:
+                    dropped[disease] = f"{condition} (substring collision)"
+                    continue
+                kept[disease] = condition
+            if dropped:
+                logger.warning(
+                    "disease_condition_link: dropped %d of %d links as "
+                    "substring collisions (e.g. %s). Fix the link builder in "
+                    "the training notebook.",
+                    len(dropped), len(raw),
+                    "; ".join(f"{k} -> {v}" for k, v in list(dropped.items())[:3]))
+            self._cache["link_dropped"] = dropped
+            return kept
+        return self._get("link", _load)
+
+    @property
+    def disease_link_dropped(self) -> dict:
+        """Links rejected by the repair above, for /system/model-status."""
+        _ = self.disease_condition_link
+        return self._cache.get("link_dropped", {})
 
     @property
     def treatment_metrics(self):

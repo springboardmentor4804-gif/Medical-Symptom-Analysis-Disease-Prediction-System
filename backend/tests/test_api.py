@@ -417,3 +417,64 @@ def test_model_status_reports_gate_thresholds(client):
     if cascade["layer_a_enabled"]:
         for key in ("sim_floor", "min_support", "cat_threshold"):
             assert key in cascade["gate"]
+
+
+def test_treatment_suggestions_for_prescriber(client):
+    """The prescription form's bridge to the cascade."""
+    ptoken = signup_and_login(client, "rxpatient@example.com")
+    r = client.post("/assess", json={
+        "symptoms": [{"name": "cough", "severity": "high"},
+                     {"name": "fever", "severity": "high"}],
+        "age": 61, "gender": "male",
+    }, headers={"Authorization": f"Bearer {ptoken}"})
+    assert r.status_code == 200, r.text
+
+    me = client.get("/me/summary", headers={"Authorization": f"Bearer {ptoken}"})
+    assert me.status_code == 200
+
+    prov = signup_and_login(client, "rxprovider@example.com", role="provider")
+    ph = {"Authorization": f"Bearer {prov}"}
+
+    # Free-text lookup.
+    r = client.get("/treatment-suggestions", params={"query": "acne"}, headers=ph)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["layer"] in ("mimic", "drug_reviews", "none")
+    assert body["evidence"]["caveat"]
+    assert body["prescribing_note"]
+    assert body["drugs"], "acne should resolve to drug-review treatments"
+
+    # Patients cannot pull prescribing suggestions.
+    r = client.get("/treatment-suggestions", params={"query": "acne"},
+                   headers={"Authorization": f"Bearer {ptoken}"})
+    assert r.status_code == 403
+
+    # Neither argument supplied is a bad request, not a silent empty answer.
+    assert client.get("/treatment-suggestions", headers=ph).status_code == 400
+
+
+def test_treatment_suggestions_by_patient(client):
+    """Suggestions keyed to the patient's own latest assessment."""
+    ptoken = signup_and_login(client, "rxpatient2@example.com")
+    client.post("/assess", json={
+        "symptoms": [{"name": "shortness of breath", "severity": "high"},
+                     {"name": "cough", "severity": "moderate"}],
+        "age": 70, "gender": "female",
+    }, headers={"Authorization": f"Bearer {ptoken}"})
+
+    import database as database_module
+    db = database_module.SessionLocal()
+    try:
+        pid = db.query(database_module.User).filter(
+            database_module.User.email == "rxpatient2@example.com").first().id
+    finally:
+        db.close()
+
+    prov = signup_and_login(client, "rxprovider2@example.com", role="provider")
+    r = client.get("/treatment-suggestions", params={"patient_id": pid},
+                   headers={"Authorization": f"Bearer {prov}"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["source"] == "latest_assessment"
+    assert body["assessment_id"] is not None
+    assert body["disease"], "should key off the assessed condition"

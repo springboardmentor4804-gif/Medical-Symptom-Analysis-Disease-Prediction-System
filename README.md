@@ -250,9 +250,18 @@ label.
 
 - **Data source:** MIMIC-IV discharge prescriptions, 754 admissions
 - **Algorithm:** TF-IDF diagnosis similarity → Stage 1 drug-class classifier
-  (one-vs-rest logistic regression, 13 classes) → Stage 2 per-class drug model
+  gated on **lift over its own prior** → drugs ranked by what the genuinely
+  similar admissions were actually prescribed, scored against corpus base rate
 - **Artifact:** `backend/artifacts/model3_mimic_layer.joblib`
 - **Means:** clinicians treating similar admissions prescribed these drugs
+
+> **Why lift, not raw probability.** Stage 1's prior already clears
+> `cat_threshold` for all 13 classes — ask it about a query with no vocabulary
+> overlap and it still answers "analgesic 0.50, gi_medication 0.48,
+> antibiotic 0.47", because nearly every ICU admission receives one of each.
+> Taking those at face value and naming one drug per class returned ward
+> routine for everything: docusate sodium for migraine, ciprofloxacin for
+> depression. The prior is read from the model itself, never hard-coded.
 
 Layer A only answers when it clears **three gates**, all read from the
 artifact's `gate` key:
@@ -288,7 +297,23 @@ with two thousand good ones.
 
 If the query resolves to no condition above a 0.45 match score, the cascade
 returns an **empty drug list**, not the drugs for the nearest-spelled
-condition. Every response carries `layer`, `gate_reason` and a
+condition.
+
+Condition matching squares its token-coverage score, so sharing one word out of
+two is not a match. That single change moved answered coverage from 54% to 33%
+— and every match it removed was wrong:
+
+| Disease | Was matched to | Would have prescribed |
+|---|---|---|
+| amyotrophic lateral sclerosis | multiple sclerosis | MS disease-modifying drugs |
+| acute respiratory distress syndrome | acute coronary syndrome | cardiac drugs |
+| interstitial lung disease | interstitial cystitis | bladder drugs (Elmiron) |
+| acute bronchospasm | gout acute | urate-lowering drugs |
+| abscess of the lung | dental abscess | — |
+
+The remaining 462 unanswered diseases are mostly surgical, dermatological or
+congenital conditions that genuinely have no entry in either corpus. Saying so
+is the correct output. Every response carries `layer`, `gate_reason` and a
 source-appropriate `evidence.caveat`.
 
 | `layer` | UI label | Caveat |
@@ -296,6 +321,24 @@ source-appropriate `evidence.caveat`.
 | `mimic` | Real hospital prescriptions | Co-occurrence across every problem the patient had, not attribution |
 | `drug_reviews` | Patient-reported experience | Satisfaction, not clinical efficacy or safety |
 | `none` | No treatment data available | Absence of data, not evidence that no treatment exists |
+
+#### Known data defect: substring-collision links
+
+The notebook builds 112 of its 219 disease→condition links by substring match
+with no word-boundary check, producing fragment buckets: `ge` (27 diseases,
+whose only drug is an antihypertensive), `min` (3), `gas` (4). These are
+dropped at load time and reported on `/system/model-status`; genuine short
+links from the same matcher (`flu → influenza`, `allergy → allergies`) are
+kept. **Fix the link builder in the notebook** — the repair here is a
+guardrail, not a substitute.
+
+#### Prescribing
+
+`GET /treatment-suggestions?patient_id=…` (or `?query=…`, clinical staff only)
+returns the cascade for a patient's latest assessment, and the prescription
+form offers those drugs as one-click fills. Only the drug NAME is copied:
+strength, frequency, route and duration are the prescriber's judgement and the
+models do not estimate them.
 
 ### Performance Metrics
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, Plus, Trash2, Eye, AlertTriangle, Send, User } from 'lucide-react'
+import { FileText, Plus, Trash2, Eye, AlertTriangle, Send, User, Pill, Sparkles } from 'lucide-react'
 import { Card, CardTitle } from '../components/med/Card'
 import { Button } from '../components/med/Button'
 import { api, errorMessage } from '../lib/api'
@@ -36,6 +36,9 @@ export default function CreatePrescription() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [showPreview, setShowPreview] = useState(false)
+  // Cascade recommendations for the selected patient's latest assessment.
+  const [suggestions, setSuggestions] = useState(null)
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
 
   useEffect(() => {
     checkProviderProfile()
@@ -106,8 +109,40 @@ export default function CreatePrescription() {
     setMedications(updated)
   }
 
+  /* Pull the treatment cascade for whatever this patient was last assessed
+     with, so the prescriber can start from it instead of retyping. The SOURCE
+     label travels with the drugs and is rendered below - hospital
+     co-prescription and patient satisfaction ratings are not interchangeable
+     grounds for writing a prescription. */
+  const fetchSuggestions = (userId) => {
+    if (!userId) { setSuggestions(null); return }
+    setLoadingSuggestions(true)
+    api.get('/treatment-suggestions', { params: { patient_id: userId } })
+      .then((res) => setSuggestions(res.data))
+      .catch(() => setSuggestions(null))
+      .finally(() => setLoadingSuggestions(false))
+  }
+
+  /* Fill the first empty medication row, or append one. Only the drug name is
+     copied: strength, frequency, route and duration are the prescriber's
+     judgement and the models have no opinion on them. */
+  const useSuggestion = (drug) => {
+    setMedications((rows) => {
+      const next = rows.map((r) => ({ ...r }))
+      const slot = next.findIndex((r) => !r.drug_name)
+      const blank = {
+        drug_name: '', brand_name: '', dosage_form: 'Tablet', strength: '',
+        frequency: '', route: 'Oral', duration: '', instructions: '',
+      }
+      if (slot === -1) next.push({ ...blank, drug_name: drug.toUpperCase() })
+      else next[slot].drug_name = drug.toUpperCase()
+      return next
+    })
+  }
+
   const handlePatientSelect = (userId) => {
     setSelectedPatient(userId)
+    fetchSuggestions(userId)
     // In a real app, fetch patient profile here
     // For now, just reset the form
     setPatientInfo({
@@ -283,6 +318,66 @@ export default function CreatePrescription() {
         )}
 
         {/* Medications */}
+        {selectedPatient && (
+          <Card>
+            <CardTitle icon={<Sparkles className="h-5 w-5" />}>
+              Suggested from this patient's last assessment
+            </CardTitle>
+
+            {loadingSuggestions && (
+              <p className="text-sm text-slate-500">Loading recommendations...</p>
+            )}
+
+            {!loadingSuggestions && (!suggestions || !suggestions.drugs?.length) && (
+              <p className="text-sm text-slate-500">
+                {suggestions?.reason
+                  || suggestions?.evidence?.caveat
+                  || 'No treatment data is available for this patient.'}
+              </p>
+            )}
+
+            {!loadingSuggestions && suggestions?.drugs?.length > 0 && (
+              <>
+                <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+                  <span className={`rounded-full border px-2 py-0.5 font-semibold ${
+                    suggestions.layer === 'mimic'
+                      ? 'bg-sky-100 text-sky-800 border-sky-300'
+                      : 'bg-violet-100 text-violet-800 border-violet-300'}`}>
+                    {suggestions.layer === 'mimic'
+                      ? 'Real hospital prescriptions'
+                      : 'Patient-reported experience'}
+                  </span>
+                  {suggestions.disease && (
+                    <span className="text-slate-500">
+                      assessed as <span className="font-medium text-slate-700">{suggestions.disease}</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {suggestions.drugs.map((d, i) => (
+                    <button
+                      key={`${d.drug}-${i}`}
+                      type="button"
+                      onClick={() => useSuggestion(d.drug)}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:border-indigo-400 hover:bg-indigo-50"
+                      title={d.drug_class ? `Class: ${d.drug_class}` : 'Add to prescription'}
+                    >
+                      <Pill className="h-3 w-3 text-slate-400" />
+                      {d.drug}
+                      <Plus className="h-3 w-3 text-indigo-500" />
+                    </button>
+                  ))}
+                </div>
+
+                <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
+                  {suggestions.evidence?.caveat} {suggestions.prescribing_note}
+                </p>
+              </>
+            )}
+          </Card>
+        )}
+
         {selectedPatient && (
           <Card>
             <div className="flex items-center justify-between mb-4">

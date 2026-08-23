@@ -32,6 +32,7 @@ from __future__ import annotations
 import difflib
 import logging
 import re
+from collections import Counter
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -129,13 +130,27 @@ def _match_score(query: str, candidate: str) -> float:
                for qw in qt):
             present += 1
     coverage = present / len(ct)
-    token_score = 0.95 * coverage if coverage == 1.0 else 0.9 * coverage
+
+    # Partial coverage is penalised QUADRATICALLY, not linearly. Half the words
+    # of a condition matching is not half a match - it is usually a different
+    # condition that happens to share an adjective. "interstitial lung" matched
+    # "interstitial cystitis" at exactly 0.45 under linear scoring and returned
+    # Elmiron and pentosan polysulfate, which are bladder drugs, for a lung
+    # disease. Squaring drops that pair to 0.24 and out of range.
+    token_score = 0.95 * (coverage ** 2)
+
+    # A query that is the opening of a condition name IS that condition, more
+    # specifically named: "diabetes" -> "diabetes type 2", "herpes" ->
+    # "herpes simplex". Quadratic coverage alone would reject these, and unlike
+    # the case above the extra words narrow the condition rather than relocate
+    # it to another organ.
+    prefix = 0.9 if (c.startswith(q + " ") or q.startswith(c + " ")) else 0.0
 
     # Near-identical whole strings (typo of a full condition name).
     ratio = difflib.SequenceMatcher(None, q, c).ratio()
     whole = ratio if ratio >= _WHOLE_STRING_CUTOFF else 0.0
 
-    return float(max(token_score, whole))
+    return float(max(token_score, prefix, whole))
 
 
 class TreatmentCascade:
@@ -170,6 +185,158 @@ class TreatmentCascade:
     # ------------------------------------------------------------------
     # Layer A - MIMIC-IV discharge prescriptions
     # ------------------------------------------------------------------
+    #
+    # WHY THIS IS NOT JUST stage1 -> stage2
+    #
+    # Taking stage 1's classes at face value and naming one drug per class
+    # produced ward-routine polypharmacy for every query: "migraine" returned
+    # docusate sodium and aspirin, "depression" returned ciprofloxacin. Two
+    # things cause that, and both are properties of the data, not bugs in the
+    # artifact:
+    #
+    #   1. Stage 1's PRIOR already clears cat_threshold for all 13 classes. Ask
+    #      it about a query with no vocabulary overlap and it still answers
+    #      "analgesic 0.50, gi_medication 0.48, antibiotic 0.47, ...", because
+    #      almost every ICU admission receives one of each. A raw probability
+    #      of 0.5 therefore carries no information about THIS diagnosis. What
+    #      matters is the LIFT over that prior, and the prior is read from the
+    #      model itself (a null query), never hard-coded.
+    #
+    #   2. Stage 2 names the modal drug within a class, which is the most
+    #      commonly prescribed one overall - docusate for gi_medication,
+    #      aspirin for anticoagulant - regardless of the diagnosis.
+    #
+    # So classes are filtered by lift, and the drugs themselves come from what
+    # the genuinely similar admissions were actually prescribed, scored against
+    # the corpus base rate. That is both more accurate and a more honest
+    # rendering of the claim the layer makes: "clinicians treating similar
+    # admissions prescribed these". Stage 2 is retained as corroboration on the
+    # drug it independently endorses.
+    #
+    # The three gates in the spec are unchanged and still read from the
+    # artifact's "gate" key.
+
+    # A drug class must be this much likelier than stage 1's own prior before
+    # it counts as diagnosis-specific. Ranking filter, NOT a model threshold:
+    # the tuned gates stay in the artifact. 1.0 would mean "no evidence at all",
+    # so this is the smallest value that still demands the query moved the
+    # model.
+    CLASS_LIFT_FLOOR = 1.5
+
+    # Same idea for an individual drug against its corpus-wide frequency.
+    DRUG_LIFT_FLOOR = 1.5
+
+    # A single drug is a coincidence, not a prescribing pattern. Layer A claims
+    # "clinicians treating similar admissions prescribed these"; one surviving
+    # drug does not support that claim, and Layer B - which is condition-
+    # specific by construction - is the better answer in that case. This is
+    # what stops "depression" being answered with a lone bronchodilator.
+    MIN_PATTERN_DRUGS = 2
+
+    # Words that qualify a diagnosis without naming one. A neighbourhood match
+    # resting only on these is not a clinical match: "acute bronchiolitis" hit
+    # "acute cholecystitis" at 0.39 similarity on the word "acute" alone,
+    # cleared every gate, and recommended metformin.
+    #
+    # A stop-list rather than a frequency cut-off because the corpus is small
+    # and diverse enough that frequency cannot separate them - "acute" appears
+    # in 9.3% of discharge diagnoses and "hypertension" in 8.8%, so any
+    # threshold that removes the qualifier also removes a real condition. These
+    # are qualifiers by grammar, not by rarity.
+    GENERIC_TERMS = frozenset({
+        "acute", "chronic", "subacute", "recurrent", "persistent", "severe",
+        "mild", "moderate", "left", "right", "bilateral", "upper", "lower",
+        "with", "and", "the", "for", "due", "status", "post", "history",
+        "unspecified", "other", "disease", "disorder", "syndrome", "pain",
+        "infection", "failure", "injury", "acquired", "suspected", "possible",
+        "new", "old", "large", "small",
+    })
+
+    # Dose, route, frequency and MIMIC's ___ redactions, stripped so that
+    # "Guaifenesin ___ mL PO Q6H" and "Guaifenesin" are one drug rather than
+    # two singletons that each look rare and therefore high-lift.
+    _DOSE_NOISE = re.compile(
+        r"\s*[\(\[].*?[\)\]]"                       # (5mg-325mg), [Tylenol]
+        r"|_+"                                       # ___ redactions
+        r"|\b\d+(\.\d+)?\s*(mg|mcg|ml|unit|units|g|%)\b.*$"
+        r"|\b(po|iv|pr|sc|im|q\d+h|bid|tid|qid|daily|prn|inhaler|nebu|neb|mdi"
+        r"|diskus|suspension|liquid|tablet|capsule|nasal|patch|cream|ointment)\b.*$",
+        re.IGNORECASE,
+    )
+
+    @staticmethod
+    def _clean_drug(name: str) -> str:
+        cleaned = TreatmentCascade._DOSE_NOISE.sub("", str(name or ""))
+        return re.sub(r"\s+", " ", cleaned).strip(" -/,")
+
+    @property
+    def _corpus(self):
+        """
+        (per-admission drug sets, corpus frequency, n_admissions).
+
+        Built once. The frequency table is the baseline every drug is scored
+        against - without it "aspirin" looks impressive for every diagnosis in
+        the corpus, because two thirds of admissions receive it.
+        """
+        def _build():
+            records = self.art.mimic_records
+            sets = []
+            for raw in records.get("medications", []):
+                drugs = set()
+                for part in str(raw).split(";"):
+                    cleaned = self._clean_drug(part).lower()
+                    if len(cleaned) > 2:
+                        drugs.add(cleaned)
+                sets.append(drugs)
+            freq = Counter()
+            for s in sets:
+                freq.update(s)
+            return sets, freq, max(len(sets), 1)
+        return self.art._get("mimic_corpus", _build)
+
+    def _shares_distinctive_term(self, query: str, idx) -> bool:
+        """
+        Is the neighbourhood match driven by anything but filler words?
+
+        True when the query and at least one matched admission share a word
+        that actually names something - so "acute kidney injury" matching
+        "hypernatremia acute kidney injury" passes on "kidney", while "acute
+        bronchiolitis" matching "acute cholecystitis" fails, because "acute" is
+        all they have in common.
+        """
+        q = _tokens(query) - self.GENERIC_TERMS
+        if not q:
+            return False
+        texts = self.art.mimic_records.get("diagnosis_text", [])
+        for i in idx:
+            if q & (_tokens(str(texts.iloc[int(i)])) - self.GENERIC_TERMS):
+                return True
+        return False
+
+    @property
+    def _class_prior(self) -> np.ndarray:
+        """
+        Stage 1's output for a query it knows nothing about.
+
+        A string guaranteed to miss the vectoriser's vocabulary yields the
+        all-zero feature vector, so what comes back is the model's prior. Read
+        from the model rather than written down, so it follows a retrain.
+        """
+        def _build():
+            layer = self.art.mimic_layer
+            null = layer["vec"].transform(["zzzz nonvocabulary sentinel zzzz"])
+            return layer["stage1"].predict_proba(null)[0]
+        return self.art._get("stage1_prior", _build)
+
+    def _classify_drug(self, drug: str) -> Optional[str]:
+        """Map a drug name onto a stage-1 class using the artifact's keywords."""
+        categories = self.art.mimic_layer.get("categories", {})
+        low = drug.lower()
+        for category, keywords in categories.items():
+            if any(str(k).lower() in low for k in keywords):
+                return category
+        return None
+
     def _layer_a(self, query: str, top_n: int) -> Dict:
         """
         Returns {passed, gate_reason, drugs, evidence}. `passed` False means the
@@ -181,14 +348,14 @@ class TreatmentCascade:
         min_support = int(gate["min_support"])
         cat_threshold = float(gate["cat_threshold"])
 
-        vec = layer["vec"]
-        Q = vec.transform([query])
+        Q = layer["vec"].transform([query])
 
         # Both the query and the stored matrix are L2-normalised TF-IDF rows,
         # so the dot product IS cosine similarity.
         sims = np.asarray((Q @ self.art.mimic_matrix.T).todense()).ravel()
         best_sim = float(sims.max()) if sims.size else 0.0
-        supporting = int((sims >= sim_floor).sum())
+        neighbour_idx = [int(i) for i in np.where(sims >= sim_floor)[0]]
+        supporting = len(neighbour_idx)
 
         base = {
             "best_similarity": round(best_sim, 4),
@@ -208,63 +375,100 @@ class TreatmentCascade:
             return {"passed": False, "gate_reason": "insufficient_support",
                     "diagnostics": base}
 
-        # -- gate 3: does stage 1 commit to any drug class? ----------------
+        # -- gate 2b: is the match driven by a real clinical term? ---------
+        if not self._shares_distinctive_term(query, neighbour_idx):
+            return {"passed": False, "gate_reason": "nonspecific_match",
+                    "diagnostics": base}
+
+        # -- gate 3: does stage 1 commit to any drug class for THIS query? --
         classes = list(layer["mlb"].classes_)
-        cat_proba = layer["stage1"].predict_proba(Q)[0]
-        predicted = [
-            (classes[i], float(cat_proba[i]))
-            for i in range(len(classes))
-            if cat_proba[i] >= cat_threshold and classes[i] != _CATCHALL_CATEGORY
-        ]
-        if not predicted:
+        proba = layer["stage1"].predict_proba(Q)[0]
+        prior = self._class_prior
+        endorsed = {}
+        for i, name in enumerate(classes):
+            if name == _CATCHALL_CATEGORY:
+                continue
+            p = float(proba[i])
+            if p < cat_threshold:
+                continue
+            lift = p / max(float(prior[i]), 1e-9)
+            if lift >= self.CLASS_LIFT_FLOOR:
+                endorsed[name] = {"probability": round(p, 4),
+                                  "prior": round(float(prior[i]), 4),
+                                  "lift": round(lift, 2)}
+        base["endorsed_classes"] = endorsed
+        if not endorsed:
             return {"passed": False, "gate_reason": "no_class_predicted",
                     "diagnostics": base}
 
-        # -- stage 2: a named drug per predicted class ---------------------
-        stage2, stage2_lab = layer["stage2"], layer["stage2_lab"]
-        stage2_fb = layer.get("stage2_fb", {})
+        # -- what were similar patients actually prescribed? ---------------
+        med_sets, corpus_freq, n_corpus = self._corpus
+        weight_total = float(sum(sims[i] for i in neighbour_idx)) or 1.0
+        support_count, weighted = Counter(), Counter()
+        for i in neighbour_idx:
+            for drug in med_sets[i]:
+                support_count[drug] += 1
+                weighted[drug] += float(sims[i])
 
-        drugs: List[Dict] = []
-        for category, cat_p in predicted:
-            model, binarizer = stage2.get(category), stage2_lab.get(category)
-            drug, drug_p = None, None
+        # Stage 2's own pick per endorsed class, used only to corroborate.
+        stage2_pick = {}
+        for category in endorsed:
+            model = layer["stage2"].get(category)
+            binarizer = layer["stage2_lab"].get(category)
+            if model is None or binarizer is None:
+                continue
+            labels = np.asarray(binarizer.classes_)
+            probs = model.predict_proba(Q)[0]
+            for j in np.argsort(probs)[::-1]:
+                label = str(labels[j])
+                if not _PLACEHOLDER_LABEL.match(label):
+                    stage2_pick[self._clean_drug(label).lower()] = float(probs[j])
+                    break
 
-            if model is not None and binarizer is not None:
-                labels = np.asarray(binarizer.classes_)
-                probs = model.predict_proba(Q)[0]
-                for i in np.argsort(probs)[::-1]:
-                    if not _PLACEHOLDER_LABEL.match(str(labels[i])):
-                        drug, drug_p = str(labels[i]), float(probs[i])
-                        break
-
-            if drug is None:
-                # The class fired but stage 2 named nothing usable. The
-                # notebook's per-class modal drug is the documented stand-in.
-                drug = stage2_fb.get(category)
-                drug_p = None
-                if not drug:
-                    continue
-
-            drugs.append({
+        candidates = []
+        for drug, count in support_count.items():
+            # Backed by at least as many real admissions as the gate demands.
+            if count < min_support:
+                continue
+            share = weighted[drug] / weight_total
+            lift = share / max(corpus_freq[drug] / n_corpus, 1e-9)
+            if lift < self.DRUG_LIFT_FLOOR:
+                continue
+            category = self._classify_drug(drug)
+            # Keep only drugs belonging to a class stage 1 endorsed for this
+            # query. This is what stops an irrelevant neighbourhood leaking
+            # ward-routine drugs into an out-of-domain answer.
+            if category is None or category not in endorsed:
+                continue
+            candidates.append({
                 "drug": drug.title(),
                 "drug_class": category.replace("_", " "),
-                "class_confidence": round(cat_p, 4),
-                "drug_confidence": round(drug_p, 4) if drug_p is not None else None,
-                # Ranking across classes: how sure we are of the class times how
-                # sure we are of the drug within it.
-                "_rank_score": cat_p * (drug_p if drug_p is not None else 0.5),
+                "supporting_notes": count,
+                "co_prescription_rate": round(float(share), 3),
+                "lift_vs_corpus": round(float(lift), 2),
+                "class_confidence": endorsed[category]["probability"],
+                "class_lift": endorsed[category]["lift"],
+                "stage2_confirmed": drug in stage2_pick,
+                "drug_confidence": (round(stage2_pick[drug], 4)
+                                    if drug in stage2_pick else None),
+                # Prevalence among similar cases, damped by how distinctive the
+                # drug is. Without the lift term the list is just "what every
+                # inpatient gets"; without the share term it is dominated by
+                # one-off drugs that appear in a single admission.
+                "_rank": float(share) * float(np.log1p(lift)),
             })
 
-        # -- gate 4: did anything survive stage 2? -------------------------
-        if not drugs:
+        # -- gate 4: did a prescribing PATTERN survive? --------------------
+        if len(candidates) < self.MIN_PATTERN_DRUGS:
+            base["surviving_drugs"] = len(candidates)
             return {"passed": False, "gate_reason": "no_drug_predicted",
                     "diagnostics": base}
 
-        drugs.sort(key=lambda d: -d["_rank_score"])
-        drugs = drugs[:top_n]
+        candidates.sort(key=lambda d: -d["_rank"])
+        drugs = candidates[:top_n]
         for rank, d in enumerate(drugs, start=1):
             d["rank"] = rank
-            d.pop("_rank_score", None)
+            d.pop("_rank", None)
 
         return {
             "passed": True,

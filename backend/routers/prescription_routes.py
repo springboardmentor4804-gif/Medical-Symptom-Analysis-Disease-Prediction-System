@@ -8,8 +8,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from auth import get_current_user
-from database import Prescription, ProviderProfile, User, get_db
+from database import Assessment, Prescription, ProviderProfile, User, get_db
 from roles import CLINICAL_STAFF_ROLES
+from services import get_cascade
 
 router = APIRouter()
 
@@ -350,3 +351,84 @@ def download_prescription(
         media_type='application/pdf',
         filename=f"Prescription_{prescription_id}.pdf"
     )
+
+
+# ===== Treatment suggestions for the prescription form =====
+
+PRESCRIBING_NOTE = (
+    "Decision support only. Dose, frequency, route and duration are the "
+    "prescriber's judgement - the models do not estimate them.")
+
+@router.get("/treatment-suggestions")
+def treatment_suggestions(
+    query: Optional[str] = None,
+    patient_id: Optional[int] = None,
+    top_n: int = 8,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Cascade recommendations for the prescriber, keyed either to a free-text
+    condition or to a patient's most recent assessment.
+
+    This is the bridge between the assessment and the prescription pad. It
+    exists so a prescriber does not have to retype a drug name they were just
+    shown - and, more importantly, so the SOURCE travels with it. The response
+    carries `layer` and the caveat, and the UI must show them: "co-prescribed
+    in similar admissions" and "patients rated this highly" are not
+    interchangeable grounds for writing a prescription.
+
+    Nothing here writes a prescription. The prescriber still types the strength,
+    frequency, route and duration, because the models have no opinion on any of
+    those and must not appear to.
+    """
+    if current_user.role not in CLINICAL_STAFF_ROLES:
+        raise HTTPException(status_code=403, detail="Not authorized for this action")
+
+    disease = None
+    source = "query"
+    assessment_id = None
+
+    def _empty(reason: str, **extra):
+        """Same envelope as a real answer, so the UI never branches on shape."""
+        return {"available": False, "reason": reason, "layer": "none",
+                "layer_label": "No treatment data available for this condition",
+                "gate_reason": "no_data", "condition": None, "drugs": [],
+                "evidence": {"source": None, "caveat": reason},
+                "source": source, "query": query, "disease": disease,
+                "assessment_id": assessment_id,
+                "prescribing_note": PRESCRIBING_NOTE, **extra}
+
+    if patient_id is not None:
+        record = (db.query(Assessment)
+                    .filter(Assessment.user_id == patient_id)
+                    .order_by(Assessment.created_at.desc())
+                    .first())
+        if record is None:
+            return _empty("This patient has no assessment on record.")
+        try:
+            result = json.loads(record.result_json)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=500,
+                                detail="Stored assessment could not be read")
+        diagnosis = result.get("diagnosis") or {}
+        disease = diagnosis.get("top_disease")
+        assessment_id = record.id
+        source = "latest_assessment"
+        if not disease:
+            return _empty("The patient's latest assessment matched no "
+                          "condition, so there is nothing to suggest.")
+
+    text = (query or disease or "").strip()
+    if not text:
+        raise HTTPException(status_code=400,
+                            detail="Provide either `query` or `patient_id`.")
+
+    result = get_cascade().recommend(text, disease=disease,
+                                     top_n=max(1, min(top_n, 20)))
+    result["source"] = source
+    result["query"] = text
+    result["disease"] = disease
+    result["assessment_id"] = assessment_id
+    result["prescribing_note"] = PRESCRIBING_NOTE
+    return result
