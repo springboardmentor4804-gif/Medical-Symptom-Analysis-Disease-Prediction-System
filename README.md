@@ -25,6 +25,33 @@
 
 ## 🚀 Quick Start
 
+### Step 0 — Clone (Git LFS required)
+
+The trained models live in `backend/artifacts/` and the large ones are stored
+with **Git LFS**. Install it *before* cloning, or you get 130-byte text pointer
+files instead of models and the API refuses to start.
+
+```bash
+git lfs install                 # once per machine
+git clone https://github.com/tharunkumardeveloper/MedAssist.git
+cd MedAssist
+```
+
+Already cloned without it? Fix it in place:
+
+```bash
+git lfs install && git lfs pull
+```
+
+Check it worked — this must report ~102 MB, not ~130 bytes:
+
+```bash
+ls -l backend/artifacts/model3_text_condition.joblib
+```
+
+Install Git LFS from <https://git-lfs.com> (or `brew install git-lfs`,
+`apt install git-lfs`, `winget install GitHub.GitLFS`).
+
 ### Windows (Automated)
 
 ```bat
@@ -37,7 +64,12 @@ Then open:
 - **API Docs:** http://localhost:8000/docs
 - **Streamlit UI:** http://localhost:8501 (optional)
 
-**Requirements:** Python 3.10–3.12 and Node.js 18+
+**Requirements:** Python 3.10–3.12, Node.js 18+, and Git LFS.
+
+> Python 3.10+ is not optional: the artifacts are pickled under numpy 2.x,
+> which does not support earlier versions. `requirements.txt` pins `numpy>=2`
+> for the same reason — on numpy 1.26 the models fail to load with
+> `PCG64 is not a known BitGenerator`.
 
 ### Manual Setup (macOS / Linux)
 
