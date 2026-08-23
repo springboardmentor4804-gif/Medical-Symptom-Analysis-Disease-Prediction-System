@@ -3,6 +3,7 @@ import { FileText, Download, Calendar, Activity, AlertCircle, TrendingUp } from 
 import { Card, CardTitle } from '../components/med/Card'
 import { Button } from '../components/med/Button'
 import { RiskBadge } from '../components/med/Badge'
+import { TreatmentSummary } from '../components/med/ResultPanels'
 import { api, errorMessage } from '../lib/api'
 import { viewOf, symptomNames } from '../lib/assessment'
 
@@ -319,20 +320,37 @@ export default function PatientReports() {
                         </div>
                       </div>
 
-                      {/* Recommendations */}
+                      {/* Treatment. The report used to show a hardcoded
+                          "Consult with healthcare provider" here whenever
+                          `suggestedCare` was empty - which is most of the time,
+                          because that text comes from a reference CSV covering
+                          159 of 684 diseases. It looked like advice while
+                          carrying no information, and it hid the cascade
+                          result the assessment had actually produced. */}
                       <div>
-                        <h3 className="font-semibold text-slate-900 mb-2">Recommendations</h3>
-                        <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
-                          <p className="mb-2">
-                            <strong>Suggested Care:</strong> {view.suggestedCare || 'Consult with healthcare provider'}
-                          </p>
-                          {view.suggestedDoctor && (
-                            <p>
-                              <strong>Specialist:</strong> {view.suggestedDoctor}
-                            </p>
-                          )}
-                        </div>
+                        <h3 className="font-semibold text-slate-900 mb-2">Treatment</h3>
+                        <TreatmentSummary view={view} className="text-sm" />
                       </div>
+
+                      {/* Plain-language reference text, shown only when the
+                          lookup genuinely has an entry for this disease. */}
+                      {(view.suggestedCare || view.suggestedDoctor) && (
+                        <div>
+                          <h3 className="font-semibold text-slate-900 mb-2">General guidance</h3>
+                          <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
+                            {view.suggestedCare && (
+                              <p className="mb-2">
+                                <strong>Suggested care:</strong> {view.suggestedCare}
+                              </p>
+                            )}
+                            {view.suggestedDoctor && (
+                              <p>
+                                <strong>Specialist:</strong> {view.suggestedDoctor}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )
                 })()}

@@ -322,9 +322,26 @@ elif page == "History":
                     for d in (r["result"].get("disease_prediction") or {})
                     .get("top_possible_diseases", [])
                 ]
+                # Keys must match what _preds actually builds. This read
+                # d['Disease'] and d['match_count'] - neither of which either
+                # branch produces - so every history entry raised KeyError.
                 for d in _preds:
-                    st.write(f"- {d['Disease']} (match: {d['match_count']})")
-                st.write("**Recommendation:**", r["result"]["recommendations"]["suggested_cures"])
+                    st.write(f"- {d.get('disease')} ({d.get('confidence_pct', 0)}%)")
+
+                # v3 treatment cascade. The old line indexed
+                # result["recommendations"]["suggested_cures"], a v1 key that no
+                # longer exists, so this crashed on every current assessment.
+                _tx = r["result"].get("treatment") or {}
+                _drugs = _tx.get("drugs") or _tx.get("options") or []
+                if _drugs:
+                    _label = ("Real hospital prescriptions"
+                              if _tx.get("layer") == "mimic"
+                              else "Patient-reported experience")
+                    st.write(f"**Treatment ({_label}):**",
+                             ", ".join(str(d.get("drug", "")) for d in _drugs))
+                    st.caption((_tx.get("evidence") or {}).get("caveat", ""))
+                else:
+                    st.write("**Treatment:** no treatment data for this condition.")
 
                 report_resp = safe_request("get", f"/report/{r['id']}", headers=auth_headers())
                 if report_resp is not None and report_resp.status_code == 200:
