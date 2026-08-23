@@ -1,6 +1,5 @@
 import api from "./api";
 
-
 /* =====================================================
    Manual Prediction
 ===================================================== */
@@ -33,6 +32,19 @@ export interface TopPrediction {
 
 
 /* =====================================================
+   Recommendation
+===================================================== */
+
+export interface RecommendationData {
+  treatment_suggestions: string[];
+  preventive_advice: string[];
+  lifestyle_advice: string[];
+  warning_signs: string[];
+  advisory: string;
+}
+
+
+/* =====================================================
    AI Prediction Response
 ===================================================== */
 
@@ -60,6 +72,8 @@ export interface AIPredictionResponse {
   severity_factors: string[];
 
   recommendation: string;
+
+  recommendations: RecommendationData;
 
   top_predictions: TopPrediction[];
 

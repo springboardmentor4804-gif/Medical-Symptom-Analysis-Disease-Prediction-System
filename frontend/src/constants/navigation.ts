@@ -52,7 +52,7 @@ export const doctorNavigation = [
   },
   {
     name: "Reports",
-    href: "/doctor/reports",
+    href: "/summary",
     icon: FileText,
   },
   {
