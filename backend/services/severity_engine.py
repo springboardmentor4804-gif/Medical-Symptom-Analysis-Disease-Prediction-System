@@ -4,9 +4,14 @@ Severity / triage scoring.
 Rule-weighted rather than learned, deliberately: none of the training datasets
 carry labelled triage outcomes, so a learned severity model would be fitting
 noise and presenting it with unearned authority. The weights, red-flag lists,
-vital ranges and escalation overrides all live in model/artifacts/
+vital ranges and escalation overrides all live in backend/artifacts/
 severity_config.json, so a clinician can retune them without touching code and
 the UI can explain every point of the score.
+
+The red-flag override is applied FIRST and short-circuits the weighted score
+entirely: a single critical flag must never be averaged away by mild scores
+elsewhere. Only when no override fires is the six-component weighted score
+computed and mapped to a band.
 
 This replaces the previous severity_engine.py + unified_risk_engine.py, which
 between them held ~1000 lines of hand-tuned logic with no held-out validation

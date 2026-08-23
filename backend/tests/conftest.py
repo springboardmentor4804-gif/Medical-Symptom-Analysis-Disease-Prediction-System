@@ -18,7 +18,7 @@ def client():
     os.environ["BOOTSTRAP_ADMIN_PASSWORD"] = "adminpass123"
 
     # Reload modules that cache settings/engine at import time so the test DB takes effect.
-    for mod in ["config", "database", "auth", "medmodels", "rate_limit",
+    for mod in ["config", "database", "auth", "services", "rate_limit",
                 "routers.auth_routes", "routers.report_routes", "routers.patient_routes",
                 "routers.admin_routes", "main"]:
         sys.modules.pop(mod, None)

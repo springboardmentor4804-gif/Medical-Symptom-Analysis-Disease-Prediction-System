@@ -89,13 +89,21 @@ def test_assess_and_history_flow(client):
     }, headers=headers)
     assert resp.status_code == 200, resp.text
     result = resp.json()
-    assert result["schema_version"].startswith("2")
+    assert result["schema_version"].startswith("3")
     assert "diagnosis" in result
     assert "risk" in result
     assert "severity" in result
     assert "treatment" in result
     assert result["diagnosis"]["confidence"]["label"] in ("Low", "Moderate", "High")
     assert result["diagnosis"]["predictions"], "expected a differential"
+
+    # v3 treatment cascade: the source must always be identified, because the
+    # two layers carry incompatible caveats.
+    treatment = result["treatment"]
+    assert treatment["layer"] in ("mimic", "drug_reviews", "none")
+    assert treatment["gate_reason"]
+    assert isinstance(treatment["drugs"], list)
+    assert treatment["evidence"]["caveat"]
 
     resp = client.get("/history", headers=headers)
     assert resp.status_code == 200
@@ -359,3 +367,53 @@ def test_org_admin_roles_have_scoped_admin_access(client):
         admin_row = next(u for u in client.get("/admin/users", headers=org_headers).json() if u["email"] == "admin@example.com")
         resp = client.patch(f"/admin/users/{admin_row['id']}", json={"is_active": False}, headers=org_headers)
         assert resp.status_code == 403
+
+
+def test_assessment_persists_cascade_telemetry(client):
+    """
+    The denormalised cascade columns must be written on every assessment.
+
+    These exist so operations can answer "how often does Layer A fire, and when
+    it doesn't, why?" without scanning result_json across every row. If they
+    silently stay NULL the monitoring question becomes unanswerable.
+    """
+    token = signup_and_login(client, "telemetry@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = client.post("/assess", json={
+        "symptoms": [{"name": "cough", "severity": "moderate"},
+                     {"name": "fever", "severity": "high"}],
+        "age": 55, "gender": "male",
+    }, headers=headers)
+    assert resp.status_code == 200, resp.text
+    layer = resp.json()["treatment"]["layer"]
+
+    import database as database_module
+
+    db = database_module.SessionLocal()
+    try:
+        row = db.query(database_module.Assessment).order_by(
+            database_module.Assessment.id.desc()).first()
+        assert row.treatment_layer == layer
+        assert row.gate_reason, "gate_reason must record why this layer was used"
+        assert isinstance(row.treatment_evidence, dict)
+        assert row.treatment_evidence.get("caveat")
+    finally:
+        db.close()
+
+
+def test_model_status_reports_gate_thresholds(client):
+    """A deployment must be able to show which gate it is actually enforcing."""
+    token = signup_and_login(client, "status@example.com")
+    resp = client.get("/system/model-status",
+                      headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["healthy"] is True
+    assert body["schema_version"].startswith("3")
+
+    cascade = body["cascade"]
+    assert cascade["layer_b_conditions"] > 0
+    if cascade["layer_a_enabled"]:
+        for key in ("sim_floor", "min_support", "cat_threshold"):
+            assert key in cascade["gate"]

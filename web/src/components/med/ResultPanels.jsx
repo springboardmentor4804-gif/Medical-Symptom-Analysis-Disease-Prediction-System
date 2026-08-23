@@ -334,15 +334,115 @@ export function RiskPanel({ risk }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* 4. Treatment                                                        */
+/* 4. Treatment - two-layer cascade                                     */
 /* ------------------------------------------------------------------ */
 
+/* The two layers mean genuinely different things and MUST NOT share a label.
+   "mimic" is what clinicians actually prescribed during similar real
+   admissions - hospital behaviour, but co-occurrence across every problem a
+   patient had, not attribution to this diagnosis. "drug_reviews" is
+   aggregated patient satisfaction, which is not efficacy or safety at all.
+   Rendering both as one generic "Treatment options" table, as v2 did, invited
+   the reader to trust them equally. */
+const LAYER_PRESENTATION = {
+  mimic: {
+    title: 'Real hospital prescriptions',
+    chip: 'bg-sky-100 text-sky-800 border-sky-300',
+    banner: 'border-sky-200 bg-sky-50 text-sky-900',
+  },
+  drug_reviews: {
+    title: 'Patient-reported experience',
+    chip: 'bg-violet-100 text-violet-800 border-violet-300',
+    banner: 'border-violet-200 bg-violet-50 text-violet-900',
+  },
+  none: {
+    title: 'No treatment data available for this condition',
+    chip: 'bg-slate-100 text-slate-700 border-slate-300',
+    banner: 'border-slate-200 bg-slate-50 text-slate-700',
+  },
+}
+
+function MimicTable({ drugs }) {
+  return (
+    <div className="-mx-1 overflow-x-auto">
+      <table className="w-full min-w-[28rem] text-sm">
+        <thead>
+          <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+            <th className="px-1 pb-2 font-semibold">Drug</th>
+            <th className="px-1 pb-2 font-semibold">Class</th>
+            <th className="px-1 pb-2 text-right font-semibold" title="Model confidence that this drug class applies">Class conf.</th>
+            <th className="px-1 pb-2 text-right font-semibold" title="Model confidence in this specific drug within its class">Drug conf.</th>
+          </tr>
+        </thead>
+        <tbody>
+          {drugs.map((d) => (
+            <tr key={`${d.drug_class}-${d.drug}`} className="border-b border-slate-100 last:border-0">
+              <td className="px-1 py-2 font-medium text-slate-800">{d.drug}</td>
+              <td className="px-1 py-2 capitalize text-slate-600">{d.drug_class}</td>
+              <td className="px-1 py-2 text-right font-mono text-slate-600">{pct(d.class_confidence)}</td>
+              <td className="px-1 py-2 text-right font-mono text-slate-400">
+                {d.drug_confidence == null ? '—' : pct(d.drug_confidence)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function ReviewTable({ drugs }) {
+  return (
+    <div className="-mx-1 overflow-x-auto">
+      <table className="w-full min-w-[30rem] text-sm">
+        <thead>
+          <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+            <th className="px-1 pb-2 font-semibold">Drug</th>
+            <th className="px-1 pb-2 text-right font-semibold" title="Blends outcome rating with how commonly it is used">Commonly used</th>
+            <th className="px-1 pb-2 text-right font-semibold" title="Pure outcome rating, ignoring prevalence">Best rated</th>
+            <th className="px-1 pb-2 text-right font-semibold">Satisfaction</th>
+            <th className="px-1 pb-2 text-right font-semibold">Reviews</th>
+          </tr>
+        </thead>
+        <tbody>
+          {drugs.map((o) => (
+            <tr key={o.drug} className="border-b border-slate-100 last:border-0">
+              <td className="px-1 py-2 font-medium text-slate-800">
+                {o.drug}
+                {o.mimic_confirmed && (
+                  <span
+                    className="ml-2 rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700"
+                    title="This drug also appears in real discharge notes mentioning this condition"
+                  >
+                    seen in hospital notes
+                  </span>
+                )}
+              </td>
+              <td className="px-1 py-2 text-right font-mono text-slate-600">#{o.rank}</td>
+              <td className="px-1 py-2 text-right font-mono text-slate-600">#{o.rank_by_rating}</td>
+              <td className="px-1 py-2 text-right font-mono text-slate-600">{pct(o.satisfaction_rate)}</td>
+              <td className="px-1 py-2 text-right font-mono text-slate-400">{o.n_reviews.toLocaleString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 export function TreatmentPanel({ treatment }) {
-  if (!treatment?.available) {
+  const layer = treatment?.layer ?? 'none'
+  const style = LAYER_PRESENTATION[layer] ?? LAYER_PRESENTATION.none
+  const evidence = treatment?.evidence ?? {}
+  const drugs = treatment?.drugs ?? []
+
+  /* An empty panel is a correct answer, not a failure. Say so plainly rather
+     than falling back to the nearest-matching condition's drug list. */
+  if (layer === 'none' || drugs.length === 0) {
     return (
       <Card>
         <CardTitle icon={<Pill className="h-5 w-5" />}>Treatment options</CardTitle>
-        <Unavailable reason={treatment?.reason || 'No treatment data available.'} />
+        <Unavailable reason={style.title} hint={evidence.caveat} />
         {treatment?.reference?.cures && (
           <p className="mt-3 text-sm text-slate-700">
             <span className="font-semibold">General guidance:</span> {treatment.reference.cures}
@@ -354,42 +454,118 @@ export function TreatmentPanel({ treatment }) {
 
   return (
     <Card>
-      <CardTitle icon={<Pill className="h-5 w-5" />}>
-        Treatment options · {treatment.matched_condition}
-      </CardTitle>
+      <CardTitle icon={<Pill className="h-5 w-5" />}>Treatment options</CardTitle>
 
-      <div className="-mx-1 overflow-x-auto">
-        <table className="w-full min-w-[30rem] text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
-              <th className="px-1 pb-2 font-semibold">Drug</th>
-              <th className="px-1 pb-2 text-right font-semibold" title="Blends outcome rating with how commonly it is used">Commonly used</th>
-              <th className="px-1 pb-2 text-right font-semibold" title="Pure outcome rating, ignoring prevalence">Best rated</th>
-              <th className="px-1 pb-2 text-right font-semibold">Satisfaction</th>
-              <th className="px-1 pb-2 text-right font-semibold">Reviews</th>
-            </tr>
-          </thead>
-          <tbody>
-            {treatment.options.map((o) => (
-              <tr key={o.drug} className="border-b border-slate-100 last:border-0">
-                <td className="px-1 py-2 font-medium text-slate-800">{o.drug}</td>
-                <td className="px-1 py-2 text-right font-mono text-slate-600">#{o.rank}</td>
-                <td className="px-1 py-2 text-right font-mono text-slate-600">#{o.rank_by_rating}</td>
-                <td className="px-1 py-2 text-right font-mono text-slate-600">{pct(o.satisfaction_rate)}</td>
-                <td className="px-1 py-2 text-right font-mono text-slate-400">{o.n_reviews.toLocaleString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* The source label is the most important thing on this panel. */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className={cn('rounded-full border px-2.5 py-1 text-xs font-semibold', style.chip)}>
+          {style.title}
+        </span>
+        {treatment.condition && (
+          <span className="text-xs text-slate-500">
+            matched condition:{' '}
+            <span className="font-medium text-slate-700">{treatment.condition}</span>
+          </span>
+        )}
       </div>
 
-      {/* Both orders are shown deliberately: the blended ranking is a
-          statistical tie with a plain popularity baseline, so presenting it
-          alone as authoritative would overstate what the model knows. */}
-      <p className="mt-3 text-xs text-slate-500">{treatment.ranking_note}</p>
-      <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
-        {treatment.disclaimer}
+      {/* Layer A only: how much real-world evidence sits behind this panel. */}
+      {layer === 'mimic' && (
+        <p className="mb-3 text-xs text-slate-600">
+          Drawn from <span className="font-semibold">{evidence.supporting_notes}</span> similar
+          admissions · closest match{' '}
+          <span className="font-mono font-semibold">{pct(evidence.best_similarity)}</span> similar
+        </p>
+      )}
+
+      {layer === 'mimic' ? <MimicTable drugs={drugs} /> : <ReviewTable drugs={drugs} />}
+
+      {layer === 'drug_reviews' && evidence.ranking_note && (
+        /* Both orders are shown deliberately: the blended ranking is a
+           statistical tie with a plain popularity baseline, so presenting it
+           alone as authoritative would overstate what the model knows. */
+        <p className="mt-3 text-xs text-slate-500">{evidence.ranking_note}</p>
+      )}
+
+      {/* Source-specific caveat, taken straight from the backend so the
+          wording cannot drift from the layer that produced the numbers. */}
+      <p className={cn('mt-3 rounded-lg border px-3 py-2 text-xs font-medium', style.banner)}>
+        {evidence.caveat}
+      </p>
+
+      <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
+        Informational decision support for a clinician. Not a diagnosis and not a
+        prescription.
       </p>
     </Card>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* 4b. Compact treatment summary (history / report listings)            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Condensed treatment readout for places that list many assessments at once -
+ * the history and provider-history pages - where a full TreatmentPanel table
+ * would swamp the card.
+ *
+ * Takes a `viewOf()` view rather than the raw treatment block, because those
+ * pages already normalise v1/v2/v3 records through it.
+ *
+ * It still names the SOURCE. That is the one thing this summary must not drop:
+ * a bare list of drug names invites the reader to treat hospital
+ * co-prescription and patient satisfaction ratings as the same evidence.
+ */
+export function TreatmentSummary({ view, className }) {
+  const drugs = view?.treatments ?? []
+  const layer = view?.treatmentLayer ?? 'none'
+  const style = LAYER_PRESENTATION[layer] ?? LAYER_PRESENTATION.none
+
+  if (!drugs.length) {
+    return (
+      <div className={className}>
+        <p className="mb-1 font-medium text-slate-600">Treatment recommendations</p>
+        <p className="text-xs text-slate-500">{style.title}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className={className}>
+      <div className="mb-1.5 flex flex-wrap items-center gap-2">
+        <p className="font-medium text-slate-600">Treatment recommendations</p>
+        <span className={cn('rounded-full border px-2 py-0.5 text-[10px] font-semibold', style.chip)}>
+          {style.title}
+        </span>
+        {view?.matchedCondition && (
+          <span className="text-xs text-slate-500">· {view.matchedCondition}</span>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-1">
+        {drugs.slice(0, 6).map((d, i) => (
+          <span
+            key={`${d.drug}-${i}`}
+            className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700"
+            title={d.drugClass ? `Class: ${d.drugClass}` : undefined}
+          >
+            <Pill className="h-3 w-3 text-slate-400" />
+            {d.drug}
+          </span>
+        ))}
+        {drugs.length > 6 && (
+          <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
+            +{drugs.length - 6} more
+          </span>
+        )}
+      </div>
+
+      {view?.treatmentCaveat && (
+        <p className="mt-1.5 text-[11px] leading-snug text-slate-500">
+          {view.treatmentCaveat}
+        </p>
+      )}
+    </div>
   )
 }

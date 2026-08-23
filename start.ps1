@@ -30,8 +30,8 @@ if (-not (Test-Path $venvPython)) {
 if (-not (Test-Path (Join-Path $backendDir ".env"))) {
     Fail "backend\.env is missing. Run install.bat, or copy backend\.env.example to backend\.env and set SECRET_KEY."
 }
-if (-not (Test-Path (Join-Path $root "model\artifacts\model1_classifier.joblib"))) {
-    Fail "model\artifacts is missing or incomplete. Train with training\kaggle_train.py and copy its artifacts/ output into model\artifacts\."
+if (-not (Test-Path (Join-Path $root "backend\artifacts\model1_classifier.joblib"))) {
+    Fail "backend\artifacts is missing or incomplete. Re-export the 21 trained artifacts from the training notebook into backend\artifacts\."
 }
 $webInstalled = Test-Path (Join-Path $webDir "node_modules")
 if (-not $webInstalled) {

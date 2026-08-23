@@ -5,8 +5,9 @@ WORKDIR /app
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
+# backend/ carries artifacts/ with it - the API will not start without the
+# trained models, so they are part of the image rather than a mounted volume.
 COPY backend/ ./backend/
-COPY model/ ./model/
 
 WORKDIR /app/backend
 

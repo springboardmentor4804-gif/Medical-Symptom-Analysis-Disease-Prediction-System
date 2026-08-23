@@ -52,6 +52,11 @@ function emptyView() {
     riskConditions: [],
     compositeRisk: null,
     treatments: [],
+    treatmentLayer: null,
+    treatmentLayerLabel: null,
+    gateReason: null,
+    treatmentCaveat: null,
+    matchedCondition: null,
     suggestedCare: null,
     suggestedDoctor: null,
     disclaimer: '',
@@ -113,14 +118,27 @@ function viewV2(r) {
     compositeRisk: risk.composite?.score ?? null,
     compositeBand: risk.composite?.band ?? null,
 
-    treatments: (tx.options || []).map((o) => ({
+    /* v3 renamed `options` to `drugs` and split the source into two layers.
+       Records saved under v2 still carry `options`, so both are read. The
+       per-drug fields differ by layer - a mimic row has no satisfaction rate
+       and a review row has no drug class - so undefined here is expected and
+       consumers must not assume either set is populated. */
+    treatments: (tx.drugs || tx.options || []).map((o) => ({
       drug: o.drug,
       rank: o.rank,
       rankByRating: o.rank_by_rating,
       satisfaction: o.satisfaction_rate,
       reviews: o.n_reviews,
+      drugClass: o.drug_class,
+      classConfidence: o.class_confidence,
     })),
-    matchedCondition: tx.matched_condition ?? null,
+    /* Which source the drugs came from. Anything rendering `treatments` must
+       label it - see TreatmentPanel. */
+    treatmentLayer: tx.layer ?? (tx.options ? 'drug_reviews' : null),
+    treatmentLayerLabel: tx.layer_label ?? null,
+    gateReason: tx.gate_reason ?? null,
+    treatmentCaveat: tx.evidence?.caveat ?? tx.disclaimer ?? null,
+    matchedCondition: tx.condition ?? tx.matched_condition ?? null,
     suggestedCare: tx.reference?.cures ?? null,
     suggestedDoctor: tx.reference?.doctor ?? null,
 
@@ -185,7 +203,12 @@ function viewV1(r) {
     compositeRisk: null,
     compositeBand: null,
 
+    // v1 predates the treatment models entirely.
     treatments: [],
+    treatmentLayer: null,
+    treatmentLayerLabel: null,
+    gateReason: null,
+    treatmentCaveat: null,
     matchedCondition: null,
     suggestedCare: rec.suggested_cures ?? null,
     suggestedDoctor: rec.suggested_doctor ?? null,

@@ -1,10 +1,20 @@
 from pathlib import Path
 
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, ForeignKey, Boolean, text
+from sqlalchemy import (
+    create_engine, Column, Integer, String, DateTime, Text, ForeignKey,
+    Boolean, JSON, text,
+)
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from datetime import datetime
 
 from config import settings
+
+# JSONB on PostgreSQL (indexable, queryable), plain JSON on SQLite, which
+# stores it as TEXT but still round-trips dicts through the ORM. Declaring the
+# variant keeps one model definition working on the dev SQLite database and the
+# deployed Postgres one.
+JSONVariant = JSON().with_variant(JSONB(), "postgresql")
 
 DATABASE_URL = settings.database_url
 
@@ -51,6 +61,15 @@ class Assessment(Base):
     result_json = Column(Text)
     risk_flag = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    # --- treatment cascade telemetry -------------------------------------
+    # Denormalised out of result_json on purpose. These answer "how often does
+    # Layer A actually fire in production, and when it doesn't, why?" - a
+    # question you cannot answer by scanning a JSON blob across every row, and
+    # the one that decides whether the gate needs retuning in the notebook.
+    treatment_layer = Column(String, index=True)   # 'mimic'|'drug_reviews'|'none'
+    gate_reason = Column(String, index=True)
+    treatment_evidence = Column(JSONVariant)
 
     user = relationship("User", back_populates="assessments")
     provider_report = relationship("ProviderReport", back_populates="assessment", uselist=False)
@@ -120,23 +139,69 @@ class SystemSettings(Base):
     value = Column(String, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-def _run_sqlite_migrations():
-    """Add columns introduced after the initial schema to pre-existing SQLite databases.
+def _existing_columns(conn, table: str) -> set:
+    """Column names on `table`, for whichever backend is configured."""
+    if DATABASE_URL.startswith("sqlite"):
+        return {row[1] for row in conn.execute(text(f"PRAGMA table_info({table})"))}
+    rows = conn.execute(
+        text("SELECT column_name FROM information_schema.columns "
+             "WHERE table_name = :t"),
+        {"t": table},
+    )
+    return {r[0] for r in rows}
 
-    create_all() only creates missing tables, not missing columns on existing ones,
-    so a dev DB created before `is_active` was added needs this to keep working.
+
+def _run_migrations():
     """
-    if not DATABASE_URL.startswith("sqlite"):
-        return
+    Add columns introduced after the initial schema to pre-existing databases.
+
+    create_all() creates missing TABLES, never missing COLUMNS on tables that
+    already exist, so every column added after the first deploy needs an entry
+    here or the app breaks against an older database.
+
+    Each step is guarded by an existence check, so this is safe to re-run and
+    safe on a brand-new database where create_all() already made the columns.
+    """
+    # (table, column, DDL type) - JSONB where the backend supports it.
+    json_type = "TEXT" if DATABASE_URL.startswith("sqlite") else "JSONB"
+    steps = [
+        ("users", "is_active",
+         "BOOLEAN DEFAULT 1" if DATABASE_URL.startswith("sqlite")
+         else "BOOLEAN DEFAULT TRUE"),
+        # Treatment cascade telemetry, added with the v3 model layer.
+        ("assessments", "treatment_layer", "VARCHAR"),
+        ("assessments", "gate_reason", "VARCHAR"),
+        ("assessments", "treatment_evidence", json_type),
+    ]
+
     with engine.connect() as conn:
-        existing_cols = {row[1] for row in conn.execute(text("PRAGMA table_info(users)"))}
-        if "is_active" not in existing_cols:
-            conn.execute(text("ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1"))
-            conn.commit()
+        for table, column, ddl in steps:
+            try:
+                if column in _existing_columns(conn, table):
+                    continue
+                conn.execute(
+                    text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"))
+                conn.commit()
+            except Exception:
+                # A table that does not exist yet is handled by create_all();
+                # a duplicate column means another worker won the race. Neither
+                # should stop the application from starting.
+                conn.rollback()
+
+        # Indexed because the monitoring queries filter on them.
+        for column in ("treatment_layer", "gate_reason"):
+            try:
+                conn.execute(text(
+                    f"CREATE INDEX IF NOT EXISTS ix_assessments_{column} "
+                    f"ON assessments ({column})"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+
 
 def init_db():
     Base.metadata.create_all(bind=engine)
-    _run_sqlite_migrations()
+    _run_migrations()
     _initialize_system_settings()
 
 

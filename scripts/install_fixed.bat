@@ -89,10 +89,10 @@ REM 5. Verify the trained model artifacts load
 REM ---------------------------------------------------------------------------
 echo.
 echo [5/6] Verifying model artifacts...
-if not exist "model\artifacts\model1_classifier.joblib" (
-    echo   ERROR: model\artifacts is missing or incomplete.
-    echo   Run training\kaggle_train.py on Kaggle and copy its artifacts/
-    echo   output into model\artifacts\.
+if not exist "backend\artifacts\model1_classifier.joblib" (
+    echo   ERROR: backend\artifacts is missing or incomplete.
+    echo   Re-export the 21 trained artifacts from the training
+    echo   notebook into backend\artifacts\.
     goto :fail
 )
 "%PY%" backend\verify_artifacts.py --smoke

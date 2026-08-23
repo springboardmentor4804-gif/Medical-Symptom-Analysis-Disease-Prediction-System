@@ -3,7 +3,7 @@
 Verify that every trained model artifact loads.
 
 Run after installing dependencies or after dropping a fresh training run into
-model/artifacts/. Exits non-zero if anything is missing or unreadable, so it
+backend/artifacts/. Exits non-zero if anything is missing or unreadable, so it
 works as an installer and CI gate as well as a manual check.
 
     python backend/verify_artifacts.py
@@ -24,7 +24,7 @@ def main() -> int:
     args = ap.parse_args()
 
     try:
-        from medmodels import get_artifacts
+        from services import get_artifacts
     except Exception as e:  # noqa: BLE001 - report anything, do not crash the installer
         print(f"  FAILED to import the model layer: {type(e).__name__}: {e}")
         return 1
@@ -35,23 +35,32 @@ def main() -> int:
         print(f"  FAILED to read artifacts: {type(e).__name__}: {e}")
         return 1
 
-    for name, info in status["artifacts"].items():
+    for name, info in sorted(status["artifacts"].items()):
         if info["loaded"]:
-            print(f"  ok      {name:24s} ({info['size']})")
+            print(f"  ok      {name:24s} (rows={info['rows']})")
         else:
             print(f"  MISSING {name:24s} {info.get('error', '')}")
 
     if not status["healthy"]:
         print()
         print(f"  Artifact directory: {status['artifact_dir']}")
-        print("  Train with training/kaggle_train.py and copy its artifacts/")
-        print("  output into model/artifacts/.")
+        print(f"  {status.get('error', '')}")
+        print("  Re-export the artifacts from the training notebook into")
+        print("  backend/artifacts/.")
         return 1
 
     print(f"  All {len(status['artifacts'])} artifacts loaded.")
 
+    # The cascade's behaviour depends on which layers are present, so say so
+    # rather than leaving a Layer-B-only deployment looking fully featured.
+    print(f"  Layer A (MIMIC-IV): "
+          f"{'enabled' if status['layer_a_enabled'] else 'DISABLED'}")
+    if status["disabled_features"]:
+        print(f"  Disabled optional features: "
+              f"{', '.join(status['disabled_features'])}")
+
     if args.smoke:
-        from medmodels import get_engine
+        from services import get_engine
         # A realistic cardiac presentation: it should escalate on the red flag,
         # return a cardiac differential, and find linked treatments.
         result = get_engine().analyze(
@@ -70,8 +79,10 @@ def main() -> int:
               f"({sev['escalation_override'] or 'no override'})")
         print(f"              diagnosis={dx.get('top_disease')} "
               f"({dx['confidence']['label']} confidence)")
+        tx = result["treatment"]
         print(f"              risk={result['risk']['available']} "
-              f"treatment={result['treatment']['available']}")
+              f"treatment_layer={tx['layer']} gate={tx['gate_reason']} "
+              f"drugs={len(tx['drugs'])}")
 
     return 0
 

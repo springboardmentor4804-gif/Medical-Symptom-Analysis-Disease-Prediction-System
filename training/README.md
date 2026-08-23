@@ -33,13 +33,24 @@ python kaggle_train.py --artifacts ./out   # custom output directory
 
 ## Installing the output
 
-Copy the generated `artifacts/` into `model/artifacts/` at the repo root and
-restart the API. `install.bat` verifies they load; `GET /system/model-status`
-reports per-artifact health at runtime.
+Copy the generated `artifacts/` into `backend/artifacts/` and restart the API.
+`install.bat` verifies they load; `GET /system/model-status` reports
+per-artifact health and the active cascade gate at runtime.
 
-`model3_text_condition.joblib` (~104 MB) is deliberately **not** installed. It
-powers free-text condition search, is 95% of total artifact weight, and the
-symptom picker covers the same ground. Add it only if you wire that endpoint.
+`model3_text_condition.joblib` (~100 MB) IS installed, but it is loaded lazily
+on first use rather than at startup - warming it eagerly costs several seconds
+and roughly a gigabyte of RSS per worker for a path most requests never reach.
+It is stored through Git LFS along with the other `.joblib` / `.npz` artifacts.
+
+### Retuning the cascade gate
+
+The Layer A thresholds (`sim_floor`, `min_support`, `cat_threshold`) travel
+inside `model3_mimic_layer.joblib` under the `gate` key. The application reads
+them from there and never hard-codes them, so **the gate is retuned in the
+notebook and re-exported, never edited in application code**. If
+`backend/tests/test_cascade.py` starts failing because an outpatient condition
+such as `acne` routes to the `mimic` layer, that is the signal to retune here -
+the test is measuring the notebook, not the app.
 
 ## Datasets
 

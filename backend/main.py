@@ -13,13 +13,15 @@ from sqlalchemy.orm import Session
 from auth import create_access_token, get_current_user, hash_password, require_role
 from config import settings
 from database import Assessment, User, SystemSettings, ProviderReport, PatientProfile, get_db, init_db
-from medmodels import (
+from services import (
     CONDITION_LABELS,
     SCHEMA_VERSION,
     ArtifactsUnavailable,
     get_artifacts,
+    get_cascade,
     get_engine,
     red_flag_vocabulary,
+    startup_health_check,
 )
 from report_builder import build_pdf
 from routers.admin_routes import router as admin_router
@@ -85,6 +87,20 @@ def bootstrap_admin():
 
 
 bootstrap_admin()
+
+
+@app.on_event("startup")
+def load_models():
+    """
+    Load and verify the model layer once per worker.
+
+    Artifacts are warmed here rather than on first request: loading costs
+    1-2 s, inference costs ~10 ms, and doing it per request would make the API
+    unusable. A missing REQUIRED artifact aborts startup with the filename -
+    a deployment that cannot answer correctly must not accept traffic.
+    """
+    startup_health_check(strict=True)
+
 
 app.include_router(auth_router, tags=["auth"])
 app.include_router(report_router, tags=["reports"])
@@ -222,6 +238,7 @@ def assess(
         logger.error("Model artifacts unavailable: %s", e)
         raise HTTPException(status_code=503, detail=str(e))
 
+    treatment = result.get("treatment", {})
     record = Assessment(
         user_id=current_user.id,
         input_json=json.dumps(input_dict),
@@ -229,14 +246,20 @@ def assess(
         # Legacy triage vocabulary ("HIGH PRIORITY" / "REVIEW" / "LOW"). The
         # triage queue and analytics both filter on these exact strings.
         risk_flag=result["meta"]["flag"],
+        # Denormalised cascade telemetry - see the Assessment model.
+        treatment_layer=treatment.get("layer"),
+        gate_reason=treatment.get("gate_reason"),
+        treatment_evidence=treatment.get("evidence"),
     )
     db.add(record)
     db.commit()
 
     logger.info(
-        "Assessment recorded: user_id=%s severity=%s flag=%s dx=%s",
+        "Assessment recorded: user_id=%s severity=%s flag=%s dx=%s "
+        "layer=%s gate=%s",
         current_user.id, result["severity"]["level"], result["meta"]["flag"],
         result["diagnosis"].get("top_disease"),
+        treatment.get("layer"), treatment.get("gate_reason"),
     )
     return result
 
@@ -538,15 +561,27 @@ def get_model_status(
     except Exception:
         pass
 
+    cascade = {}
+    try:
+        cascade = get_cascade().status()
+    except Exception as e:                                   # noqa: BLE001
+        cascade = {"error": f"{type(e).__name__}: {e}"}
+
     return {
         "model_enabled": status["healthy"],
         "healthy": status["healthy"],
         "schema_version": SCHEMA_VERSION,
-        "model_version": manifest.get("pipeline_version"),
+        "model_version": manifest.get("pipeline_version", manifest.get("created")),
         "trained_at_unix": manifest.get("built_at_unix"),
+        "artifact_count": manifest.get("n_files"),
         "headline_metrics": manifest.get("headline_metrics", {}),
         "artifact_dir": status["artifact_dir"],
         "artifacts": status["artifacts"],
+        # The active gate thresholds, read from the artifact. Surfaced so a
+        # deployment can be checked against the notebook that tuned it.
+        "cascade": cascade,
+        "layer_a_enabled": status.get("layer_a_enabled"),
+        "disabled_features": status.get("disabled_features", []),
     }
 
 

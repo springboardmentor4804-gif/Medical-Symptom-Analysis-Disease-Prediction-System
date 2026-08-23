@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -6,6 +7,16 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from database import User, get_db
 from config import settings
+
+# passlib 1.7.4 reads `bcrypt.__about__.__version__` to detect the backend
+# version. bcrypt 4.x removed that attribute, so passlib logs a full
+# AttributeError traceback the first time it loads the backend. It catches the
+# error itself and hashing works correctly - but an unhandled-looking traceback
+# on every startup and every password reset is exactly the kind of noise that
+# trains people to ignore real errors. Silence that one logger, not the module.
+#
+# Remove this when passlib > 1.7.4 ships (the fix is already on its master).
+logging.getLogger("passlib.handlers.bcrypt").setLevel(logging.CRITICAL)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")

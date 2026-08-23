@@ -97,7 +97,7 @@ taskkill /PID <PID> /F
 ```
 
 ### "Model artifacts not found"
-Ensure `model/artifacts/` directory exists with all required files. See main README.md for details.
+Ensure `backend/artifacts/` exists with all 21 trained artifacts. See main README.md for details.
 
 ## Notes
 

@@ -4,6 +4,7 @@ import { Card, CardTitle } from '../components/med/Card'
 import { Button } from '../components/med/Button'
 import { RiskBadge } from '../components/med/Badge'
 import { api, errorMessage } from '../lib/api'
+import { TreatmentSummary } from '../components/med/ResultPanels'
 import { viewOf, symptomNames } from '../lib/assessment'
 
 function riskLevel(flag) {
@@ -371,6 +372,10 @@ export default function ProviderHistory() {
                                     )}
                                   </div>
                                 </div>
+
+                                {/* Clinicians triaging from this list need the
+                                    treatment source, not just the symptoms. */}
+                                <TreatmentSummary view={view} className="sm:col-span-2 text-sm" />
                               </div>
                             </div>
 

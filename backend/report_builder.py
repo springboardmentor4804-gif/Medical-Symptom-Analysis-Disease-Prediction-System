@@ -145,11 +145,17 @@ def normalize_result(result: dict) -> dict:
                                 key=lambda c: -c["risk_score"])
             ],
             "composite_risk": (risk.get("composite") or {}).get("score"),
-            "treatments": tx.get("options", []),
-            "matched_condition": tx.get("matched_condition"),
+            # v3 cascade. `options` was the v2 key; older stored assessments
+            # still carry it, so both are read and the PDF renders either.
+            "treatments": tx.get("drugs", tx.get("options", [])),
+            "treatment_layer": tx.get("layer", "drug_reviews"),
+            "treatment_layer_label": tx.get("layer_label", ""),
+            "matched_condition": (tx.get("condition")
+                                  or tx.get("matched_condition")),
             "suggested_cures": (tx.get("reference") or {}).get("cures"),
             "suggested_doctor": (tx.get("reference") or {}).get("doctor"),
-            "treatment_disclaimer": tx.get("disclaimer", ""),
+            "treatment_disclaimer": ((tx.get("evidence") or {}).get("caveat")
+                                     or tx.get("disclaimer", "")),
             "caveats": result.get("meta", {}).get("caveats", []),
             "disclaimer": result.get("disclaimer", ""),
         }
@@ -191,6 +197,8 @@ def normalize_result(result: dict) -> dict:
         ],
         "composite_risk": None,
         "treatments": [],
+        "treatment_layer": None,
+        "treatment_layer_label": "",
         "matched_condition": None,
         "suggested_cures": rec.get("suggested_cures") or cp.get("preventive_care"),
         "suggested_doctor": rec.get("suggested_doctor"),
@@ -391,18 +399,45 @@ def build_pdf(filepath: str, *, patient_email: str, profile: dict | None,
 
     if view["treatments"]:
         story.append(Spacer(1, 10))
-        story.append(Paragraph(
-            f"<b>Treatment options recorded for {view['matched_condition']}</b>",
-            styles["Small"],
-        ))
+
+        # The heading must name the SOURCE, not just the condition. A hospital
+        # co-prescription list and a patient-satisfaction ranking cannot share
+        # a caption without misleading whoever reads the printout.
+        is_mimic = view.get("treatment_layer") == "mimic"
+        if is_mimic:
+            heading = ("<b>Real hospital prescriptions</b> — drugs co-prescribed "
+                       "during similar MIMIC-IV admissions")
+        else:
+            heading = ("<b>Patient-reported experience</b> — drug-review rankings"
+                       + (f" for {view['matched_condition']}"
+                          if view.get("matched_condition") else ""))
+        story.append(Paragraph(heading, styles["Small"]))
         story.append(Spacer(1, 4))
-        tx_rows = [["Drug", "Commonly used", "Best rated", "Satisfaction", "Reviews"]]
-        for o in view["treatments"][:8]:
-            tx_rows.append([
-                o["drug"], f"#{o['rank']}", f"#{o['rank_by_rating']}",
-                f"{o['satisfaction_rate']:.0%}", f"{o['n_reviews']:,}",
-            ])
-        tx_table = Table(tx_rows, colWidths=[2.0 * inch, 1.2 * inch, 1.1 * inch, 1.1 * inch, 0.9 * inch])
+
+        if is_mimic:
+            tx_rows = [["Drug", "Class", "Class conf.", "Drug conf."]]
+            for o in view["treatments"][:8]:
+                dc = o.get("drug_confidence")
+                tx_rows.append([
+                    o.get("drug", ""),
+                    str(o.get("drug_class", "")).title(),
+                    f"{o.get('class_confidence', 0):.0%}",
+                    "-" if dc is None else f"{dc:.0%}",
+                ])
+            col_widths = [2.2 * inch, 1.6 * inch, 1.1 * inch, 1.1 * inch]
+        else:
+            tx_rows = [["Drug", "Commonly used", "Best rated", "Satisfaction",
+                        "Reviews"]]
+            for o in view["treatments"][:8]:
+                tx_rows.append([
+                    o.get("drug", ""), f"#{o.get('rank', '-')}",
+                    f"#{o.get('rank_by_rating', '-')}",
+                    f"{o.get('satisfaction_rate', 0):.0%}",
+                    f"{o.get('n_reviews', 0):,}",
+                ])
+            col_widths = [2.0 * inch, 1.2 * inch, 1.1 * inch, 1.1 * inch, 0.9 * inch]
+
+        tx_table = Table(tx_rows, colWidths=col_widths)
         tx_table.setStyle(TableStyle([
             ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
             ("BACKGROUND", (0, 0), (-1, 0), DARK_COLOR),

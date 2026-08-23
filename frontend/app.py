@@ -251,17 +251,40 @@ elif page == "Symptom Checker":
 
             tx = result["treatment"]
             st.subheader("Treatment options")
-            if tx.get("available"):
+            # The two cascade layers mean different things and must not share a
+            # heading - see services/treatment_cascade.py.
+            layer = tx.get("layer", "none")
+            drugs = tx.get("drugs", [])
+            evidence = tx.get("evidence") or {}
+            if drugs and layer == "mimic":
+                st.markdown("**Real hospital prescriptions**")
+                st.caption(
+                    f"Drawn from {evidence.get('supporting_notes')} similar "
+                    f"admissions - closest match "
+                    f"{evidence.get('best_similarity', 0):.0%} similar")
+                st.table([{
+                    "Drug": o["drug"],
+                    "Class": str(o.get("drug_class", "")).title(),
+                    "Class conf.": f"{o.get('class_confidence', 0):.0%}",
+                    "Drug conf.": ("-" if o.get("drug_confidence") is None
+                                   else f"{o['drug_confidence']:.0%}"),
+                } for o in drugs])
+                st.caption(evidence.get("caveat", ""))
+            elif drugs:
+                st.markdown("**Patient-reported experience**")
+                if tx.get("condition"):
+                    st.caption(f"Matched condition: {tx['condition']}")
                 st.table([{
                     "Drug": o["drug"],
                     "Commonly used": f"#{o['rank']}",
                     "Best rated": f"#{o['rank_by_rating']}",
                     "Satisfaction": f"{o['satisfaction_rate']:.0%}",
                     "Reviews": o["n_reviews"],
-                } for o in tx["options"]])
-                st.caption(tx["disclaimer"])
+                } for o in drugs])
+                st.caption(evidence.get("caveat", ""))
             else:
-                st.info(tx.get("reason", "No treatment data available."))
+                st.info("No treatment data available for this condition.")
+                st.caption(evidence.get("caveat", ""))
                 if (tx.get("reference") or {}).get("cures"):
                     st.write(f"**General guidance:** {tx['reference']['cures']}")
 

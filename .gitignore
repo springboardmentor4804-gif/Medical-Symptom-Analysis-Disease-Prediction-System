@@ -39,15 +39,13 @@ npm-debug.log*
 yarn-error.log*
 
 # ---- Training scratch ----
-# kaggle_train.py writes an artifacts/ directory next to itself when run
-# locally; the installed copies live in model/artifacts/.
+# The training notebook writes an artifacts/ directory next to itself when run
+# locally. The copies the application loads live in backend/artifacts/.
 #
-# These patterns MUST be anchored with a leading slash. A bare `artifacts/`
-# matches at every depth in git, so it silently excludes model/artifacts/ too
-# and the repo clones without the models the API needs to start.
-#
-# /artifacts/ is now tracked via Git LFS (see .gitattributes) because it holds
-# the model3 text/mimic layers that model/artifacts/ does not carry.
+# This pattern MUST be anchored with a leading slash. A bare `artifacts/`
+# matches at every depth in git, so it would silently exclude
+# backend/artifacts/ too and the repo would clone without the models the API
+# needs to start.
 /training/artifacts/
 .kagglehub/
 
@@ -57,6 +55,6 @@ Thumbs.db
 *.swp
 .idea/
 
-# NOTE: model/artifacts/ is intentionally NOT ignored. Those ~4 MB of trained
+# NOTE: backend/artifacts/ is intentionally NOT ignored. Those 21 trained
 # artifacts are what the API loads at runtime, so the repo is not deployable
-# without them.
+# without them. The large ones are stored via Git LFS - see .gitattributes.

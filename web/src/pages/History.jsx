@@ -3,6 +3,7 @@ import { FileText, Pill, Download, Calendar, Activity, User as UserIcon, Trendin
 import { Card, CardTitle } from '../components/med/Card'
 import { Button } from '../components/med/Button'
 import { RiskBadge } from '../components/med/Badge'
+import { TreatmentSummary } from '../components/med/ResultPanels'
 import { api, errorMessage } from '../lib/api'
 import { viewOf, symptomNames } from '../lib/assessment'
 
@@ -321,6 +322,11 @@ export default function History() {
                             )}
                           </div>
                         </div>
+
+                        {/* The saved assessment already carries the cascade
+                            result; showing only symptoms and a top condition
+                            hid the half of the record a clinician acts on. */}
+                        <TreatmentSummary view={view} className="sm:col-span-2" />
                       </div>
                     </div>
 

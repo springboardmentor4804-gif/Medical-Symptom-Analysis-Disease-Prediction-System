@@ -121,7 +121,7 @@ npm run dev
 │              FastAPI Backend (Port 8000)                    │
 │                                                             │
 │  ┌────────────────────────────────────────────────────┐   │
-│  │      medmodels.engine.analyze()                    │   │
+│  │       services.engine.analyze()                    │   │
 │  │                                                     │   │
 │  │  ┌────────────────────────────────────────────┐   │   │
 │  │  │ Model 1: Disease Prediction                │   │   │
@@ -174,7 +174,7 @@ You **cannot** compute diabetes risk from symptoms alone, and you **cannot** dia
 - **Output:** 684 disease conditions with probability scores
 - **Performance:** 87.0% top-1 accuracy, 96.5% top-3 accuracy
 - **Training Data:** 247k synthetically augmented symptom matrix
-- **Artifact:** `model/artifacts/model1_classifier.joblib`
+- **Artifact:** `backend/artifacts/model1_classifier.joblib`
 
 **Why Bernoulli NB?**
 - Extremely memory efficient (~10 MB vs. 9 GB for Random Forest)
@@ -204,7 +204,7 @@ You **cannot** compute diabetes risk from symptoms alone, and you **cannot** dia
   10. Kidney Disease
 - **Performance:** Mean ROC-AUC 0.797 across all conditions
 - **Training Data:** CDC BRFSS 2011-2015 (2.2M survey responses)
-- **Artifact:** `model/artifacts/model2_risk_models.joblib`
+- **Artifact:** `backend/artifacts/model2_risk_models.joblib`
 
 **Why Histogram Gradient Boosting?**
 - Native handling of missing values (no imputation needed)
@@ -216,7 +216,7 @@ You **cannot** compute diabetes risk from symptoms alone, and you **cannot** dia
 
 **Algorithm:** **Rule-Based Weighted Scoring System** (NOT machine learning)
 - **Type:** Deterministic rules with configurable weights
-- **Configuration:** `model/artifacts/severity_config.json`
+- **Configuration:** `backend/artifacts/severity_config.json`
 
 **6 Weighted Components:**
 1. **Symptom Burden** - Number and intensity of symptoms
@@ -240,25 +240,62 @@ You **cannot** compute diabetes risk from symptoms alone, and you **cannot** dia
 **Why Rule-Based Instead of ML?**
 > "No training datasets carry labeled triage outcomes. A learned severity model would be fitting noise and presenting it with unearned authority. Rule-based is explainable, clinician-tunable, and medically defensible."
 
-### Model 3: Treatment Recommendations
+### Model 3: Treatment Cascade (Two Layers)
 
-**Algorithm:** **Bayesian-Shrunk Rating Ranking** (Statistical, not ML)
-- **Formula:** `score = (shrunk_rating^(1-γ)) × (n_reviews^γ)`
-- **Data Source:** UCI Drug Review Dataset (215,000 patient reviews)
-- **Coverage:** 219 of 684 conditions (32%)
-- **Artifact:** `model/artifacts/model3_treatment_table.csv`
+Treatment is the one place where **the source matters more than the ranking**,
+so Model 3 is a cascade of two sources that are never presented under the same
+label.
 
-**Bayesian Shrinkage Formula:**
+#### Layer A — Real hospital prescriptions (preferred)
+
+- **Data source:** MIMIC-IV discharge prescriptions, 754 admissions
+- **Algorithm:** TF-IDF diagnosis similarity → Stage 1 drug-class classifier
+  (one-vs-rest logistic regression, 13 classes) → Stage 2 per-class drug model
+- **Artifact:** `backend/artifacts/model3_mimic_layer.joblib`
+- **Means:** clinicians treating similar admissions prescribed these drugs
+
+Layer A only answers when it clears **three gates**, all read from the
+artifact's `gate` key:
+
+| Gate | Value | Fails with |
+|---|---|---|
+| `sim_floor` | 0.10 | `similarity_below_floor` |
+| `min_support` | 3 | `insufficient_support` |
+| `cat_threshold` | 0.30 | `no_class_predicted` / `no_drug_predicted` |
+
+> **The gate is never hard-coded.** The thresholds travel inside
+> `model3_mimic_layer.joblib` so the notebook and the application cannot drift
+> apart on the next retrain. Retune them in the notebook and re-export.
+
+#### Layer B — Patient-reported experience (fallback)
+
+- **Algorithm:** Bayesian-shrunk rating ranking (statistical, not ML)
+- **Formula:** `score = (shrunk_rating^(1-γ)) × (n_reviews^γ)`, γ = 0.5
+- **Data source:** UCI Drug Review Dataset (209,000 patient reviews)
+- **Coverage:** 328 rankable conditions, 219 of 684 diseases linked (32%)
+- **Artifact:** `backend/artifacts/model3_treatment_table.csv`
+- **Means:** patients rated these drugs highly — satisfaction, not efficacy
+
 ```
-shrunk_rating = (n_reviews × mean_rating + prior_weight × global_mean) / 
+shrunk_rating = (n_reviews × mean_rating + prior_weight × global_mean) /
                 (n_reviews + prior_weight)
 ```
 
-**Why Bayesian Ranking?**
-- Prevents drugs with 1-2 reviews from dominating
-- Balances quality vs. prevalence (tunable gamma parameter)
-- Statistically sound, interpretable
-- No training required
+Bayesian shrinkage stops a drug with two five-star reviews from outranking one
+with two thousand good ones.
+
+#### Layer "none" — an empty panel is a correct answer
+
+If the query resolves to no condition above a 0.45 match score, the cascade
+returns an **empty drug list**, not the drugs for the nearest-spelled
+condition. Every response carries `layer`, `gate_reason` and a
+source-appropriate `evidence.caveat`.
+
+| `layer` | UI label | Caveat |
+|---|---|---|
+| `mimic` | Real hospital prescriptions | Co-occurrence across every problem the patient had, not attribution |
+| `drug_reviews` | Patient-reported experience | Satisfaction, not clinical efficacy or safety |
+| `none` | No treatment data available | Absence of data, not evidence that no treatment exists |
 
 ### Performance Metrics
 
@@ -359,7 +396,8 @@ patient_profiles (id, user_id, full_name, date_of_birth, gender, allergies, medi
 provider_profiles (id, user_id, full_name, qualifications, registration_number, clinic_info)
 
 -- Assessment records (AI evaluations)
-assessments (id, user_id, input_json, result_json, risk_flag, created_at)
+assessments (id, user_id, input_json, result_json, risk_flag, created_at,
+             treatment_layer, gate_reason, treatment_evidence)
 
 -- Provider reports (clinical notes)
 provider_reports (id, assessment_id, patient_id, provider_id, insights, treatment_suggestions)
@@ -467,7 +505,7 @@ Login with credentials.
 **Response:**
 ```json
 {
-  "schema_version": "2.0",
+  "schema_version": "3.0",
   "generated_at": "2026-08-21T16:30:00Z",
   "diagnosis": {
     "available": true,
@@ -523,19 +561,33 @@ Login with credentials.
   },
   "treatment": {
     "available": true,
-    "options": [
+    "layer": "drug_reviews",
+    "layer_label": "Patient-reported experience",
+    "gate_reason": "similarity_below_floor",
+    "condition": "acne",
+    "drugs": [
       {
-        "drug": "Amoxicillin",
+        "drug": "Isotretinoin",
         "rank": 1,
+        "rank_by_rating": 4,
         "adjusted_rating": 8.2,
-        "satisfaction_rate": 0.78,
-        "n_reviews": 342
+        "satisfaction_rate": 0.846,
+        "n_reviews": 682,
+        "mimic_confirmed": false
       }
-    ]
+    ],
+    "evidence": {
+      "source": "UCI ML Drug Review corpus",
+      "caveat": "Ranked from aggregated patient-reported satisfaction ... NOT clinical efficacy, safety, or suitability for this patient.",
+      "match_score": 1.0,
+      "match_method": "disease_link"
+    }
   },
   "meta": {
     "flag": "HIGH PRIORITY",
-    "model_version": "2.0.0"
+    "treatment_layer": "drug_reviews",
+    "gate_reason": "similarity_below_floor",
+    "model_version": "3.0"
   }
 }
 ```
@@ -546,7 +598,7 @@ Get vocabulary and options for building forms.
 **Response:**
 ```json
 {
-  "schema_version": "2.0",
+  "schema_version": "3.0",
   "symptoms": [
     {"name": "fever", "red_flag": false, "critical": false},
     {"name": "sharp chest pain", "red_flag": true, "critical": true}
@@ -622,10 +674,38 @@ Once the backend is running, visit:
 ```
 MedAssist-main/
 ├── backend/                      # FastAPI backend
-│   ├── medmodels/               # AI/ML model layer
-│   │   ├── engine.py           # Main inference engine
-│   │   ├── artifacts.py        # Model artifact loading
-│   │   └── severity.py         # Severity/triage scoring
+│   ├── services/                # AI/ML model layer (inference only)
+│   │   ├── engine.py           # Orchestrator - analyze()
+│   │   ├── artifacts.py        # Artifact loading, required/optional policy
+│   │   ├── startup.py          # Startup health check + preload
+│   │   ├── disease_model.py    # Model 1
+│   │   ├── risk_model.py       # Model 2
+│   │   ├── treatment_cascade.py # Model 3 two-layer cascade
+│   │   └── severity_engine.py  # Rule-based triage (not a model)
+│   ├── artifacts/               # **REQUIRED** - 21 trained artifacts (Git LFS)
+│   │   ├── model1_classifier.joblib           # Disease prediction
+│   │   ├── model1_label_encoder.joblib
+│   │   ├── model1_symptom_columns.json        # 377 features, ORDER MATTERS
+│   │   ├── model1_symptom_evidence.json
+│   │   ├── model1_metrics.json
+│   │   ├── model1_disease_lookup.csv          # optional reference text
+│   │   ├── model2_risk_models.joblib          # 10 models + tuned thresholds
+│   │   ├── model2_condition_metrics.csv
+│   │   ├── model2_metrics.json
+│   │   ├── model3_mimic_layer.joblib          # Layer A + TUNED GATE CONFIG
+│   │   ├── model3_mimic_matrix.npz            # Layer A diagnosis TF-IDF
+│   │   ├── model3_mimic_records.csv           # Layer A neighbour display
+│   │   ├── model3_treatment_table.csv         # Layer B rankings
+│   │   ├── model3_disease_condition_link.json # Layer B disease -> condition
+│   │   ├── model3_text_condition.joblib       # 100 MB, LOADED LAZILY
+│   │   ├── model3_note_vectorizer.joblib      # similar-case lookup
+│   │   ├── model3_note_matrix.npz
+│   │   ├── model3_note_reference.csv
+│   │   ├── model3_metrics.json
+│   │   ├── model3_cascade_metrics.json
+│   │   ├── model3_note_metrics.json
+│   │   ├── severity_config.json               # Severity rules
+│   │   └── MANIFEST.json                      # Build provenance + gate
 │   ├── routers/                 # API route modules
 │   │   ├── auth_routes.py      # Authentication endpoints
 │   │   ├── patient_routes.py   # Patient-specific endpoints
@@ -650,21 +730,6 @@ MedAssist-main/
 │   └── vite.config.js
 ├── frontend/                    # Streamlit UI (SECONDARY, optional)
 │   └── app.py
-├── model/                       # **REQUIRED** - AI model artifacts
-│   └── artifacts/
-│       ├── model1_classifier.joblib           # Disease prediction
-│       ├── model1_label_encoder.joblib
-│       ├── model1_symptom_columns.json
-│       ├── model1_symptom_evidence.json
-│       ├── model1_disease_lookup.csv
-│       ├── model1_metrics.json
-│       ├── model2_risk_models.joblib          # Chronic risk models
-│       ├── model2_metrics.json
-│       ├── model3_treatment_table.csv         # Treatment recommendations
-│       ├── model3_disease_condition_link.json
-│       ├── model3_metrics.json
-│       ├── severity_config.json               # Severity rules
-│       └── manifest.json                      # Pipeline metadata
 ├── training/                    # Model training pipeline
 │   └── kaggle_train.py         # Single-file training script
 ├── scripts/                     # Additional utility scripts
@@ -747,7 +812,7 @@ This starts:
 - React frontend (port 5173)
 - Streamlit UI (port 8501)
 
-The `model/artifacts/` directory is copied into the API container, so models ship with the image.
+`backend/artifacts/` is inside the API build context, so the 21 trained artifacts ship with the image. Nothing is mounted at runtime.
 
 ### Environment Variables for Production
 
@@ -823,27 +888,51 @@ These caveats are included in every API response (`meta.caveats`) and are critic
 
 **Recommendation:** Use for screening and awareness, not predictive forecasting.
 
-### 3. Treatment Rankings Are Patient Satisfaction, Not Clinical Efficacy
+### 3. Neither Treatment Layer Is Efficacy Data
 
-**Issue:** The treatment recommendations are based on **patient-reported satisfaction** from drug reviews.
+The cascade has two sources and they fail in **different** ways. Check
+`treatment.layer` before reading anything into the drug list.
 
-**Impact:** 
+**Layer B — `drug_reviews` (patient-reported satisfaction):**
 - Outcome bias is severe (people who felt better are more likely to review)
 - Self-selection bias (sicker patients may rate differently)
-- Not controlled clinical trials
-- No safety or adverse effect data
+- Not controlled clinical trials; no safety or adverse-effect data
+- The blended ranking is statistically tied with a plain popularity baseline
+  in held-out tests (Hit@5 0.540 vs 0.533)
 
-**Evidence:** The blended ranking is statistically tied with a plain popularity baseline in held-out tests.
+**Layer A — `mimic` (real hospital prescriptions):**
+- **Co-occurrence, not attribution.** A discharge note lists every drug for a
+  patient who often had several problems at once. A statin appearing beside a
+  pneumonia diagnosis does not mean it treated the pneumonia.
+- Built on only 754 admissions, so coverage is narrow and skewed to inpatient
+  presentations
+- Stage-1 class prediction scores F1-micro 0.596 — useful, far from reliable
 
-**Recommendation:** Use as conversation starters with clinicians, not prescribing guidance.
+**Recommendation:** Use either layer as a conversation starter with a
+clinician, never as prescribing guidance.
 
 ### 4. Treatment Coverage Is Partial
 
-**Issue:** Only 219 of 684 predictable conditions (32%) have drug review data.
+**Issue:** Only 219 of 684 predictable conditions (32%) link to drug-review
+data, and Layer A covers a narrow inpatient slice.
 
-**Impact:** Many predicted diseases will correctly show an empty treatment panel.
+**Impact:** Many predicted diseases will correctly return `layer: "none"` with
+an empty drug list.
 
-**This is expected behavior** — better to show nothing than fabricate recommendations.
+**This is expected behavior** — better to show nothing than to serve the drugs
+for the nearest-spelled condition. The cascade refuses any condition match
+below 0.45 for exactly this reason.
+
+### 4b. The Gate Is Tuned, Not Proven
+
+`sim_floor` is set at 0.10, the loosest point on the notebook's sweep (94.7%
+coverage). That maximises how often Layer A answers, which also maximises how
+often it answers on a thin match. The sweep in
+`backend/artifacts/model3_cascade_metrics.json` shows the trade-off, and
+`backend/tests/test_cascade.py` fails loudly if an outpatient condition such as
+`acne` starts routing to the hospital layer. **Retune in the notebook, never in
+application code** — the thresholds live in the artifact so the two cannot
+drift apart.
 
 ### 5. Pediatric Risk Models Are Extrapolations
 
@@ -892,7 +981,7 @@ python kaggle_train.py
 ```
 
 After training:
-1. Copy `training/artifacts/` to `model/artifacts/`
+1. Copy `training/artifacts/` to `backend/artifacts/`
 2. Restart the backend
 3. Verify with GET `/system/model-status`
 
@@ -947,14 +1036,15 @@ MedAssist AI is **NOT a medical device** and is **NOT intended for clinical use*
 ### Key Files to Read
 
 - `training/kaggle_train.py` - Understand how models are trained
-- `backend/medmodels/engine.py` - Main inference logic
-- `backend/medmodels/severity.py` - Triage rules explained
-- `model/artifacts/manifest.json` - Model metadata
-- `model/artifacts/*_metrics.json` - Performance details
+- `backend/services/engine.py` - Orchestrator, assembles the full response
+- `backend/services/treatment_cascade.py` - Two-layer cascade and its gates
+- `backend/services/severity_engine.py` - Triage rules explained
+- `backend/artifacts/MANIFEST.json` - Model metadata and tuned gate
+- `backend/artifacts/*_metrics.json` - Performance details
 
 ### Model Artifacts Required
 
-The `model/artifacts/` directory is **required** for the backend to start. If missing, download or retrain using `training/kaggle_train.py`.
+`backend/artifacts/` is **required** for the backend to start; a missing required artifact aborts startup with the filename rather than serving degraded output. The large `.joblib`/`.npz` files are stored via Git LFS, so `git lfs install` before cloning.
 
 ### Version Constraint
 
