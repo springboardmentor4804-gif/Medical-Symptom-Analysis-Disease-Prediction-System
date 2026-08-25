@@ -54,13 +54,25 @@ Install Git LFS from <https://git-lfs.com> (or `brew install git-lfs`,
 
 ### Something not working? Run the doctor first
 
+Use the project's virtual environment, not a bare `python`:
+
+```bat
+.venv\Scripts\python.exe backend\doctor.py     :: Windows
+```
 ```bash
-python backend/doctor.py
+.venv/bin/python backend/doctor.py              # macOS / Linux
 ```
 
-It checks Python version, dependencies, Git LFS pointers, every artifact, the
-cascade gate and one end-to-end assessment, and prints the fix for anything it
-finds. Start here rather than reading logs.
+It checks which interpreter is running, the Python and numpy versions, Git LFS
+pointers, every artifact, the cascade gate and one end-to-end assessment, and
+prints the fix for anything it finds. Start here rather than reading logs.
+
+> **The most common failure is the interpreter, not the code.** Running the
+> system Python against a correctly-installed project gives `numpy 1.26.4
+> cannot read the artifacts`, because `requirements.txt` pins `numpy>=2` inside
+> the venv only. The artifacts are numpy 2.x pickles and fail on 1.x with
+> `PCG64 is not a known BitGenerator`. `doctor.py` reports this as the first
+> finding.
 
 ### Windows (Automated)
 

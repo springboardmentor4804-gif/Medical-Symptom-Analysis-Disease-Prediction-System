@@ -15,8 +15,15 @@ confusing artifact-load failure that reads like corruption.
 
 from __future__ import annotations
 
+import logging
 import sys
+import warnings
 from pathlib import Path
+
+# The point of this script is its own report. sklearn's version-mismatch
+# warnings and passlib's bcrypt probe would bury it in noise.
+warnings.filterwarnings("ignore")
+logging.disable(logging.WARNING)
 
 BACKEND = Path(__file__).resolve().parent
 sys.path.insert(0, str(BACKEND))
@@ -33,11 +40,61 @@ def fail(msg: str, fix: str) -> None:
     problems.append(f"{msg}\n         fix: {fix}")
 
 
+def _expected_venv_python() -> Path:
+    """Where install.bat / the manual setup puts the project interpreter."""
+    root = BACKEND.parent
+    if sys.platform == "win32":
+        return root / ".venv" / "Scripts" / "python.exe"
+    return root / ".venv" / "bin" / "python"
+
+
+def check_interpreter() -> None:
+    """
+    Is this the project's virtual environment?
+
+    Checked FIRST and reported loudly, because running the system Python
+    against a correctly-installed project produces a cascade of misleading
+    failures - wrong numpy, missing packages - that all point at the
+    dependencies when the only thing wrong is which interpreter was invoked.
+    """
+    print(f"       interpreter: {sys.executable}")
+    expected = _expected_venv_python()
+    in_venv = sys.prefix != sys.base_prefix
+
+    if expected.exists():
+        try:
+            same = Path(sys.executable).resolve() == expected.resolve()
+        except OSError:
+            same = False
+        if same:
+            print(f"{OK}running the project virtual environment")
+            return
+        fail("NOT running the project virtual environment - the .venv exists "
+             "but a different Python is running",
+             f"use it explicitly:\n"
+             f"                {expected}  backend/doctor.py\n"
+             f"              or activate it first: "
+             f"{'.venv\\Scripts\\activate' if sys.platform == 'win32' else 'source .venv/bin/activate'}")
+        return
+
+    if in_venv:
+        print(f"{WARN}in a virtual environment, but not {expected} - fine if "
+              f"deliberate")
+    else:
+        fail("no virtual environment: running the system Python and no .venv "
+             "exists",
+             "create one - Windows: install.bat, otherwise "
+             "python -m venv .venv && pip install -r backend/requirements.txt")
+
+
 def main() -> int:
     print("MedAssist install check")
     print("=" * 70)
 
-    # -- 1. Python version -------------------------------------------------
+    # -- 1. Interpreter ----------------------------------------------------
+    check_interpreter()
+
+    # -- 2. Python version -------------------------------------------------
     v = sys.version_info
     if v < (3, 10):
         fail(f"Python {v.major}.{v.minor} is too old",
@@ -56,8 +113,16 @@ def main() -> int:
 
     print(f"{OK}numpy {numpy.__version__}, scikit-learn {sklearn.__version__}")
     if int(numpy.__version__.split(".")[0]) < 2:
-        fail(f"numpy {numpy.__version__} cannot read the artifacts",
-             "pip install 'numpy>=2' - they are pickled under numpy 2.x")
+        # requirements.txt pins numpy>=2, so seeing 1.x almost always means
+        # the project venv was not the interpreter that ran - not that the
+        # install failed.
+        expected = _expected_venv_python()
+        hint = ("pip install 'numpy>=2' - the artifacts are numpy 2.x pickles")
+        if expected.exists():
+            hint = (f"requirements.txt already pins numpy>=2, so this is "
+                    f"very likely the wrong interpreter. Run:\n"
+                    f"                {expected}  backend/doctor.py")
+        fail(f"numpy {numpy.__version__} cannot read the artifacts", hint)
 
     # -- 3. Artifact directory --------------------------------------------
     if not ARTIFACTS.is_dir():
@@ -104,9 +169,20 @@ def main() -> int:
     try:
         report = art.health_check()
     except ArtifactsUnavailable as e:
-        fail(f"artifacts did not load: {e}",
-             "usually the LFS problem above; otherwise re-export from the "
-             "training notebook")
+        # Point at the cause the message actually indicates rather than
+        # guessing at LFS every time.
+        text = str(e)
+        if "Git LFS pointer" in text:
+            hint = "git lfs install && git lfs pull"
+        elif "numpy" in text:
+            hint = ("this is the numpy version above, not a bad download - "
+                    "use the project venv, or pip install 'numpy>=2'")
+        elif "Missing required artifact" in text or "Missing artifact" in text:
+            hint = "re-export the artifacts from the training notebook"
+        else:
+            hint = ("see the message above; if it mentions neither LFS nor "
+                    "numpy, the artifacts may be from a different run")
+        fail(f"artifacts did not load: {e}", hint)
         return _summary()
 
     for name, info in sorted(report["artifacts"].items()):
