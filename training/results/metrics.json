@@ -1,0 +1,10 @@
+{
+  "validation_accuracy": 1.0,
+  "validation_precision": 1.0,
+  "validation_recall": 1.0,
+  "validation_f1": 1.0,
+  "risk_accuracy": 0.7571428571428571,
+  "risk_precision": 0.7569548872180452,
+  "risk_recall": 0.7571428571428571,
+  "risk_f1": 0.7568937728937729
+}
