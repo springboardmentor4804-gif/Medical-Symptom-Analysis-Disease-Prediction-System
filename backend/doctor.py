@@ -245,7 +245,57 @@ def main() -> int:
     print("-" * 70)
     check_web()
 
+    # -- 9. Is this copy of the code current? ------------------------------
+    print("-" * 70)
+    check_version()
+
     return _summary()
+
+
+def check_version() -> None:
+    """
+    Which build of the app is this?
+
+    "It works on one machine and not the other" is usually neither machine
+    being broken - it is one of them running older code. Behaviour is probed
+    directly rather than trusted from a commit hash, so this also works for a
+    downloaded zip with no git history.
+    """
+    import subprocess
+
+    root = BACKEND.parent
+    try:
+        sha = subprocess.run(["git", "-C", str(root), "rev-parse", "--short", "HEAD"],
+                             capture_output=True, text=True, timeout=10)
+        when = subprocess.run(["git", "-C", str(root), "log", "-1", "--format=%cs"],
+                              capture_output=True, text=True, timeout=10)
+        if sha.returncode == 0:
+            print(f"{OK}code version: {sha.stdout.strip()} "
+                  f"({when.stdout.strip()})")
+            print(f"       compare with the other machine; if they differ, "
+                  f"run: git pull")
+        else:
+            print(f"{WARN}not a git checkout - cannot report a version")
+    except Exception:                                        # noqa: BLE001
+        print(f"{WARN}git unavailable - cannot report a version")
+
+    # Behavioural probes for the fixes that most affect what the UI shows.
+    from services import SCHEMA_VERSION, get_engine
+    print(f"{OK}response schema {SCHEMA_VERSION}")
+
+    engine = get_engine()
+    features = {
+        "ask the whole differential for treatment":
+            "differential" in engine.recommend_treatment.__code__.co_varnames,
+        "filter anatomically impossible diagnoses":
+            "sex" in engine.predict_diseases.__code__.co_varnames,
+    }
+    for label, present in features.items():
+        if present:
+            print(f"{OK}can {label}")
+        else:
+            fail(f"this copy CANNOT {label} - it predates that fix",
+                 "git pull, then restart the backend")
 
 
 WEB_DEV_ORIGINS = ("http://localhost:5173", "http://127.0.0.1:5173")
