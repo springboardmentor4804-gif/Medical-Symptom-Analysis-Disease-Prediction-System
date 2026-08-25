@@ -1,0 +1,17 @@
+SQLAlchemy==2.0.36
+psycopg[binary]==3.2.3
+python-dotenv==1.0.1
+fastapi==0.101.1
+uvicorn[standard]==0.23.1
+passlib[argon2]==1.7.4
+argon2-cffi==23.1.0
+pydantic[email]==2.13.4
+reportlab==4.4.5
+
+# Machine learning dependencies
+pandas>=2.0.0
+numpy>=2.0.0
+scikit-learn>=1.3.0
+xgboost>=1.8.0
+tensorflow>=2.14.0
+joblib>=1.3.2
