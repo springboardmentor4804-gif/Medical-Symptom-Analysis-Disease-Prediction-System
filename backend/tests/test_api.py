@@ -478,3 +478,35 @@ def test_treatment_suggestions_by_patient(client):
     assert body["source"] == "latest_assessment"
     assert body["assessment_id"] is not None
     assert body["disease"], "should key off the assessed condition"
+
+
+def test_env_example_allows_the_web_ui_origin():
+    """
+    backend/.env.example listed only port 8501 (Streamlit), so anyone following
+    the manual setup - `cp backend/.env.example backend/.env` - silently broke
+    the React UI. CORS_ORIGINS REPLACES the default in config.py rather than
+    adding to it, and the symptom is a page that renders but stays empty while
+    the API answers every request normally.
+    """
+    from pathlib import Path
+
+    template = Path(__file__).resolve().parents[1] / ".env.example"
+    line = next(l for l in template.read_text(encoding="utf-8").splitlines()
+                if l.startswith("CORS_ORIGINS="))
+    for origin in ("http://localhost:5173", "http://127.0.0.1:5173"):
+        assert origin in line, f"{origin} missing from .env.example CORS_ORIGINS"
+
+
+def test_bootstrap_env_and_template_agree_on_cors():
+    """install.bat writes its own .env; the two must not drift apart."""
+    from pathlib import Path
+
+    backend = Path(__file__).resolve().parents[1]
+    template = next(
+        l for l in (backend / ".env.example").read_text(encoding="utf-8").splitlines()
+        if l.startswith("CORS_ORIGINS="))
+    written = next(
+        l for l in (backend / "bootstrap_env.py").read_text(encoding="utf-8").splitlines()
+        if l.startswith("CORS_ORIGINS="))
+    origins = lambda s: set(s.split("=", 1)[1].split(","))   # noqa: E731
+    assert origins(template) == origins(written)

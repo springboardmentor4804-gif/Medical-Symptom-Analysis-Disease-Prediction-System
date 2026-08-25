@@ -241,7 +241,88 @@ def main() -> int:
         fail(f"assessment failed: {type(e).__name__}: {e}",
              "see the traceback; this is a real bug, please report it")
 
+    # -- 8. Serving: the reasons a healthy backend still shows a blank UI ---
+    print("-" * 70)
+    check_web()
+
     return _summary()
+
+
+WEB_DEV_ORIGINS = ("http://localhost:5173", "http://127.0.0.1:5173")
+
+
+def check_web() -> None:
+    """
+    Everything between a working model layer and something on screen.
+
+    A healthy backend with a misconfigured origin list or an uninstalled
+    frontend looks identical to a broken model: an empty page. These checks are
+    the difference between "the AI is not working" and "npm install".
+    """
+    root = BACKEND.parent
+
+    # -- backend/.env: CORS is the classic silent failure -----------------
+    env = BACKEND / ".env"
+    if not env.exists():
+        print(f"{WARN}no backend/.env - config.py defaults apply, which do "
+              f"allow port 5173")
+    else:
+        origins = None
+        for line in env.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = line.strip()
+            if line.startswith("CORS_ORIGINS="):
+                origins = line.split("=", 1)[1]
+        if origins is None:
+            print(f"{OK}backend/.env present, CORS_ORIGINS unset (defaults apply)")
+        elif not any(o in origins for o in WEB_DEV_ORIGINS):
+            fail("backend/.env sets CORS_ORIGINS without port 5173, so the "
+                 "browser will discard every API response as a CORS violation "
+                 "- the page renders but stays empty",
+                 "add http://localhost:5173,http://127.0.0.1:5173 to "
+                 "CORS_ORIGINS in backend/.env, then restart the backend")
+        else:
+            print(f"{OK}backend/.env allows the web UI origin")
+
+    # -- frontend install --------------------------------------------------
+    web = root / "web"
+    if not (web / "package.json").exists():
+        print(f"{WARN}no web/ directory - backend-only checkout?")
+        return
+    if not (web / "node_modules").is_dir():
+        fail("web/node_modules is missing, so the UI cannot run",
+             "cd web && npm install   (then: npm run dev)")
+    else:
+        print(f"{OK}web/node_modules present")
+
+    # -- stale production build -------------------------------------------
+    dist = web / "dist"
+    if dist.is_dir():
+        try:
+            newest_src = max(
+                p.stat().st_mtime for p in (web / "src").rglob("*")
+                if p.is_file())
+            built = max(p.stat().st_mtime for p in dist.rglob("*") if p.is_file())
+            if newest_src > built:
+                fail("web/dist is older than web/src - if you are serving the "
+                     "built files you are looking at outdated UI code",
+                     "cd web && npm run build   (or use npm run dev)")
+            else:
+                print(f"{OK}web/dist is up to date with web/src")
+        except ValueError:
+            pass
+
+    # -- VITE_API_URL ------------------------------------------------------
+    web_env = web / ".env"
+    if web_env.exists():
+        for line in web_env.read_text(encoding="utf-8", errors="replace").splitlines():
+            if line.strip().startswith("VITE_API_URL="):
+                print(f"{OK}web/.env {line.strip()}")
+    else:
+        print(f"{OK}no web/.env - defaults to http://127.0.0.1:8000")
+
+    print("       Note: Vite bakes VITE_API_URL in at BUILD time. Changing it "
+          "needs a rebuild,")
+    print("       and a browser hard-refresh to clear the cached bundle.")
 
 
 def _summary() -> int:
