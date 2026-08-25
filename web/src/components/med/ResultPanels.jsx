@@ -469,6 +469,18 @@ export function TreatmentPanel({ treatment }) {
         )}
       </div>
 
+      {/* When the top-ranked condition has no treatment data the cascade asks
+          down the differential. Whose drugs these are must be stated - a
+          rank-3 drug list under a rank-1 heading would be worse than the empty
+          panel it replaces. */}
+      {treatment.is_alternate && (
+        <p className="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
+          These are for <span className="font-bold">{treatment.for_disease}</span>,
+          ranked #{treatment.for_rank} in the differential — not for the
+          top-ranked condition, which has no treatment data in either source.
+        </p>
+      )}
+
       {/* Layer A only: how much real-world evidence sits behind this panel. */}
       {layer === 'mimic' && (
         <p className="mb-3 text-xs text-slate-600">
@@ -540,6 +552,11 @@ export function TreatmentSummary({ view, className }) {
         </span>
         {view?.matchedCondition && (
           <span className="text-xs text-slate-500">· {view.matchedCondition}</span>
+        )}
+        {view?.treatmentIsAlternate && (
+          <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-900">
+            for {view.treatmentForDisease} (#{view.treatmentForRank})
+          </span>
         )}
       </div>
 

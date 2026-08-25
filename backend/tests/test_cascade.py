@@ -287,3 +287,72 @@ def test_interstitial_lung_returns_nothing_rather_than_bladder_drugs(cascade):
     names = {d["drug"].lower() for d in result["drugs"]}
     assert not (names & {"elmiron", "pentosan polysulfate sodium",
                          "phenazopyridine"})
+
+
+# ---------------------------------------------------------------------------
+# Walking the differential
+# ---------------------------------------------------------------------------
+
+def test_treatment_falls_through_to_lower_ranked_conditions():
+    """
+    Only 219 of 684 diseases link to the drug-review corpus, so asking about
+    the top prediction alone left the panel empty ~70% of the time even when a
+    lower-ranked condition in the same differential had treatments.
+    """
+    from services import get_engine
+    engine = get_engine()
+
+    differential = [
+        {"rank": 1, "disease": "xyzzy nonexistent condition"},
+        {"rank": 2, "disease": "acne"},
+    ]
+    result = engine.recommend_treatment("xyzzy nonexistent condition",
+                                        differential=differential)
+    assert result["drugs"], "should have fallen through to acne"
+    assert result["for_disease"] == "acne"
+    assert result["for_rank"] == 2
+    assert result["is_alternate"] is True
+    assert "acne" in result["alternate_note"].lower()
+
+
+def test_top_ranked_hit_is_not_flagged_as_alternate():
+    from services import get_engine
+    result = get_engine().recommend_treatment(
+        "acne", differential=[{"rank": 1, "disease": "acne"}])
+    assert result["drugs"]
+    assert result["is_alternate"] is False
+    assert result["for_rank"] == 1
+
+
+def test_empty_differential_still_reports_against_the_top_condition():
+    """When nothing in the differential has data, say so about rank 1."""
+    from services import get_engine
+    differential = [{"rank": 1, "disease": "xyzzy one"},
+                    {"rank": 2, "disease": "xyzzy two"}]
+    result = get_engine().recommend_treatment("xyzzy one",
+                                              differential=differential)
+    assert result["drugs"] == []
+    assert result["layer"] == "none"
+    assert result["for_disease"] == "xyzzy one"
+    assert len(result["searched_conditions"]) == 2
+
+
+def test_lfs_pointer_files_are_reported_clearly(tmp_path):
+    """
+    A clone made without git-lfs leaves 130-byte text stubs where the models
+    should be. Unguarded, joblib fails with "KeyError: 118", which reads like a
+    corrupt download rather than a missing tool.
+    """
+    from services.artifacts import Artifacts, ArtifactsUnavailable
+
+    stub = tmp_path / "model1_classifier.joblib"
+    stub.write_bytes(
+        b"version https://git-lfs.github.com/spec/v1\n"
+        b"oid sha256:0000000000000000000000000000000000000000000000000000000000000000\n"
+        b"size 116802\n")
+
+    with pytest.raises(ArtifactsUnavailable) as exc:
+        Artifacts(tmp_path).path("model1_classifier.joblib")
+    message = str(exc.value)
+    assert "Git LFS pointer" in message
+    assert "git lfs pull" in message

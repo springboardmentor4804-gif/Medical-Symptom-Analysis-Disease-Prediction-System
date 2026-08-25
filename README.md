@@ -52,6 +52,16 @@ ls -l backend/artifacts/model3_text_condition.joblib
 Install Git LFS from <https://git-lfs.com> (or `brew install git-lfs`,
 `apt install git-lfs`, `winget install GitHub.GitLFS`).
 
+### Something not working? Run the doctor first
+
+```bash
+python backend/doctor.py
+```
+
+It checks Python version, dependencies, Git LFS pointers, every artifact, the
+cascade gate and one end-to-end assessment, and prints the fix for anything it
+finds. Start here rather than reading logs.
+
 ### Windows (Automated)
 
 ```bat

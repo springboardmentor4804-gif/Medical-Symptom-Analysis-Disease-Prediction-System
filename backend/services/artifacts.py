@@ -198,6 +198,23 @@ def _link_plausibility(disease: str, condition: str) -> float:
     return hits / len(c)
 
 
+# Git LFS writes a small text stub in place of the real file when a clone is
+# made without the extension installed. Detecting it here turns an opaque
+# "KeyError: 118" from inside joblib into an actionable message.
+_LFS_POINTER_MAGIC = b"version https://git-lfs.github.com/spec/v1"
+_LFS_POINTER_MAX_BYTES = 1024
+
+
+def _is_lfs_pointer(path: Path) -> bool:
+    try:
+        if path.stat().st_size > _LFS_POINTER_MAX_BYTES:
+            return False
+        with open(path, "rb") as fh:
+            return fh.read(len(_LFS_POINTER_MAGIC)) == _LFS_POINTER_MAGIC
+    except OSError:
+        return False
+
+
 class ArtifactsUnavailable(RuntimeError):
     """Raised when the artifact directory is missing or a required file absent."""
 
@@ -235,6 +252,16 @@ class Artifacts:
                 f"Missing artifact '{name}' in {self.dir}. Re-export it from the "
                 f"training notebook - the application will not serve inference "
                 f"without it."
+            )
+        if _is_lfs_pointer(p):
+            raise ArtifactsUnavailable(
+                f"'{name}' is a Git LFS pointer file ({p.stat().st_size} bytes), "
+                f"not the model itself. This repository stores its .joblib and "
+                f".npz artifacts in Git LFS, and this clone was made without it. "
+                f"Run:  git lfs install && git lfs pull\n"
+                f"Without this check the failure surfaces as 'KeyError: 118' "
+                f"from deep inside joblib, which reads like a corrupt download "
+                f"rather than a missing tool."
             )
         return p
 

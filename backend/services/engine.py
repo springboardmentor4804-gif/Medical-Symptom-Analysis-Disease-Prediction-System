@@ -60,15 +60,36 @@ class MedAssistEngine:
 
     def recommend_treatment(self, disease: Optional[str],
                             query: Optional[str] = None,
-                            top_n: int = 5) -> Dict:
+                            top_n: int = 5,
+                            differential: Optional[list] = None) -> Dict:
         """
         Treatment cascade for a predicted disease.
 
         The disease name doubles as the free-text query: it is what Layer A
         matches against MIMIC-IV discharge diagnoses, and what Layer B falls
         back to when the structured link misses.
+
+        WALKING THE DIFFERENTIAL. Only 219 of 684 diseases link to the
+        drug-review corpus, so querying the top-1 prediction alone left the
+        panel empty about 70% of the time - even when a lower-ranked condition
+        in the same differential had treatments. Asking down the ranked list
+        raises that to roughly 88%.
+
+        A hit below rank 1 is flagged, never disguised: `for_disease`,
+        `for_rank` and `is_alternate` say which condition the drugs belong to,
+        and the UI must show it. Silently captioning rank-3's drugs with
+        rank-1's diagnosis would be worse than the empty panel it replaces.
         """
-        if not disease and not query:
+        candidates = []
+        if disease:
+            candidates.append((1, disease))
+        for entry in (differential or []):
+            name = entry.get("disease") if isinstance(entry, dict) else entry
+            rank = entry.get("rank") if isinstance(entry, dict) else None
+            if name and name != disease:
+                candidates.append((rank or len(candidates) + 1, name))
+
+        if not candidates and not query:
             return {
                 "available": False,
                 "layer": "none",
@@ -82,14 +103,41 @@ class MedAssistEngine:
                               "source could be consulted.",
                 },
             }
-        result = self.cascade.recommend(query or disease or "",
-                                        disease=disease, top_n=top_n)
-        # Plain-language reference text, when the (partial) lookup has an entry.
-        if disease:
-            reference = self.art.disease_lookup.get(disease)
-            if reference:
-                result["reference"] = reference
-        return result
+
+        if not candidates:
+            candidates = [(1, query)]
+
+        first_result = None
+        for rank, name in candidates:
+            result = self.cascade.recommend(query or name, disease=name,
+                                            top_n=top_n)
+            result["for_disease"] = name
+            result["for_rank"] = rank
+            result["is_alternate"] = bool(result.get("drugs")) and rank != 1
+            if first_result is None:
+                first_result = result
+            if result.get("drugs"):
+                self._attach_reference(result, name)
+                if rank != 1:
+                    result["alternate_note"] = (
+                        f"No treatment data exists for the top-ranked "
+                        f"condition. These are for {str(name).title()}, "
+                        f"ranked #{rank} in the differential.")
+                return result
+
+        # Nothing in the differential had data. Report against the top-ranked
+        # condition, which is the one the rest of the page is about.
+        self._attach_reference(first_result, candidates[0][1])
+        first_result["searched_conditions"] = [n for _, n in candidates]
+        return first_result
+
+    def _attach_reference(self, result: Dict, disease: Optional[str]) -> None:
+        """Plain-language text, when the (partial) lookup has an entry."""
+        if not disease:
+            return
+        reference = self.art.disease_lookup.get(disease)
+        if reference:
+            result["reference"] = reference
 
     # ------------------------------------------------------------------
     # Full assessment
@@ -136,7 +184,10 @@ class MedAssistEngine:
         )
 
         top_disease = diagnosis.get("top_disease") if diagnosis.get("available") else None
-        treatment = self.recommend_treatment(top_disease)
+        # The whole differential is offered, not just the top hit - see
+        # recommend_treatment. Coverage goes from ~30% to ~88% of assessments.
+        treatment = self.recommend_treatment(
+            top_disease, differential=diagnosis.get("predictions") or [])
 
         return {
             "schema_version": SCHEMA_VERSION,
@@ -161,6 +212,8 @@ class MedAssistEngine:
                 "flag": severity_to_flag(severity["level"]),
                 "treatment_layer": treatment.get("layer"),
                 "gate_reason": treatment.get("gate_reason"),
+                "treatment_for_disease": treatment.get("for_disease"),
+                "treatment_is_alternate": bool(treatment.get("is_alternate")),
                 "models": {
                     "diagnosis": "BernoulliNB over 377 binary symptoms, "
                                  "684 conditions",
