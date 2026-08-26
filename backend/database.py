@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from sqlalchemy import (
@@ -9,6 +10,8 @@ from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from datetime import datetime
 
 from config import settings
+
+logger = logging.getLogger(__name__)
 
 # JSONB on PostgreSQL (indexable, queryable), plain JSON on SQLite, which
 # stores it as TEXT but still round-trips dicts through the ORM. Declaring the
@@ -174,29 +177,36 @@ def _run_migrations():
         ("assessments", "treatment_evidence", json_type),
     ]
 
-    with engine.connect() as conn:
-        for table, column, ddl in steps:
-            try:
-                if column in _existing_columns(conn, table):
-                    continue
-                conn.execute(
-                    text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"))
+    # EACH statement gets its own connection, which matters on PostgreSQL and
+    # not on SQLite. Postgres aborts the entire transaction on a failed
+    # statement, so sharing one connection meant the first failure poisoned it
+    # and every remaining step was silently skipped - the rollback() cleared
+    # the error but the loop kept issuing statements against a connection that
+    # would reject them. SQLite tolerates this, which is why it never showed.
+    def _try(statement: str) -> None:
+        try:
+            with engine.connect() as conn:
+                conn.execute(text(statement))
                 conn.commit()
-            except Exception:
-                # A table that does not exist yet is handled by create_all();
-                # a duplicate column means another worker won the race. Neither
-                # should stop the application from starting.
-                conn.rollback()
+        except Exception:
+            # A table that does not exist yet is handled by create_all(); a
+            # duplicate column means another worker won the race. Neither
+            # should stop the application from starting.
+            logger.debug("migration step skipped: %s", statement, exc_info=True)
 
-        # Indexed because the monitoring queries filter on them.
-        for column in ("treatment_layer", "gate_reason"):
-            try:
-                conn.execute(text(
-                    f"CREATE INDEX IF NOT EXISTS ix_assessments_{column} "
-                    f"ON assessments ({column})"))
-                conn.commit()
-            except Exception:
-                conn.rollback()
+    with engine.connect() as conn:
+        existing = {table: _existing_columns(conn, table)
+                    for table in {t for t, _, _ in steps}}
+
+    for table, column, ddl in steps:
+        if column in existing.get(table, set()):
+            continue
+        _try(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+
+    # Indexed because the monitoring queries filter on them.
+    for column in ("treatment_layer", "gate_reason"):
+        _try(f"CREATE INDEX IF NOT EXISTS ix_assessments_{column} "
+             f"ON assessments ({column})")
 
 
 def init_db():
