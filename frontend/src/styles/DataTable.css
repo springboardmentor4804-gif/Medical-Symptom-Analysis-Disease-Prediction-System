@@ -1,0 +1,59 @@
+.table-container{
+
+    overflow-x:auto;
+
+    background:white;
+
+    border-radius:18px;
+
+    box-shadow:0 8px 20px rgba(0,0,0,.08);
+
+}
+
+.custom-table{
+
+    width:100%;
+
+    border-collapse:collapse;
+
+}
+
+.custom-table thead{
+
+    background:#2563eb;
+
+    color:white;
+
+}
+
+.custom-table th{
+
+    padding:18px;
+
+    text-align:left;
+
+}
+
+.custom-table td{
+
+    padding:16px;
+
+    border-bottom:1px solid #e5e7eb;
+
+}
+
+.custom-table tbody tr:hover{
+
+    background:#f8fafc;
+
+}
+
+.no-data{
+
+    text-align:center;
+
+    padding:35px;
+
+    color:#64748b;
+
+}

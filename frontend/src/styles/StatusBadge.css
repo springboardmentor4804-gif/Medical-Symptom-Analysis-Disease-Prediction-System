@@ -1,0 +1,43 @@
+.status-badge{
+
+    padding:6px 14px;
+
+    border-radius:20px;
+
+    font-size:13px;
+
+    font-weight:600;
+
+}
+
+.active{
+
+    background:#dcfce7;
+
+    color:#15803d;
+
+}
+
+.pending{
+
+    background:#fef9c3;
+
+    color:#a16207;
+
+}
+
+.completed{
+
+    background:#dbeafe;
+
+    color:#1d4ed8;
+
+}
+
+.rejected{
+
+    background:#fee2e2;
+
+    color:#dc2626;
+
+}
