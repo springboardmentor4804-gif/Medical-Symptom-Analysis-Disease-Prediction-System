@@ -25,11 +25,13 @@ from services import (
 )
 from report_builder import build_pdf
 from routers.admin_routes import router as admin_router
+from routers.analytics_routes import router as analytics_router
 from routers.auth_routes import router as auth_router
 from routers.patient_routes import router as patient_router
 from routers.prescription_routes import router as prescription_router
 from routers.report_routes import router as report_router
 from roles import CLINICAL_STAFF_ROLES
+from services.analytics import build_analytics, resolve_scope
 
 logging.basicConfig(
     level=logging.INFO,
@@ -107,6 +109,7 @@ app.include_router(report_router, tags=["reports"])
 app.include_router(patient_router, tags=["patient"])
 app.include_router(admin_router, tags=["admin"])
 app.include_router(prescription_router, tags=["prescriptions"])
+app.include_router(analytics_router, tags=["analytics"])
 
 
 @app.get("/health")
@@ -212,6 +215,48 @@ class PatientInput(BaseModel):
     top_k: int = Field(5, ge=1, le=10)
 
 
+def _recent_assessment_summaries(db: Session, user_id: int,
+                                 limit: int = 6) -> List[dict]:
+    """
+    Compact summaries of a user's recent assessments, newest first.
+
+    Only the three fields the trend advisory needs are extracted - reported
+    symptoms, the leading prediction and the triage level - rather than
+    handing the whole stored payload to the advisory layer. A record that
+    fails to parse is skipped: a partial history still supports a trend, and
+    one bad row must not fail the assessment being generated now.
+    """
+    summaries: List[dict] = []
+    try:
+        rows = (db.query(Assessment)
+                  .filter(Assessment.user_id == user_id)
+                  .order_by(Assessment.created_at.desc())
+                  .limit(limit)
+                  .all())
+    except Exception:                                            # noqa: BLE001
+        logger.exception("Could not read assessment history for advisory")
+        return []
+
+    for row in rows:
+        try:
+            stored = json.loads(row.input_json or "{}")
+            result = json.loads(row.result_json or "{}")
+            symptoms = [s.get("name") if isinstance(s, dict) else s
+                        for s in (stored.get("symptoms") or [])]
+            predictions = (result.get("diagnosis") or {}).get("predictions") or []
+            summaries.append({
+                "symptoms": [s for s in symptoms if s],
+                "top_disease": (predictions[0].get("disease")
+                                if predictions else None),
+                "severity_level": (result.get("severity") or {}).get("level"),
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+            })
+        except (ValueError, TypeError, AttributeError, KeyError):
+            logger.warning("Skipping unparseable assessment %s in history",
+                           getattr(row, "id", "?"))
+    return summaries
+
+
 @app.post("/assess")
 def assess(
     patient: PatientInput,
@@ -225,6 +270,14 @@ def assess(
     # would make every symptoms-only request look like a completed profile.
     profile = input_dict.get("lifestyle")
 
+    # Advisory Features can detect cross-session patterns - the same symptom
+    # recurring, the same leading prediction, severity climbing - which no
+    # single assessment can see. That needs the user's own prior records, so
+    # they are read here (the engine has no DB access by design) and passed
+    # in. A first-time user simply supplies none and the sub-section reports
+    # itself unavailable rather than erroring.
+    history = _recent_assessment_summaries(db, current_user.id)
+
     try:
         result = get_engine().analyze(
             symptoms=input_dict["symptoms"],
@@ -233,6 +286,7 @@ def assess(
             profile=profile,
             vitals=input_dict.get("vitals"),
             top_k=patient.top_k,
+            historical_assessments=history,
         )
     except ArtifactsUnavailable as e:
         logger.error("Model artifacts unavailable: %s", e)
@@ -308,15 +362,14 @@ def all_assessments(
     ]
 
 
-AGE_BUCKETS = [(0, 18), (19, 35), (36, 50), (51, 65), (66, 200)]
-AGE_BUCKET_LABELS = ["0-18", "19-35", "36-50", "51-65", "66+"]
-
-
-def age_bucket_label(age: int) -> str:
-    for (low, high), label in zip(AGE_BUCKETS, AGE_BUCKET_LABELS):
-        if low <= age <= high:
-            return label
-    return "Unknown"
+# Age banding now lives with the aggregation layer that uses it, so the
+# buckets cannot drift between this module and services/analytics.py. Kept
+# importable from here for any existing caller.
+from services.analytics import (                                # noqa: E402
+    AGE_BUCKETS,
+    AGE_BUCKET_LABELS,
+    age_bucket_label,
+)
 
 
 @app.get("/analytics")
@@ -324,56 +377,36 @@ def analytics(
     current_user: User = Depends(require_role(*CLINICAL_STAFF_ROLES)),
     db: Session = Depends(get_db),
 ):
-    all_records = db.query(Assessment).order_by(Assessment.created_at.asc()).all()
+    """
+    Panel analytics in the original response shape.
 
-    empty_days = []
+    Kept for the existing Dashboard page, but no longer a second
+    implementation: it is now a thin projection of services/analytics.py, the
+    same aggregation the role-scoped /analytics/* endpoints use. Two copies of
+    "top predicted diseases" were free to disagree; one cannot.
+
+    New work should call /analytics/panel, which returns the full shape.
+    """
+    scope = resolve_scope(db, current_user)
+    data = build_analytics(db, scope)
+
+    # The original endpoint always returned a padded 14-day window so the
+    # chart axis stays put on quiet days. Preserved here.
     today = datetime.utcnow().date()
-    for i in range(13, -1, -1):
-        empty_days.append((today - timedelta(days=i)).isoformat())
-
-    if not all_records:
-        return {
-            "total_assessments": 0,
-            "total_patients": 0,
-            "risk_flag_distribution": {},
-            "top_predicted_diseases": [],
-            "assessments_per_day": [{"date": d, "count": 0} for d in empty_days],
-            "gender_distribution": {},
-            "age_distribution": {label: 0 for label in AGE_BUCKET_LABELS},
-        }
-
-    risk_counts = Counter()
-    disease_counts = Counter()
-    gender_counts = Counter()
-    age_counts = Counter()
-    per_day_counts = Counter()
-    user_ids = set()
-
-    for r in all_records:
-        risk_counts[r.risk_flag] += 1
-        user_ids.add(r.user_id)
-        per_day_counts[r.created_at.date().isoformat()] += 1
-
-        input_data = json.loads(r.input_json)
-        gender_counts[input_data.get("gender", "unknown")] += 1
-        age = input_data.get("age")
-        if isinstance(age, int):
-            age_counts[age_bucket_label(age)] += 1
-
-        result = json.loads(r.result_json)
-        for name in result_all_diseases(result):
-            disease_counts[name] += 1
-
-    top_diseases = disease_counts.most_common(10)
+    window = [(today - timedelta(days=i)).isoformat() for i in range(13, -1, -1)]
+    per_day = {row["date"]: row["count"] for row in data["volume_trend"]}
 
     return {
-        "total_assessments": len(all_records),
-        "total_patients": len(user_ids),
-        "risk_flag_distribution": dict(risk_counts),
-        "top_predicted_diseases": [{"disease": d, "count": c} for d, c in top_diseases],
-        "assessments_per_day": [{"date": d, "count": per_day_counts.get(d, 0)} for d in empty_days],
-        "gender_distribution": dict(gender_counts),
-        "age_distribution": {label: age_counts.get(label, 0) for label in AGE_BUCKET_LABELS},
+        "total_assessments": data["summary"]["assessment_count"],
+        "total_patients": data["summary"]["patients_with_assessments"],
+        "risk_flag_distribution": data["risk_flag_distribution"],
+        # Counted across the whole differential, as this endpoint always did -
+        # NOT the same metric as predictions_by_condition, which is rank-1 only.
+        "top_predicted_diseases": data["predictions_all_ranks"],
+        "assessments_per_day": [{"date": d, "count": per_day.get(d, 0)}
+                                for d in window],
+        "gender_distribution": data["demographics"]["gender_distribution"],
+        "age_distribution": data["demographics"]["age_distribution"],
     }
 
 

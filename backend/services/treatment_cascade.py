@@ -45,6 +45,301 @@ logger = logging.getLogger(__name__)
 # than showing treatments for a condition the query only vaguely resembles.
 CONDITION_MATCH_FLOOR = 0.45
 
+# Hand-verified aliases: a Model 1 disease label and a drug-review condition
+# key that name the SAME clinical entity, where no string metric can connect
+# them (abbreviation, eponym, or a synonym with no shared tokens).
+#
+# The bar for an entry here is deliberately narrow: same disease, different
+# name. "Related to", "commonly co-occurs with", or "sits in the same body
+# system" is NOT sufficient - that is how a link table decays into dumping
+# grounds like `pain` absorbing 60 unrelated diseases. Auto-generating this
+# map from a text classifier was measured and rejected: 28% of its proposals
+# landed on symptom buckets and it offered ALS -> multiple sclerosis.
+#
+# Every addition must be justifiable to a clinician in one sentence. Keep it
+# short; if it starts growing past a few dozen entries, the right fix is the
+# link builder in the training notebook, not this map.
+DISEASE_ALIASES = {
+    # -- abbreviations and short forms the table happens to store ----------
+    "attention deficit hyperactivity disorder": "adhd",
+    "chronic obstructive pulmonary": "copd",
+    "hpv": "human papilloma virus",
+    "gastroesophageal reflux": "gerd",
+    "hiatal hernia": "gerd",
+
+    # -- clinical name vs. lay name, same entity ---------------------------
+    "hypercholesterolemia": "high cholesterol",
+    "tooth abscess": "dental abscess",
+    "dental caries": "dental abscess",
+    "athlete s foot": "tinea pedis",
+    "fungal infection of the skin": "tinea corporis",
+    "fungal infection of the hair": "tinea corporis",
+    "fungal infection of the nail": "onychomycosis toenail",
+    "kidney stone": "urinary tract stones",
+    "genital herpes": "herpes simplex",
+    "cold sore": "cold sores",
+    "shingles": "herpes zoste",
+    "lumbago": "back pain",
+    "restless leg syndrome": "restless legs syndrome",
+    "hypothyroidism": "underactive thyroid",
+    "goiter": "underactive thyroid",
+    "hashimoto": "hashimoto s",
+
+    # -- eponyms and textbook synonyms no string metric can reach ----------
+    "iridocyclitis": "uveitis",          # iridocyclitis IS anterior uveitis
+    "chorioretinitis": "uveitis",        # posterior uveitis
+    "endophthalmitis": "uveitis",
+    "de quervain": "tendonitis",
+    "lateral epicondylitis": "tendonitis",   # tennis elbow
+    "adhesive capsulitis of the shoulder": "tendonitis",
+    "bursitis": "tendonitis",
+    "chondromalacia of the patella": "osteoarthritis",
+    "herniated disk": "sciatica",
+    "degenerative disc": "back pain",
+    "brachial neuritis": "neuralgia",
+    "carpal tunnel syndrome": "neuropathic pain",
+    "meniere": "meniere s",
+    "labyrinthitis": "vertig",
+    "benign paroxysmal positional vertical": "vertig",   # ...vertigo, truncated
+    "lewy body dementia": "alzheimer s",
+    "dementia": "alzheimer s",
+    "guillain barre syndrome": "peripheral neuropathy",
+    "chronic inflammatory demyelinating polyneuropathy": "peripheral neuropathy",
+
+    # -- infections, mapped to the matching antimicrobial indication -------
+    "impetigo": "bacterial skin infection",
+    "cellulitis or abscess of mouth": "skin or soft tissue infection",
+    "infection of open wound": "skin or soft tissue infection",
+    "hidradenitis suppurativa": "skin or soft tissue infection",
+    "balanitis": "skin or soft tissue infection",
+    "paronychia": "skin or soft tissue infection",
+    "abscess of nose": "skin or soft tissue infection",
+    "abscess of the pharynx": "tonsillitis pharyngitis",
+    "abscess of the lung": "pneumonia",
+    "croup": "upper respiratory tract infection",
+    "conjunctivitis due to virus": "conjunctivitis bacterial",
+    "cervicitis": "chlamydia infection",
+    "epididymitis": "chlamydia infection",
+    "chickenpox": "herpes zoste",        # both varicella-zoster; same antivirals
+    "herpangina": "pharyngitis",
+    "aphthous ulcer": "oral thrush",
+    "gastritis": "gerd",
+    "diaper rash": "dermatitis",
+    "intertrigo": "dermatitis",
+    "lichen simplex": "dermatitis",
+    "lichen planus": "dermatitis",
+    "atrophic skin condition": "dry skin",
+    "acanthosis nigricans": "insulin resistance syndrome",
+    "erythema multiforme": "allergic reactions",
+    "insect bite": "allergic reactions",
+    "envenomation from spider or animal bite": "allergic reactions",
+    "food allergy": "allergic reactions",
+    "allergy to animals": "allergies",
+    "itching of unknown cause": "pruritus",
+
+    # -- GI / hepatic / metabolic ------------------------------------------
+    "intestinal": "irritable bowel syndrome",
+    "colonic polyp": "colorectal cance",
+    "ischemia of the bowel": "diverticulitis",
+    "folate deficiency": "vitamin mineral supplementation and deficiency",
+    "protein deficiency": "dietary supplementation",
+    "hypocalcemia": "vitamin mineral supplementation and deficiency",
+    "hypoglycemia": "diabetes type 2",
+    "gestational diabetes": "diabetes type 2",
+    "diabetic ketoacidosis": "diabetes type 1",
+    "diabetic retinopathy": "diabetes type 2",
+    "cushing syndrome": "inflammatory conditions",
+    "glucocorticoid deficiency": "inflammatory conditions",
+    "gynecomastia": "hypogonadism male",
+    "hyperprolactinemia": "hyperprolactinemia",
+
+    # -- respiratory / cardiac ---------------------------------------------
+    "acute bronchospasm": "asthma acute",
+    "emphysema": "copd",
+    "atelectasis": "copd",
+    "interstitial lung": "copd",
+    "cardiomyopathy": "heart failure",
+    "heart block": "arrhythmia",
+    "central atherosclerosis": "high cholesterol",
+
+    # -- psych / neuro ------------------------------------------------------
+    "asperger syndrome": "autism",
+    "dysthymic disorder": "depression",
+    "adjustment reaction": "anxiety and stress",
+    "acute stress reaction": "anxiety and stress",
+    "conversion disorder": "anxiety and stress",
+    "dissociative disorder": "anxiety and stress",
+    "somatization disorder": "anxiety and stress",
+    "factitious disorder": "anxiety and stress",
+    "delirium": "agitated state",
+    "drug withdrawal": "opiate withdrawal",
+    "drug abuse": "opiate dependence",
+    "alcohol intoxication": "alcohol withdrawal",
+    "alcoholic liver": "alcohol dependence",
+    "extrapyramidal effect of drugs": "extrapyramidal reaction",
+    "cerebral palsy": "muscle spasm",
+    "hemiplegia": "muscle spasm",
+    "torticollis": "cervical dystonia",
+
+    # -- gynae / obstetric --------------------------------------------------
+    "idiopathic painful menstruation": "period pain",
+    "idiopathic excessive menstruation": "menorrhagia",
+    "idiopathic absence of menstruation": "amenorrhea",
+    "idiopathic infrequent menstruation": "menstrual disorders",
+    "idiopathic irregular menstrual cycle": "menstrual disorders",
+    "idiopathic nonmenstrual bleeding": "abnormal uterine bleeding",
+    "endometrial hyperplasia": "abnormal uterine bleeding",
+    "benign vaginal discharge": "bacterial vaginitis",
+    "female genitalia infection": "bacterial vaginitis",
+    "hyperemesis gravidarum": "nausea vomiting of pregnancy",
+    "hypertension of pregnancy": "high blood pressure",
+
+    # -- urology ------------------------------------------------------------
+    "urge incontinence": "overactive bladde",
+    "overflow incontinence": "urinary incontinence",
+    "atonic bladder": "urinary incontinence",
+    "bladder disorder": "overactive bladde",
+    "hydronephrosis": "urinary tract stones",
+
+    # -- haematology --------------------------------------------------------
+    "coagulation disorder": "deep vein thrombosis",
+    "hemophilia": "deep vein thrombosis",
+    "vitamin b12 deficiency": "anemia",
+    "iron deficiency": "iron deficiency anemia",
+}
+
+# Disease/condition pairings that must never be served, whatever produced
+# them. These are wrong in a way that would hand out drugs for an unrelated
+# body system, and they pass every automated guard we have.
+#
+# `cornea infection -> bone infection`: an ocular surface infection mapped to
+# osteomyelitis, recommending systemic Clindamycin for an eye complaint. It
+# arrives by two independent routes - the generated link table, AND the fuzzy
+# matcher, because the shared generic token "infection" alone clears the
+# match floor. So this is enforced on the RESULT rather than on the link.
+# Failing closed is correct: an empty panel is safer than the wrong drug.
+REJECTED_PAIRS = {
+    ("cornea infection", "bone infection"),
+}
+
+# Conditions whose primary management is not a drug. An empty panel here is
+# the CORRECT answer, and saying why is more useful than saying nothing - the
+# previous behaviour was to borrow a lower-ranked condition's drugs, which is
+# how a suspected ileus ended up displaying IBD immunosuppressants.
+#
+# These are category statements, not treatment plans. Naming the category
+# ("managed surgically") is defensible from the diagnosis alone; prescribing
+# the specifics is not, and is deliberately left to the clinician.
+NON_DRUG_MANAGEMENT = {
+    "surgical": (
+        "Primarily managed surgically or procedurally, not with medication. "
+        "The recommendation is prompt surgical assessment - no drug "
+        "recommendation is appropriate from a diagnosis alone.",
+        {"ileus", "appendicitis", "intestinal obstruction", "volvulus",
+         "ovarian torsion", "inguinal hernia", "abdominal hernia",
+         "hirschsprung", "zenker diverticulum", "pelvic organ prolapse",
+         "bladder obstruction", "urethral stricture", "peritonitis",
+         "abdominal aortic aneurysm", "sebaceous cyst", "vaginal cyst",
+         "cyst of the eyelid", "chalazion", "osteochondroma", "spina bifida",
+         "gallstone", "cholecystitis", "choledocholithiasis", "cholesteatoma",
+         "anal fissure", "anal fistula", "ectopic pregnancy", "hydrocele of the testicle",
+         "benign kidney cyst", "breast cyst", "fibroadenoma", "ganglion cyst",
+         "lipoma", "hemangioma", "colonic polyp", "deviated nasal septum",
+         "cataract", "ectropion", "hydrocephalus", "intracranial abscess",
+         "knee ligament or meniscus tear", "joint effusion", "hemarthrosis",
+         "bone spur of the calcaneous", "bunion", "hammer toe",
+         "ingrown toe nail", "avascular necrosis", "uterine fibroids",
+         "hydatidiform mole", "induced abortion", "epidural hemorrhage",
+         "intracerebral hemorrhage", "intracranial hemorrhage",
+         "subarachnoid hemorrhage", "subdural hemorrhage", "vitreous hemorrhage",
+         "central retinal artery or vein occlusion", "ependymoma",
+         "parathyroid adenoma", "adrenal adenoma", "goiter nodular"},
+    ),
+    "mechanical": (
+        "Managed by physical or procedural care - wound care, removal, "
+        "reduction, splinting or immobilisation - rather than by medication.",
+        {"ear wax impaction", "hematoma", "broken tooth", "decubitus ulcer",
+         "birth trauma", "flat feet", "scoliosis", "callus",
+         "corneal abrasion", "ear drum damage", "concussion", "head injury",
+         "heart contusion", "crushing injury", "conductive hearing loss",
+         "jaw disorder", "floaters", "aphakia"},
+    ),
+    "supportive": (
+        "Usually self-limiting; management is supportive (rest, fluids, "
+        "symptom relief) rather than a specific drug therapy.",
+        {"mononucleosis", "common cold", "teething syndrome", "acariasis",
+         "gum", "oral mucosal lesion", "salivary gland disorder",
+         "eustachian tube dysfunction", "hiccups", "motion sickness"},
+    ),
+    "dietary": (
+        "Managed principally by dietary change and avoidance rather than by "
+        "medication; specialist dietetic input is the main intervention.",
+        {"celiac", "lactose intolerance", "intestinal malabsorption",
+         "obesity", "anorexia"},
+    ),
+    "optical": (
+        "A refractive or visual-development problem, corrected optically or "
+        "surgically - lenses, prisms or occlusion therapy, not medication.",
+        {"astigmatism", "amblyopia", "eye alignment disorder",
+         "presbyopia", "myopia", "hyperopia"},
+    ),
+    "rehabilitative": (
+        "Managed principally through physiotherapy, occupational therapy or "
+        "long-term supportive care rather than a specific drug.",
+        {"cerebral palsy", "developmental disability", "down syndrome",
+         "vacterl syndrome", "congenital malformation syndrome",
+         "hemiplegia", "amyotrophic lateral sclerosis", "muscular dystrophy",
+         "autonomic nervous system disorder", "bone disorder",
+         "cervical disorder", "thoracic outlet syndrome"},
+    ),
+    "emergency": (
+        "A time-critical emergency. The recommendation is immediate emergency "
+        "care - resuscitation, antidote or urgent correction is directed by "
+        "the treating team, not selected from a diagnosis alone.",
+        {"cardiac arrest", "carbon monoxide poisoning", "hypothermia",
+         "frostbite", "heat exhaustion", "hypovolemia", "fluid overload",
+         "insulin overdose", "drug poisoning due to medication",
+         "poisoning due to analgesics", "poisoning due to antihypertensives",
+         "poisoning due to ethylene glycol", "rhabdomyolysis",
+         "hyperkalemia", "hypernatremia", "hypercalcemia", "hypokalemia",
+         "acute respiratory distress syndrome", "diabetic ketoacidosis",
+         "gastrointestinal hemorrhage", "acute pancreatitis",
+         "acute fatty liver of pregnancy", "ascending cholangitis"},
+    ),
+}
+
+# Name patterns that mark a whole family as non-pharmacological, so the sets
+# above do not have to enumerate every body part.
+NON_DRUG_PATTERNS = (
+    ("mechanical", re.compile(
+        r"^(open wound|dislocation|fracture|foreign body|injury|burn|"
+        r"sprain|strain of)\b")),
+    ("emergency", re.compile(r"^(poisoning|drug poisoning|overdose)\b")),
+    ("surgical", re.compile(
+        r"\b(valve|cancer|carcinoma|adenoma|sarcoma|melanoma|tumor|tumour|"
+        r"stenosis|aneurysm|prolapse|torsion|obstruction|abscess|cyst)\b")),
+    ("rehabilitative", re.compile(r"\b(palsy|paralysis|deformity|dystrophy)\b")),
+)
+
+
+def classify_non_drug(disease: Optional[str]) -> Optional[Tuple[str, str]]:
+    """
+    Return (category, explanation) when a disease is managed without drugs.
+
+    Used to distinguish "we have no data" from "no drug applies here" - two
+    very different messages that both used to render as one blank panel.
+    """
+    if not disease:
+        return None
+    d = str(disease).lower().strip()
+    for category, (note, names) in NON_DRUG_MANAGEMENT.items():
+        if d in names:
+            return category, note
+    for category, pattern in NON_DRUG_PATTERNS:
+        if pattern.search(d):
+            return category, NON_DRUG_MANAGEMENT[category][0]
+    return None
+
 # Stage-2 label buckets that are placeholders, not prescribable drugs. The
 # notebook emits `other_<category>` for the long tail it would not name.
 _PLACEHOLDER_LABEL = re.compile(r"^other[_ ]", re.IGNORECASE)
@@ -514,10 +809,19 @@ class TreatmentCascade:
         table = self.art.treatment_table
 
         if disease:
+            d_lower = str(disease).lower()
+
+            # Hand-verified synonym first: it is a stronger statement than the
+            # generated link, and it is what corrects the link table's misses
+            # without touching the generated artifact.
+            alias = DISEASE_ALIASES.get(d_lower)
+            if alias and alias in table:
+                return alias, 1.0, "curated_alias"
+
             key = self.art.disease_condition_link.get(disease)
             if key is None:
-                key = self.art.disease_condition_link.get(str(disease).lower())
-            if key and key in table:
+                key = self.art.disease_condition_link.get(d_lower)
+            if key and key in table and not self._is_rejected(d_lower, key):
                 return key, 1.0, "disease_link"
 
         if not query:
@@ -548,7 +852,18 @@ class TreatmentCascade:
 
         if best_key is None or best_score < CONDITION_MATCH_FLOOR:
             return None, round(float(best_score), 4), "below_floor"
+        # Last gate: a known-wrong pairing is refused however it was reached.
+        if disease and self._is_rejected(str(disease).lower(), best_key):
+            return None, round(float(best_score), 4), "rejected_pair"
         return best_key, round(float(best_score), 4), "fuzzy"
+
+    @staticmethod
+    def _is_rejected(disease: str, condition: str) -> bool:
+        """True if this disease/condition pairing is on the manual blocklist."""
+        if (disease, condition) in REJECTED_PAIRS:
+            logger.debug("refused rejected pair %s -> %s", disease, condition)
+            return True
+        return False
 
     def _text_candidates(self, query: str, k: int = 3) -> List[Tuple[str, float]]:
         """Top-k conditions from the lazily-loaded free-text classifier."""

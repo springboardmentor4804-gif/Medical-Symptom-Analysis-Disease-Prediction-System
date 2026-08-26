@@ -59,6 +59,10 @@ function emptyView() {
     treatmentIsAlternate: false,
     treatmentForDisease: null,
     treatmentForRank: null,
+    /* When no drug applies, the panel still has something to say - which
+       management pathway this condition follows. See NON_DRUG_MANAGEMENT. */
+    managementCategory: null,
+    managementNote: null,
     matchedCondition: null,
     suggestedCare: null,
     suggestedDoctor: null,
@@ -146,6 +150,8 @@ function viewV2(r) {
     treatmentIsAlternate: Boolean(tx.is_alternate),
     treatmentForDisease: tx.for_disease ?? null,
     treatmentForRank: tx.for_rank ?? null,
+    managementCategory: tx.management_category ?? null,
+    managementNote: tx.management_note ?? null,
     matchedCondition: tx.condition ?? tx.matched_condition ?? null,
     suggestedCare: tx.reference?.cures ?? null,
     suggestedDoctor: tx.reference?.doctor ?? null,
@@ -220,6 +226,10 @@ function viewV1(r) {
     treatmentIsAlternate: false,
     treatmentForDisease: null,
     treatmentForRank: null,
+    /* When no drug applies, the panel still has something to say - which
+       management pathway this condition follows. See NON_DRUG_MANAGEMENT. */
+    managementCategory: null,
+    managementNote: null,
     matchedCondition: null,
     suggestedCare: rec.suggested_cures ?? null,
     suggestedDoctor: rec.suggested_doctor ?? null,

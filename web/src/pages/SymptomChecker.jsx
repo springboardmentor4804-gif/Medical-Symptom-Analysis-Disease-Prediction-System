@@ -9,7 +9,9 @@ import { Button } from '../components/med/Button'
 import { Card, CardTitle } from '../components/med/Card'
 import {
   DiagnosisPanel, RiskPanel, SeverityBreakdown, TreatmentPanel, TriageBanner,
+  RecommendationPanel, PreventiveCarePanel,
 } from '../components/med/ResultPanels'
+import { AdvisoryPanel } from '../components/med/AdvisoryPanel'
 import { cn } from '../lib/utils'
 
 const STEPS = ['Symptoms', 'Health profile', 'Vitals', 'Results']
@@ -514,6 +516,9 @@ export default function SymptomChecker() {
           <DiagnosisPanel diagnosis={result.diagnosis} />
           <RiskPanel risk={result.risk} />
           <TreatmentPanel treatment={result.treatment} />
+          <RecommendationPanel recommendation={result.recommendation} />
+          <PreventiveCarePanel recommendation={result.recommendation} />
+          <AdvisoryPanel advisory={result.advisory} />
           <SeverityBreakdown severity={result.severity} />
 
           <Card>

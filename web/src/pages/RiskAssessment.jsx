@@ -10,8 +10,9 @@ import { StatCard } from '../components/med/StatCard'
 import { Button } from '../components/med/Button'
 import {
   DiagnosisPanel, RiskPanel, SeverityBreakdown, TreatmentPanel, TriageBanner,
-  Unavailable,
+  RecommendationPanel, PreventiveCarePanel, Unavailable,
 } from '../components/med/ResultPanels'
+import { AdvisoryPanel } from '../components/med/AdvisoryPanel'
 import { api, errorMessage } from '../lib/api'
 import { viewOf } from '../lib/assessment'
 
@@ -188,6 +189,9 @@ export default function RiskAssessment() {
       <RiskPanel risk={result.risk} />
       <DiagnosisPanel diagnosis={result.diagnosis} />
       <TreatmentPanel treatment={result.treatment} />
+      <RecommendationPanel recommendation={result.recommendation} />
+          <PreventiveCarePanel recommendation={result.recommendation} />
+          <AdvisoryPanel advisory={result.advisory} />
       <SeverityBreakdown severity={result.severity} />
     </div>
   )

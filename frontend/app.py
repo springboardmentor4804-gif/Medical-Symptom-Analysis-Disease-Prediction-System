@@ -288,6 +288,55 @@ elif page == "Symptom Checker":
                 if (tx.get("reference") or {}).get("cures"):
                     st.write(f"**General guidance:** {tx['reference']['cures']}")
 
+            # ---- Recommendation Section (NEW) ----
+            rec = result.get("recommendation")
+            if rec:
+                st.subheader("📋 Recommendation")
+                
+                # Primary action with urgency
+                action_text = f"**{rec['primary_action']}**"
+                urgency = rec.get("urgency_timeline", "")
+                
+                if urgency == "immediate":
+                    st.error(f"⚠️ {action_text}")
+                elif urgency == "same-day":
+                    st.warning(f"⏰ {action_text}")
+                elif urgency in ["within a week", "2-4 weeks"]:
+                    st.info(f"📅 {action_text}")
+                else:
+                    st.success(action_text)
+                
+                st.caption(rec.get("urgency_description", ""))
+                
+                # Recommended specialist
+                specialist = rec.get("recommended_specialist")
+                if specialist:
+                    st.markdown(f"**Recommended specialist:** {specialist}")
+                    if rec.get("specialist_note"):
+                        st.caption(rec["specialist_note"])
+                
+                # Preventive care notes
+                preventive_notes = rec.get("preventive_care_notes", [])
+                if preventive_notes:
+                    st.markdown("**Preventive Care Recommendations:**")
+                    for note in preventive_notes:
+                        with st.expander(f"{note['condition_label']} (Risk: {note['risk_score']}/100)"):
+                            st.write(note['message'])
+                            if note.get('contributing_factors'):
+                                st.caption(f"Key factors: {', '.join(note['contributing_factors'][:3])}")
+                
+                # Self-care suggestions
+                self_care = rec.get("self_care_suggestions", [])
+                if self_care:
+                    st.markdown("**Self-Care Suggestions:**")
+                    for i, sugg in enumerate(self_care, 1):
+                        icon = "💊" if sugg.get("type") == "otc_medication" else "🏠"
+                        st.write(f"{icon} {sugg['suggestion']}")
+                
+                # Disclaimer
+                if rec.get("disclaimer"):
+                    st.caption(f"_{rec['disclaimer']}_")
+
             with st.expander("Model limitations"):
                 for c in result.get("meta", {}).get("caveats", []):
                     st.write(f"- {c}")

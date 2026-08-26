@@ -58,3 +58,7 @@ Thumbs.db
 # NOTE: backend/artifacts/ is intentionally NOT ignored. Those 21 trained
 # artifacts are what the API loads at runtime, so the repo is not deployable
 # without them. The large ones are stored via Git LFS - see .gitattributes.
+
+# Accidental Windows artifact: a script redirected to dev/null instead of
+# /dev/null, creating stray git hooks here.
+dev/null/

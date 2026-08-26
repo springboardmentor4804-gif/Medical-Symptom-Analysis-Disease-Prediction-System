@@ -293,26 +293,65 @@ def test_interstitial_lung_returns_nothing_rather_than_bladder_drugs(cascade):
 # Walking the differential
 # ---------------------------------------------------------------------------
 
-def test_treatment_falls_through_to_lower_ranked_conditions():
+def test_lower_ranked_conditions_are_not_borrowed_by_default(monkeypatch):
     """
-    Only 219 of 684 diseases link to the drug-review corpus, so asking about
-    the top prediction alone left the panel empty ~70% of the time even when a
-    lower-ranked condition in the same differential had treatments.
+    A lower-ranked condition's drugs belong to a DIFFERENT disease, so they are
+    not offered unless explicitly enabled. Measured over all 684 diseases,
+    allowing this filled 54% of panels with another condition's drugs - a
+    suspected ileus was shown mesalamine and infliximab because ulcerative
+    colitis sat at #2 with 15% confidence.
     """
-    from services import get_engine
-    engine = get_engine()
+    # Patch the object the engine actually consults: conftest's `client`
+    # fixture reloads `config`, so `from config import settings` here can hand
+    # back a DIFFERENT Settings instance depending on test order.
+    from services import engine as engine_mod, get_engine
+    monkeypatch.setattr(engine_mod.settings, "treatment_allow_alternates", False)
 
     differential = [
         {"rank": 1, "disease": "xyzzy nonexistent condition"},
         {"rank": 2, "disease": "acne"},
     ]
-    result = engine.recommend_treatment("xyzzy nonexistent condition",
-                                        differential=differential)
+    result = get_engine().recommend_treatment("xyzzy nonexistent condition",
+                                              differential=differential)
+    assert result["drugs"] == [], "must not borrow acne's drugs"
+    assert result["for_disease"] == "xyzzy nonexistent condition"
+
+
+def test_treatment_falls_through_when_alternates_are_enabled(monkeypatch):
+    """The old behaviour is still reachable, and still labels the source."""
+    from services import engine as engine_mod, get_engine
+    monkeypatch.setattr(engine_mod.settings, "treatment_allow_alternates", True)
+    monkeypatch.setattr(engine_mod.settings, "treatment_alternate_min_ratio", 0.0)
+
+    differential = [
+        {"rank": 1, "disease": "xyzzy nonexistent condition"},
+        {"rank": 2, "disease": "acne"},
+    ]
+    result = get_engine().recommend_treatment("xyzzy nonexistent condition",
+                                              differential=differential)
     assert result["drugs"], "should have fallen through to acne"
     assert result["for_disease"] == "acne"
     assert result["for_rank"] == 2
     assert result["is_alternate"] is True
     assert "acne" in result["alternate_note"].lower()
+
+
+def test_distant_alternates_are_refused_even_when_enabled(monkeypatch):
+    """
+    Enabling alternates does not license borrowing from a distant rival: the
+    ileus/ulcerative-colitis shape (37.7% vs 15%) stays empty.
+    """
+    from services import engine as engine_mod, get_engine
+    monkeypatch.setattr(engine_mod.settings, "treatment_allow_alternates", True)
+    monkeypatch.setattr(engine_mod.settings, "treatment_alternate_min_ratio", 0.8)
+
+    differential = [
+        {"rank": 1, "disease": "xyzzy nonexistent condition", "probability": 0.377},
+        {"rank": 2, "disease": "acne", "probability": 0.15},
+    ]
+    result = get_engine().recommend_treatment("xyzzy nonexistent condition",
+                                              differential=differential)
+    assert result["drugs"] == [], "0.15 is well below 0.8 x 0.377"
 
 
 def test_top_ranked_hit_is_not_flagged_as_alternate():
@@ -334,7 +373,8 @@ def test_empty_differential_still_reports_against_the_top_condition():
     assert result["drugs"] == []
     assert result["layer"] == "none"
     assert result["for_disease"] == "xyzzy one"
-    assert len(result["searched_conditions"]) == 2
+    # Only rank 1 is consulted now, so that is the whole search.
+    assert result["searched_conditions"] == ["xyzzy one"]
 
 
 def test_lfs_pointer_files_are_reported_clearly(tmp_path):

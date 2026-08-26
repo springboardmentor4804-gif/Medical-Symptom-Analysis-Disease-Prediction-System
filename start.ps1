@@ -23,6 +23,70 @@ function Fail($message) {
     exit 1
 }
 
+# ---- stop anything already running ---------------------------------------
+# Every start must be a FRESH start. Without this, a backend left over from an
+# earlier run keeps port 8000 and the newly spawned uvicorn dies on bind - so
+# the app carries on serving whatever code was loaded first, and a `git pull`
+# appears to have no effect. The old process answers /health with 200, so the
+# readiness check below cannot tell the difference. Kill first, then start.
+function Stop-MedAssistProcesses {
+    $targets = New-Object System.Collections.Generic.HashSet[int]
+
+    # Whatever currently holds our two ports, plus its process tree.
+    foreach ($port in 8000, 5173) {
+        try {
+            Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction Stop |
+                ForEach-Object { [void]$targets.Add($_.OwningProcess) }
+        } catch { }   # nothing listening on this port
+    }
+
+    # uvicorn --reload and `npm run dev` each spawn children that can outlive
+    # the listener, so match this project's processes by command line too.
+    $rootEscaped = [regex]::Escape($root)
+    try {
+        Get-CimInstance Win32_Process -ErrorAction Stop |
+            Where-Object {
+                $_.CommandLine -and
+                $_.CommandLine -match $rootEscaped -and
+                $_.CommandLine -match 'uvicorn|vite|npm-cli|multiprocessing-fork'
+            } | ForEach-Object { [void]$targets.Add([int]$_.ProcessId) }
+    } catch { }
+
+    # Never kill this script's own shell or its ancestors.
+    $self = @($PID)
+    $walk = $PID
+    for ($i = 0; $i -lt 8 -and $walk; $i++) {
+        $walk = (Get-CimInstance Win32_Process -Filter "ProcessId=$walk" -ErrorAction SilentlyContinue).ParentProcessId
+        if ($walk) { $self += [int]$walk }
+    }
+
+    $killed = 0
+    foreach ($procId in $targets) {
+        if ($self -contains $procId) { continue }
+        try {
+            Stop-Process -Id $procId -Force -ErrorAction Stop
+            $killed++
+        } catch { }   # already gone, or not ours to kill
+    }
+
+    if ($killed -gt 0) {
+        Write-Host "Stopped $killed leftover MedAssist process(es)." -ForegroundColor DarkGray
+        # Give Windows a moment to release the listening sockets.
+        Start-Sleep -Seconds 2
+    }
+}
+
+Write-Host "Clearing any previous MedAssist run..." -ForegroundColor DarkGray
+Stop-MedAssistProcesses
+
+foreach ($port in 8000, 5173) {
+    $held = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
+    if ($held) {
+        Fail ("Port $port is still held by PID $($held.OwningProcess) and could not be freed. " +
+              "Close that process manually, then run this script again.")
+    }
+}
+
 # ---- preflight ------------------------------------------------------------
 if (-not (Test-Path $venvPython)) {
     Fail "No virtual environment found at .venv. Run install.bat first."

@@ -158,6 +158,12 @@ def normalize_result(result: dict) -> dict:
                                      or tx.get("disclaimer", "")),
             "caveats": result.get("meta", {}).get("caveats", []),
             "disclaimer": result.get("disclaimer", ""),
+            # v3 recommendation workflow. Absent from assessments stored
+            # before it existed, so every consumer must treat it as optional.
+            "recommendation": result.get("recommendation") or {},
+            # Advisory Features. Absent from assessments stored before it
+            # existed, so consumers must treat it as optional.
+            "advisory": result.get("advisory") or {},
         }
 
     # --- legacy v1 ---
@@ -378,6 +384,179 @@ def build_pdf(filepath: str, *, patient_email: str, profile: dict | None,
             "not a diagnosis or a forecast of future onset.",
             styles["Small"],
         ))
+
+    # ---- Healthcare recommendation workflow ----
+    # The consolidated advisory block. It sits BEFORE the drug tables on
+    # purpose: the action, the timeline and the specialist are what a patient
+    # acts on, and burying them under a drug ranking inverts that.
+    rec = view.get("recommendation") or {}
+    if rec:
+        story.append(Paragraph("Healthcare Recommendation",
+                               styles["SectionHeading"]))
+        action_rows = [
+            ["Primary action",
+             Paragraph(str(rec.get("primary_action") or "-"), styles["Small"])],
+            ["Timeline",
+             Paragraph(f"{rec.get('urgency_timeline') or '-'} — "
+                       f"{rec.get('urgency_description') or ''}", styles["Small"])],
+            ["See",
+             Paragraph(f"{str(rec.get('recommended_specialist') or '-').title()}"
+                       + (f" — {rec['specialist_note']}"
+                          if rec.get("specialist_note") else ""), styles["Small"])],
+        ]
+        action_table = Table(action_rows, colWidths=[1.6 * inch, 4.7 * inch])
+        action_table.setStyle(TableStyle([
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#eef2ff")),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]))
+        story.append(action_table)
+
+        insights = rec.get("clinical_insights") or []
+        if insights:
+            story.append(Spacer(1, 8))
+            story.append(Paragraph("<b>Findings from this assessment</b>",
+                                   styles["Small"]))
+            for item in insights:
+                text = (item.get("text") or "").strip()
+                if not text:
+                    continue
+                # The source tag is the point of the whole design: a reader
+                # must be able to tell which model produced each statement.
+                story.append(Paragraph(
+                    f"• {text} <font size=7 color='grey'>"
+                    f"[{item.get('source', 'n/a')}]</font>", styles["Small"]))
+
+        self_care = rec.get("self_care_suggestions") or []
+        if self_care:
+            story.append(Spacer(1, 8))
+            story.append(Paragraph("<b>Self-care</b>", styles["Small"]))
+            for s in self_care:
+                story.append(Paragraph(f"• {s.get('suggestion', '')}",
+                                       styles["Small"]))
+        story.append(Spacer(1, 12))
+
+    # ---- Preventive care ----
+    # Its own section, immediately after the recommendation. Two sources feed
+    # it and they are NOT interchangeable, so each note says which one it came
+    # from: `chronic_risk_model` quotes the patient's own measurements against
+    # a flagged screening risk, `disease_prediction` is prevention keyed to
+    # the predicted condition. The second is what makes this section present
+    # for every assessment rather than only profiled ones.
+    prevention = (rec or {}).get("preventive_care_notes") or []
+    if prevention:
+        story.append(Paragraph("Preventive Care", styles["SectionHeading"]))
+        # Patient-specific findings before category guidance.
+        ordered = sorted(
+            prevention,
+            key=lambda n: 0 if n.get("source") == "chronic_risk_model" else 1)
+        for n in ordered:
+            label = n.get("condition_label") or n.get("condition") or ""
+            if n.get("source") == "chronic_risk_model":
+                pct_txt = (f"{n['percentile']}th percentile"
+                           if n.get("percentile") is not None
+                           else f"risk {n.get('risk_score', '-')}/100")
+                tag = f"{pct_txt}, {n.get('risk_band', '')}"
+            else:
+                tag = n.get("focus") or "prevention"
+            story.append(Paragraph(
+                f"<b>{label}</b> <font size=8 color='grey'>({tag})</font>",
+                styles["Small"]))
+            if n.get("message"):
+                story.append(Paragraph(n["message"], styles["Small"]))
+            if n.get("contributing_factors"):
+                story.append(Paragraph(
+                    "<i>Your contributing factors:</i> "
+                    + "; ".join(n["contributing_factors"][:3]), styles["Small"]))
+            for action in (n.get("recommended_actions") or [])[:4]:
+                story.append(Paragraph(f"&nbsp;&nbsp;• {action}", styles["Small"]))
+            story.append(Paragraph(
+                f"<font size=7 color='grey'>[{n.get('source', 'n/a')}]</font>",
+                styles["Small"]))
+            story.append(Spacer(1, 6))
+        story.append(Paragraph(
+            "Preventive guidance is generalised to the predicted condition "
+            "and, where a lifestyle profile was given, to the patient's own "
+            "screening risk. It is not a personalised prevention plan.",
+            styles["Small"]))
+        story.append(Spacer(1, 12))
+
+    # ---- Advisory features ----
+    # Immediately below Preventive Care, same report. Distinct layer: standing
+    # guidance and cross-session patterns rather than this assessment's
+    # reactive advice. Every item prints its source, because an advisory that
+    # cannot be traced back to a computed output should not be here at all.
+    adv = view.get("advisory") or {}
+    ADVISORY_ORDER = [
+        ("lifestyle_advisory", "Lifestyle guidance"),
+        ("screening_reminders", "Screening reminders"),
+        ("symptom_trend", "Patterns across assessments"),
+        ("condition_education", "About this condition"),
+        ("behavioral_nudges", "Suggested next steps"),
+    ]
+    if any((adv.get(k) or {}).get("available") for k, _ in ADVISORY_ORDER):
+        story.append(Paragraph("Advisory Features", styles["SectionHeading"]))
+        story.append(Paragraph(
+            "General health guidance and longer-term patterns - distinct from "
+            "the assessment-specific advice above.", styles["Small"]))
+        story.append(Spacer(1, 6))
+
+        for key, title in ADVISORY_ORDER:
+            section = adv.get(key) or {}
+            if not section.get("available"):
+                continue
+            story.append(Paragraph(f"<b>{title}</b>", styles["Small"]))
+            if key == "condition_education" and section.get("heading"):
+                story.append(Paragraph(section["heading"], styles["Small"]))
+
+            for item in (section.get("items") or []):
+                lead = (item.get("factor") or item.get("title")
+                        or item.get("subject") or "")
+                body = (item.get("advisory") or item.get("nudge")
+                        or item.get("text") or "")
+                text = f"<b>{lead}:</b> {body}" if lead else body
+                story.append(Paragraph(f"&nbsp;&nbsp;• {text}", styles["Small"]))
+                if item.get("standing_guidance"):
+                    story.append(Paragraph(
+                        f"&nbsp;&nbsp;&nbsp;&nbsp;{item['standing_guidance']}",
+                        styles["Small"]))
+                if item.get("drives"):
+                    story.append(Paragraph(
+                        "&nbsp;&nbsp;&nbsp;&nbsp;<i>Contributing to flagged "
+                        f"risk for: {', '.join(item['drives'])}</i>",
+                        styles["Small"]))
+                if item.get("applies_because"):
+                    story.append(Paragraph(
+                        "&nbsp;&nbsp;&nbsp;&nbsp;<i>Applies because: "
+                        f"{item['applies_because']}</i>", styles["Small"]))
+                story.append(Paragraph(
+                    "&nbsp;&nbsp;&nbsp;&nbsp;<font size=7 color='grey'>"
+                    f"[{item.get('source', 'n/a')}]</font>", styles["Small"]))
+
+            if section.get("closing_note"):
+                story.append(Paragraph(f"<i>{section['closing_note']}</i>",
+                                       styles["Small"]))
+            story.append(Spacer(1, 6))
+
+        # Sub-sections that produced nothing are named with their reason. "No
+        # history yet" is information; a silently missing section is not.
+        missing = [(t, (adv.get(k) or {}).get("reason"))
+                   for k, t in ADVISORY_ORDER
+                   if adv.get(k) and not adv[k].get("available")]
+        if missing:
+            story.append(Paragraph("<b>Not available yet</b>", styles["Small"]))
+            for title, reason in missing:
+                story.append(Paragraph(
+                    f"&nbsp;&nbsp;• <b>{title}:</b> {reason or '-'}",
+                    styles["Small"]))
+            story.append(Spacer(1, 6))
+
+        if adv.get("disclaimer"):
+            story.append(Paragraph(f"<i>{adv['disclaimer']}</i>", styles["Small"]))
+        story.append(Spacer(1, 12))
 
     # ---- Care plan ----
     story.append(Paragraph("Treatment & Care Plan", styles["SectionHeading"]))

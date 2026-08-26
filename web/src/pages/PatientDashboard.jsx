@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Activity, TrendingUp, FileText, Plus, AlertTriangle, File, Pill } from 'lucide-react'
+import { Activity, TrendingUp, FileText, Plus, AlertTriangle, File, Pill, BarChart3 } from 'lucide-react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { StatCard } from '../components/med/StatCard'
 import { Card, CardTitle } from '../components/med/Card'
 import { Button } from '../components/med/Button'
 import { RiskBadge } from '../components/med/Badge'
 import { api, errorMessage } from '../lib/api'
+import { ScopeBanner } from '../components/med/AnalyticsCharts'
+/* Shared trend module library - the same components the provider dashboard
+   renders, so a chart cannot mean two different things by role. */
+import { TrendModuleGrid } from '../components/trends'
 
 function scoreAccent(score) {
   if (score === null || score === undefined) return 'primary'
@@ -26,6 +30,12 @@ export default function PatientDashboard() {
   const [error, setError] = useState('')
   const [providerReportsCount, setProviderReportsCount] = useState(0)
   const [prescriptionsCount, setPrescriptionsCount] = useState(0)
+  /* Analytics is an expanded section of this dashboard rather than a separate
+     page, and it is lazy: the aggregation is only fetched when the patient
+     opens it, so the default dashboard load is unchanged. */
+  const [showAnalytics, setShowAnalytics] = useState(false)
+  const [analytics, setAnalytics] = useState(null)
+  const [analyticsError, setAnalyticsError] = useState('')
 
   useEffect(() => {
     api.get('/me/summary')
@@ -42,6 +52,15 @@ export default function PatientDashboard() {
       .then((res) => setPrescriptionsCount(res.data.length))
       .catch(() => setPrescriptionsCount(0))
   }, [])
+
+  useEffect(() => {
+    if (!showAnalytics || analytics) return
+    /* /analytics/me is pinned server-side to the caller's own id - see
+       resolve_scope(). There is no patient_id to pass, by design. */
+    api.get('/analytics/me')
+      .then((res) => setAnalytics(res.data))
+      .catch((err) => setAnalyticsError(errorMessage(err, 'Could not load your analytics')))
+  }, [showAnalytics, analytics])
 
   if (error) return <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>
   if (!data) return <p className="text-sm text-slate-400">Loading…</p>
@@ -185,6 +204,45 @@ export default function PatientDashboard() {
           </Card>
         </>
       )}
+
+      {/* ---- Analytics ---- */}
+      <Card delay={0.25}>
+        <button
+          type="button"
+          onClick={() => setShowAnalytics((v) => !v)}
+          className="flex w-full items-center justify-between gap-3 text-left"
+        >
+          <span className="flex items-center gap-2.5">
+            <BarChart3 className="h-5 w-5 text-indigo-600" />
+            <span className="text-base font-semibold sm:text-lg">Analytics</span>
+            <span className="text-xs text-slate-500">
+              your trends across all past check-ins
+            </span>
+          </span>
+          <span className={`text-slate-400 transition-transform ${showAnalytics ? 'rotate-180' : ''}`}>
+            ▼
+          </span>
+        </button>
+
+        {showAnalytics && (
+          <div className="mt-4 space-y-4">
+            {analyticsError && (
+              <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                {analyticsError}
+              </div>
+            )}
+            {!analytics && !analyticsError && (
+              <p className="text-sm text-slate-400">Loading analytics…</p>
+            )}
+            {analytics && (
+              <>
+                <ScopeBanner scope={analytics.scope} summary={analytics.summary} />
+                <TrendModuleGrid data={analytics} />
+              </>
+            )}
+          </div>
+        )}
+      </Card>
     </div>
   )
 }

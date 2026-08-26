@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import {
-  Activity, AlertTriangle, CheckCircle2, HeartPulse, Info, Pill,
-  ShieldAlert, Stethoscope, TrendingUp,
+  Activity, AlertTriangle, CheckCircle2, Clock, HeartPulse, Info, Pill,
+  ShieldAlert, Stethoscope, TrendingUp, UserCog, Sparkles,
 } from 'lucide-react'
 import { Card, CardTitle } from './Card'
 import { Badge } from './Badge'
@@ -39,6 +39,22 @@ const BAND_STYLES = {
 }
 
 const pct = (v) => `${Math.round((v ?? 0) * 100)}%`
+
+/* An empty drug list is not the same statement as "we have nothing to say".
+   The backend classifies WHY no drug applies, and every surface that can
+   render an empty treatment block must say which pathway it is - otherwise a
+   surgical condition reads as a missing-data bug. Shared by the full panel
+   and the compact history/report summary so the two cannot drift apart. */
+export const MANAGEMENT_HEADINGS = {
+  surgical: 'Managed surgically — not with medication',
+  mechanical: 'Managed by procedural or physical care',
+  supportive: 'Supportive care — no specific drug therapy',
+  dietary: 'Managed by dietary change',
+  optical: 'Corrected optically or surgically',
+  rehabilitative: 'Managed by therapy and supportive care',
+  emergency: 'Emergency care — treatment directed by the treating team',
+  referral: 'Referral pathway — no drug data held',
+}
 
 /* ------------------------------------------------------------------ */
 /* Empty state — shown whenever a block reports available:false        */
@@ -439,10 +455,14 @@ export function TreatmentPanel({ treatment }) {
   /* An empty panel is a correct answer, not a failure. Say so plainly rather
      than falling back to the nearest-matching condition's drug list. */
   if (layer === 'none' || drugs.length === 0) {
+    /* "No drug applies to this condition" and "we hold no data on it" both
+       render empty, but they are not the same statement and must not read as
+       though they were. The first is an answer; only the second is a gap. */
+    const heading = MANAGEMENT_HEADINGS[treatment?.management_category] ?? style.title
     return (
       <Card>
         <CardTitle icon={<Pill className="h-5 w-5" />}>Treatment options</CardTitle>
-        <Unavailable reason={style.title} hint={evidence.caveat} />
+        <Unavailable reason={heading} hint={treatment?.management_note ?? evidence.caveat} />
         {treatment?.reference?.cures && (
           <p className="mt-3 text-sm text-slate-700">
             <span className="font-semibold">General guidance:</span> {treatment.reference.cures}
@@ -535,10 +555,17 @@ export function TreatmentSummary({ view, className }) {
   const style = LAYER_PRESENTATION[layer] ?? LAYER_PRESENTATION.none
 
   if (!drugs.length) {
+    /* Same rule as TreatmentPanel: name the management pathway rather than
+       reporting a data gap, and carry the explanation through to the history
+       and report listings instead of stopping at the assessment page. */
+    const heading = MANAGEMENT_HEADINGS[view?.managementCategory] ?? style.title
     return (
       <div className={className}>
         <p className="mb-1 font-medium text-slate-600">Treatment recommendations</p>
-        <p className="text-xs text-slate-500">{style.title}</p>
+        <p className="text-xs text-slate-500">{heading}</p>
+        {view?.managementNote && (
+          <p className="mt-1 text-xs text-slate-500">{view.managementNote}</p>
+        )}
       </div>
     )
   }
@@ -584,5 +611,256 @@ export function TreatmentSummary({ view, className }) {
         </p>
       )}
     </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* 5. Healthcare Recommendation - NEW                                  */
+/* ------------------------------------------------------------------ */
+
+const URGENCY_STYLES = {
+  immediate: {
+    ring: 'border-red-300 bg-red-50',
+    text: 'text-red-900',
+    icon: ShieldAlert,
+    iconColor: 'text-red-600',
+  },
+  'same-day': {
+    ring: 'border-orange-300 bg-orange-50',
+    text: 'text-orange-900',
+    icon: AlertTriangle,
+    iconColor: 'text-orange-600',
+  },
+  'within a week': {
+    ring: 'border-blue-300 bg-blue-50',
+    text: 'text-blue-900',
+    icon: Clock,
+    iconColor: 'text-blue-600',
+  },
+  '2-4 weeks': {
+    ring: 'border-green-300 bg-green-50',
+    text: 'text-green-900',
+    icon: CheckCircle2,
+    iconColor: 'text-green-600',
+  },
+}
+
+export function RecommendationPanel({ recommendation }) {
+  if (!recommendation) return null
+
+  const urgency = recommendation.urgency_timeline || ''
+  const style = URGENCY_STYLES[urgency] || URGENCY_STYLES['2-4 weeks']
+  const { icon: UrgencyIcon, iconColor } = style
+
+  const preventiveNotes = recommendation.preventive_care_notes || []
+  const selfCare = recommendation.self_care_suggestions || []
+
+  return (
+    <Card>
+      <CardTitle icon={<Sparkles className="h-5 w-5" />}>
+        Healthcare Recommendation
+      </CardTitle>
+
+      {/* Primary Action - Color-coded by urgency */}
+      <div className={cn('mb-4 rounded-xl border-2 p-4', style.ring)}>
+        <div className="flex items-start gap-3">
+          <UrgencyIcon className={cn('h-6 w-6 shrink-0', iconColor)} />
+          <div className="min-w-0 flex-1">
+            <p className={cn('text-lg font-bold leading-snug', style.text)}>
+              {recommendation.primary_action}
+            </p>
+            {recommendation.urgency_description && (
+              <p className={cn('mt-2 text-sm', style.text)}>
+                {recommendation.urgency_description}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Recommended Specialist */}
+      {recommendation.recommended_specialist && (
+        <div className="mb-4 rounded-xl border border-indigo-200 bg-indigo-50/40 p-4">
+          <div className="flex items-start gap-3">
+            <UserCog className="h-5 w-5 shrink-0 text-indigo-600" />
+            <div>
+              <p className="text-sm font-semibold text-indigo-900">
+                Recommended specialist
+              </p>
+              <p className="mt-1 text-base font-medium text-indigo-800">
+                {recommendation.recommended_specialist}
+              </p>
+              {recommendation.specialist_note && (
+                <p className="mt-1 text-xs text-indigo-700">
+                  {recommendation.specialist_note}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Findings specific to THIS assessment. Each line names the model that
+          produced it, so a reader can weigh a calibrated confidence figure
+          differently from a rule-based severity contribution. */}
+      {(recommendation.clinical_insights || []).length > 0 && (
+        <div className="mb-4">
+          <h3 className="mb-2 text-sm font-semibold text-slate-700">
+            Findings from this assessment
+          </h3>
+          <ul className="space-y-2">
+            {recommendation.clinical_insights.map((item, i) => (
+              <li
+                key={i}
+                className={cn(
+                  'rounded-xl border px-4 py-2.5 text-sm',
+                  item.type === 'red_flag'
+                    ? 'border-red-200 bg-red-50 text-red-900'
+                    : 'border-slate-200 bg-white text-slate-700',
+                )}
+              >
+                {item.text}
+                {item.source && (
+                  <span className="ml-2 font-mono text-[10px] uppercase tracking-wide text-slate-400">
+                    {item.source}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Self-Care Suggestions */}
+      {selfCare.length > 0 && (
+        <div className="mb-4">
+          <h3 className="mb-3 text-sm font-semibold text-slate-700">
+            Self-Care Suggestions
+          </h3>
+          <div className="space-y-2">
+            {selfCare.map((sugg, i) => (
+              <div
+                key={i}
+                className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5"
+              >
+                <span className="text-lg">
+                  {sugg.type === 'otc_medication' ? '💊' : '🏠'}
+                </span>
+                <p className="text-sm text-slate-700">{sugg.suggestion}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Disclaimer */}
+      {recommendation.disclaimer && (
+        <p className="mt-4 border-t border-slate-100 pt-3 text-xs italic text-slate-500">
+          {recommendation.disclaimer}
+        </p>
+      )}
+    </Card>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* 6. Preventive care — its own section, below the recommendation      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Preventive care for this assessment.
+ *
+ * Two sources, and they are not interchangeable, so each note is labelled:
+ *   `chronic_risk_model`   quotes the patient's OWN measurements (BMI 33.5,
+ *                          self-rated health 'Fair') against a flagged
+ *                          condition - the more specific of the two, so it
+ *                          sorts first.
+ *   `disease_prediction`   prevention keyed to the predicted condition, which
+ *                          is what makes this section available for every
+ *                          assessment rather than only profiled ones.
+ *
+ * The section is always rendered when notes exist, and the backend guarantees
+ * at least one note whenever a disease was predicted.
+ */
+export function PreventiveCarePanel({ recommendation }) {
+  const notes = recommendation?.preventive_care_notes || []
+  if (!notes.length) return null
+
+  /* Patient-specific findings before category guidance. */
+  const ordered = [...notes].sort((a, b) => {
+    const rank = (n) => (n.source === 'chronic_risk_model' ? 0 : 1)
+    return rank(a) - rank(b)
+  })
+
+  return (
+    <Card>
+      <CardTitle icon={<Sparkles className="h-5 w-5" />}>Preventive care</CardTitle>
+
+      <div className="space-y-3">
+        {ordered.map((note, i) => {
+          const isRisk = note.source === 'chronic_risk_model'
+          return (
+            <div
+              key={i}
+              className={cn(
+                'rounded-xl border p-4',
+                isRisk
+                  ? 'border-amber-200 bg-amber-50/50'
+                  : 'border-emerald-200 bg-emerald-50/40',
+              )}
+            >
+              <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                <span className="font-semibold text-slate-800">
+                  {note.condition_label}
+                </span>
+                {isRisk ? (
+                  <span className={cn(
+                    'rounded-full border px-2 py-0.5 text-[10px] font-semibold',
+                    BAND_STYLES[note.risk_band] || 'bg-slate-100 text-slate-700',
+                  )}>
+                    {note.percentile != null
+                      ? `${note.percentile}th percentile`
+                      : `risk ${note.risk_score}/100`}
+                  </span>
+                ) : (
+                  note.focus && (
+                    <span className="rounded-full border border-emerald-300 bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-900">
+                      {note.focus}
+                    </span>
+                  )
+                )}
+              </div>
+
+              <p className="text-sm text-slate-700">{note.message}</p>
+
+              {note.contributing_factors?.length > 0 && (
+                <p className="mt-2 text-xs text-slate-600">
+                  <strong>Your contributing factors:</strong>{' '}
+                  {note.contributing_factors.slice(0, 3).join('; ')}
+                </p>
+              )}
+
+              {note.recommended_actions?.length > 0 && (
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-slate-600">
+                  {note.recommended_actions.map((a, j) => (
+                    <li key={j}>{a}</li>
+                  ))}
+                </ul>
+              )}
+
+              <p className="mt-2 font-mono text-[10px] uppercase tracking-wide text-slate-400">
+                {note.source}
+              </p>
+            </div>
+          )
+        })}
+      </div>
+
+      <p className="mt-4 border-t border-slate-100 pt-3 text-xs text-slate-500">
+        Preventive guidance is generalised to the predicted condition and, where
+        a lifestyle profile was given, to your own screening risk. It is not a
+        substitute for a personalised prevention plan from your clinician.
+      </p>
+    </Card>
   )
 }

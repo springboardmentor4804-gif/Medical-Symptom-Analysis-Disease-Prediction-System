@@ -61,8 +61,8 @@ REM 3. Backend dependencies
 REM ---------------------------------------------------------------------------
 echo.
 echo [3/6] Installing backend dependencies (this takes a few minutes)...
-"%PY%" -m pip install --upgrade pip --quiet
-"%PY%" -m pip install -r backend\requirements.txt --quiet
+"%PY%" -m pip install --upgrade pip --trusted-host pypi.org --trusted-host files.pythonhosted.org --quiet
+"%PY%" -m pip install -r backend\requirements.txt --trusted-host pypi.org --trusted-host files.pythonhosted.org --quiet
 if errorlevel 1 (
     echo   ERROR: dependency installation failed. Scroll up for the reason.
     goto :fail

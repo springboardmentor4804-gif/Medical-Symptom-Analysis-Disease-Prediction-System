@@ -31,11 +31,14 @@ import logging
 from datetime import datetime, timezone
 from typing import Dict, Optional
 
+from config import settings
 from .artifacts import ArtifactsUnavailable, get_artifacts
 from .disease_model import get_disease_model
 from .risk_model import CONDITION_LABELS, get_risk_model
 from .severity_engine import compute_severity, severity_to_flag
-from .treatment_cascade import get_cascade
+from .treatment_cascade import classify_non_drug, get_cascade
+from .advisory_engine import generate_advisory_features
+from .recommendation_engine import generate_healthcare_recommendation
 
 logger = logging.getLogger(__name__)
 
@@ -83,10 +86,27 @@ class MedAssistEngine:
         candidates = []
         if disease:
             candidates.append((1, disease))
-        for entry in (differential or []):
-            name = entry.get("disease") if isinstance(entry, dict) else entry
-            rank = entry.get("rank") if isinstance(entry, dict) else None
-            if name and name != disease:
+        # Lower-ranked conditions are only consulted when explicitly enabled -
+        # see Settings.treatment_allow_alternates for why the default is off.
+        if settings.treatment_allow_alternates:
+            entries = list(differential or [])
+            # Probability of the top prediction, to judge how close a rival is.
+            top_p = 0.0
+            for entry in entries:
+                if isinstance(entry, dict) and (entry.get("rank") or 0) == 1:
+                    top_p = float(entry.get("probability") or 0.0)
+                    break
+            floor = top_p * settings.treatment_alternate_min_ratio
+
+            for entry in entries:
+                name = entry.get("disease") if isinstance(entry, dict) else entry
+                rank = entry.get("rank") if isinstance(entry, dict) else None
+                if not name or name == disease:
+                    continue
+                # A distant rival's drugs are not this patient's treatment.
+                p = float(entry.get("probability") or 0.0) if isinstance(entry, dict) else 0.0
+                if top_p > 0 and p < floor:
+                    continue
                 candidates.append((rank or len(candidates) + 1, name))
 
         if not candidates and not query:
@@ -125,10 +145,58 @@ class MedAssistEngine:
                         f"ranked #{rank} in the differential.")
                 return result
 
-        # Nothing in the differential had data. Report against the top-ranked
-        # condition, which is the one the rest of the page is about.
-        self._attach_reference(first_result, candidates[0][1])
+        # Nothing had data. Report against the top-ranked condition, which is
+        # the one the rest of the page is about.
+        top_name = candidates[0][1]
+        self._attach_reference(first_result, top_name)
         first_result["searched_conditions"] = [n for _, n in candidates]
+
+        # Distinguish "no drug applies to this condition" from "we hold no
+        # data on it". Both render empty, but only one is a data gap.
+        non_drug = classify_non_drug(top_name)
+        if non_drug:
+            category, note = non_drug
+            first_result["gate_reason"] = "no_pharmacological_treatment"
+            first_result["management_category"] = category
+            first_result["management_note"] = note
+            evidence = first_result.setdefault("evidence", {})
+            evidence["caveat"] = note
+            return first_result
+
+        # GUARANTEED FLOOR. Past this point the drug corpora hold nothing and
+        # no management category matched, but "no treatment" is never a useful
+        # answer to give a patient. Fall back to the care PATHWAY, which is
+        # always derivable: which clinician handles this, and what the
+        # reference text says about it.
+        #
+        # This deliberately does NOT invent a drug. Inventing one is how a
+        # suspected ileus ended up showing IBD immunosuppressants. What it
+        # guarantees is a next step, not a prescription.
+        first_result["gate_reason"] = "clinician_referral"
+        first_result["management_category"] = "referral"
+        reference = first_result.get("reference") or {}
+        specialist = (reference.get("doctor") or "").strip()
+        cures = (reference.get("cures") or "").strip()
+
+        parts = [
+            f"No drug-treatment data is held for {str(top_name).title()} in "
+            f"either source, and it is not one of the conditions managed "
+            f"without medication."
+        ]
+        if cures:
+            parts.append(f"Reference guidance for this condition: {cures}.")
+        if specialist:
+            parts.append(f"The recommended next step is assessment by: "
+                         f"{specialist}.")
+        else:
+            parts.append("The recommended next step is assessment by a "
+                         "primary care clinician, who can direct treatment.")
+        note = " ".join(parts)
+
+        first_result["management_note"] = note
+        first_result["referral_specialist"] = specialist or "primary care clinician"
+        evidence = first_result.setdefault("evidence", {})
+        evidence["caveat"] = note
         return first_result
 
     def _attach_reference(self, result: Dict, disease: Optional[str]) -> None:
@@ -143,7 +211,8 @@ class MedAssistEngine:
     # Full assessment
     # ------------------------------------------------------------------
     def analyze(self, symptoms=None, age=None, sex=None, profile=None,
-                vitals=None, top_k: int = 5) -> Dict:
+                vitals=None, top_k: int = 5,
+                historical_assessments=None) -> Dict:
         # Whether a health profile was actually supplied, decided BEFORE age
         # and sex are merged in. Without this guard, every symptoms-only
         # request produced a full ten-condition risk panel inferred from age
@@ -189,6 +258,21 @@ class MedAssistEngine:
         treatment = self.recommend_treatment(
             top_disease, differential=diagnosis.get("predictions") or [])
 
+        # Generate consolidated healthcare recommendation
+        recommendation = generate_healthcare_recommendation(
+            severity_result=severity,
+            disease_predictions=diagnosis,
+            chronic_risks=risk,
+            treatment_options=treatment
+        )
+
+        advisory = generate_advisory_features(
+            user_profile=profile,
+            chronic_risks=risk,
+            disease_predictions=diagnosis,
+            historical_assessments=historical_assessments,
+        )
+
         return {
             "schema_version": SCHEMA_VERSION,
             "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -206,6 +290,13 @@ class MedAssistEngine:
             "risk": risk,
             "severity": severity,
             "treatment": treatment,
+            "recommendation": recommendation,
+            # Advisory Features sits directly below Preventive Care (which is
+            # part of `recommendation`) in the response, the UI and the report.
+            # Distinct layer: standing guidance and cross-session patterns,
+            # not this assessment's reactive advice. History is optional and
+            # each sub-feature degrades on its own.
+            "advisory": advisory,
             "meta": {
                 "model_version": self.art.manifest.get(
                     "pipeline_version", self.art.manifest.get("created")),

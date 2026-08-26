@@ -25,9 +25,14 @@ def client():
     # from this list and only surfaced once it started querying the ORM.
     for mod in ["config", "database", "auth", "services", "rate_limit",
                 "report_builder", "roles",
+                # services.analytics binds `database` at import time, and
+                # dropping the "services" package alone leaves the already
+                # imported submodule in sys.modules holding a stale engine.
+                "services.analytics",
                 "routers.auth_routes", "routers.report_routes",
                 "routers.patient_routes", "routers.admin_routes",
-                "routers.prescription_routes", "main"]:
+                "routers.prescription_routes", "routers.analytics_routes",
+                "main"]:
         sys.modules.pop(mod, None)
 
     from fastapi.testclient import TestClient

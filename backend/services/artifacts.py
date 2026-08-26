@@ -69,6 +69,8 @@ REQUIRED_FILES = {
     "model3_disease_condition_link.json": "treatment cascade layer B",
     "model3_metrics.json": "treatment cascade",
     "severity_config.json": "severity engine",
+    "recommendation_config.json": "recommendation engine",
+    "advisory_config.json": "advisory features",
 }
 
 # Absent -> a specific feature switches off, the rest of the app runs.
@@ -556,6 +558,14 @@ class Artifacts:
         return self._get("sev", lambda: self.load_json("severity_config.json"))
 
     @property
+    def recommendation_config(self):
+        return self._get("rec", lambda: self.load_json("recommendation_config.json"))
+
+    @property
+    def advisory_config(self):
+        return self._get("adv", lambda: self.load_json("advisory_config.json"))
+
+    @property
     def manifest(self):
         def _load():
             for name in ("MANIFEST.json", "manifest.json"):
@@ -576,7 +586,8 @@ class Artifacts:
              self.symptom_evidence, self.confidence_calibration,
              self.disease_lookup, self.risk_models, self.risk_drivers,
              self.treatment_table, self.disease_condition_link,
-             self.severity_config)
+             self.severity_config, self.recommendation_config,
+             self.advisory_config)
         if self.layer_a_available:
             _ = (self.mimic_layer, self.mimic_matrix, self.mimic_records)
         if self.note_layer_available:
@@ -605,6 +616,8 @@ class Artifacts:
             "treatment_table": lambda: len(self.treatment_table),
             "disease_condition_link": lambda: len(self.disease_condition_link),
             "severity_config": lambda: len(self.severity_config.get("weights", {})),
+            "recommendation_config": lambda: len(self.recommendation_config.get("severity_actions", {})),
+            "advisory_config": lambda: len(self.advisory_config.get("screening_reminders", {}).get("reminders", [])),
         }
         if self.layer_a_available:
             probes["mimic_layer"] = lambda: self.mimic_matrix.shape[0]

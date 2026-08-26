@@ -1,0 +1,263 @@
+{
+  "_comment": "Advisory Features module. Rule-based, auditable, tunable without code changes - same contract as severity_config.json and recommendation_config.json. Advisory Features answers 'what should I generally know or watch for over time'; Preventive Care answers 'what do I do about this elevated risk score now'. Every phrase here is emitted only when its named upstream data point is present.",
+  "lifestyle_advisory": {
+    "_comment": "Keyed on chronic-risk model feature codes. Emitted only when the feature appears among a flagged condition's top drivers AND the patient's value crosses trigger_value. 'direction' says which side of the value triggers it. min_importance is deliberately low: it filters noise, not modest-importance factors that happen to be highly modifiable (smoking scores ~0.008 here).",
+    "min_importance": 0.005,
+    "factors": {
+      "_BMI5": {
+        "label": "Body weight",
+        "direction": "above",
+        "trigger_value": 25,
+        "advisory": "Body mass index sits above the healthy range and is one of the strongest contributors to your screening risk. Sustained loss of 5-10% of body weight measurably lowers risk across diabetes, cardiovascular and joint outcomes.",
+        "standing_guidance": "Aim for gradual change - 0.5 kg per week is sustainable; faster loss is usually regained."
+      },
+      "_SMOKER3": {
+        "label": "Smoking",
+        "direction": "at_or_below",
+        "trigger_value": 2,
+        "advisory": "Current smoking is among the top contributors to your screening risk. It is also the single factor with the fastest measurable benefit from change - cardiovascular risk begins falling within weeks of stopping.",
+        "standing_guidance": "Combined behavioural support and pharmacotherapy roughly doubles quit success compared with willpower alone."
+      },
+      "EXERANY2": {
+        "label": "Physical activity",
+        "direction": "at_or_above",
+        "trigger_value": 2,
+        "advisory": "No physical activity was recorded in the last 30 days, and inactivity is contributing to your screening risk.",
+        "standing_guidance": "150 minutes per week of moderate activity is the usual target, but the largest risk reduction comes from moving from none to some - not from reaching the target."
+      },
+      "_TOTINDA": {
+        "label": "Physical activity",
+        "direction": "at_or_above",
+        "trigger_value": 2,
+        "advisory": "Recorded activity is below the level associated with lower chronic risk in this cohort.",
+        "standing_guidance": "Short, frequent activity counts; it does not need to be continuous or vigorous."
+      },
+      "GENHLTH": {
+        "label": "Self-rated health",
+        "direction": "at_or_above",
+        "trigger_value": 4,
+        "advisory": "Self-rated general health of 'Fair' or 'Poor' is one of the strongest single predictors in this model - it independently tracks outcomes even after other factors are accounted for.",
+        "standing_guidance": "Worth raising directly with a clinician, since it often reflects something not yet captured in a specific diagnosis."
+      },
+      "BPHIGH4": {
+        "label": "Blood pressure",
+        "direction": "equals",
+        "trigger_value": 1,
+        "advisory": "A previous high blood pressure reading is contributing to your screening risk. Hypertension is asymptomatic until it causes damage, so it is managed by measurement rather than by how you feel.",
+        "standing_guidance": "Home monitoring at a consistent time of day gives a more useful trend than occasional clinic readings."
+      },
+      "TOLDHI2": {
+        "label": "Cholesterol",
+        "direction": "equals",
+        "trigger_value": 1,
+        "advisory": "A previous high cholesterol result is contributing to your screening risk, and lipid levels are also asymptomatic.",
+        "standing_guidance": "Reducing saturated fat and increasing soluble fibre both act on LDL; effect sizes are modest individually and additive together."
+      },
+      "DRNK3GE5": {
+        "label": "Alcohol",
+        "direction": "equals",
+        "trigger_value": 1,
+        "advisory": "Reported heavy drinking episodes are contributing to your screening risk, with effects on liver, blood pressure and cardiac rhythm.",
+        "standing_guidance": "Drink-free days reduce cumulative exposure more reliably than reducing the amount per occasion."
+      },
+      "MENTHLTH": {
+        "label": "Mental wellbeing",
+        "direction": "above",
+        "trigger_value": 5,
+        "advisory": "Several mentally unwell days were reported in the last month, and this is contributing to your screening risk.",
+        "standing_guidance": "Mental and physical risk factors compound each other; addressing either tends to help the other."
+      },
+      "ALCDAY5": {
+        "label": "Alcohol",
+        "direction": "above",
+        "trigger_value": 8,
+        "advisory": "Drinking on this many days per month is contributing to your screening risk, with effects on liver, blood pressure and cardiac rhythm.",
+        "standing_guidance": "Drink-free days reduce cumulative exposure more reliably than cutting the amount per occasion."
+      },
+      "PHYSHLTH": {
+        "label": "Physical wellbeing",
+        "direction": "above",
+        "trigger_value": 5,
+        "advisory": "Several physically unwell days were reported in the last month, and this is contributing to your screening risk.",
+        "standing_guidance": "A pattern of unwell days is worth reviewing as a whole rather than episode by episode."
+      }
+    }
+  },
+  "screening_reminders": {
+    "_comment": "Age- and risk-profile-based STANDING screening guidance, independent of the current symptom assessment. 'requires_risk_factor' means the reminder only appears when one of the named chronic conditions is flagged by the risk model. All are phrased as 'discuss with a clinician' - intervals vary by country and guideline body, so no specific interval is asserted.",
+    "reminders": [
+      {
+        "key": "blood_pressure",
+        "min_age": 18,
+        "advisory": "Blood pressure should be checked periodically in all adults, and more often where other cardiovascular risk factors are present.",
+        "requires_risk_factor": []
+      },
+      {
+        "key": "cardiovascular",
+        "min_age": 40,
+        "advisory": "Adults over 40 with elevated cardiovascular risk factors should discuss formal cardiovascular risk assessment - including lipids and blood pressure - with a doctor.",
+        "requires_risk_factor": [
+          "heart_attack",
+          "coronary_hd",
+          "stroke"
+        ]
+      },
+      {
+        "key": "diabetes",
+        "min_age": 35,
+        "advisory": "Adults over 35 with elevated metabolic risk factors should discuss blood glucose or HbA1c screening with a doctor.",
+        "requires_risk_factor": [
+          "diabetes"
+        ]
+      },
+      {
+        "key": "colorectal",
+        "min_age": 45,
+        "advisory": "Colorectal cancer screening is generally offered from age 45. If you have not been invited, it is worth asking.",
+        "requires_risk_factor": []
+      },
+      {
+        "key": "cervical",
+        "min_age": 25,
+        "max_age": 65,
+        "sex": "female",
+        "advisory": "Cervical screening is offered to women in this age range. Attendance is worth confirming even when you feel well.",
+        "requires_risk_factor": []
+      },
+      {
+        "key": "breast",
+        "min_age": 40,
+        "sex": "female",
+        "advisory": "Breast screening is generally offered from age 40-50 depending on local guidance. Worth asking which applies to you.",
+        "requires_risk_factor": []
+      },
+      {
+        "key": "kidney",
+        "min_age": 18,
+        "advisory": "Where diabetes or hypertension is present, periodic kidney function and urine protein testing is recommended - kidney disease is silent early on.",
+        "requires_risk_factor": [
+          "kidney_disease"
+        ]
+      },
+      {
+        "key": "skin",
+        "min_age": 18,
+        "advisory": "Any new, changing or non-healing skin lesion warrants review regardless of age or screening schedule.",
+        "requires_risk_factor": [
+          "skin_cancer"
+        ]
+      },
+      {
+        "key": "mental_health",
+        "min_age": 18,
+        "advisory": "Periodic mental health review is worth raising with a clinician, particularly where physical symptoms are recurrent.",
+        "requires_risk_factor": [
+          "depression"
+        ]
+      },
+      {
+        "key": "bone_density",
+        "min_age": 65,
+        "advisory": "Bone density assessment is generally considered from age 65, or earlier where fracture risk factors are present.",
+        "requires_risk_factor": []
+      }
+    ]
+  },
+  "symptom_trend": {
+    "_comment": "Cross-session pattern detection. A single assessment cannot see these, which is why they belong here rather than in Preventive Care. min_sessions is the minimum history required before ANY trend claim is made - below it the sub-section is omitted rather than shown empty.",
+    "min_sessions": 3,
+    "lookback_sessions": 6,
+    "recurring_symptom_min_count": 3,
+    "recurring_disease_min_count": 2,
+    "escalation_advisory": "'{symptom}' has now been reported in {count} of your last {total} assessments. A recurring symptom is a different clinical question from a one-off one, and is worth raising as a pattern rather than as separate episodes.",
+    "recurring_disease_advisory": "{disease} has been the leading prediction in {count} of your last {total} assessments. Repeated prediction is not confirmation, but it is worth bringing the pattern to a clinician.",
+    "severity_trend_advisory": "Triage severity has been rising across your recent assessments ({trend}). Worth review even if each individual assessment seemed manageable."
+  },
+  "condition_education": {
+    "_comment": "Educational reframing of disease_lookup fields ALREADY in the system. Deliberately not prescriptive: 'cures' is presented as what care typically involves, never as an instruction to the patient. Emitted only where the lookup actually holds the field. typical_profile_template is the fallback when no disease_lookup entry exists: it is sourced from the disease model's own symptom-evidence profile, which covers all predicted conditions.",
+    "intro_template": "About {condition}",
+    "typical_care_template": "Care for this condition typically involves {cures}. This is general information about how the condition is usually approached, not a treatment instruction for you.",
+    "specialist_template": "This condition is usually managed by: {doctor}.",
+    "symptom_template": "Commonly associated symptoms include {symptoms}.",
+    "risk_template": "Recorded risk level for this condition in our reference data: {risk_level}.",
+    "closing_note": "Educational information only. It describes the condition in general terms and is not advice about your individual case.",
+    "typical_profile_template": "This condition is characterised in our reference data by: {symptoms}. Your reported symptoms matched {matched} of these."
+  },
+  "behavioral_nudges": {
+    "_comment": "Standing nudges tied to the SPECIFIC top risk-driving factors computed by the chronic risk model. Only emitted for factors that actually appear as drivers - never as a generic checklist.",
+    "max_nudges": 5,
+    "nudges": {
+      "_SMOKER3": {
+        "title": "Smoking cessation",
+        "nudge": "Ask a clinician or pharmacist about NHS/local quit services, nicotine replacement and prescription options. Support plus medication outperforms either alone.",
+        "trigger_values": [
+          1,
+          2
+        ]
+      },
+      "_BMI5": {
+        "title": "Weight management",
+        "nudge": "A referral to a structured weight-management or dietetic programme is available in most systems and outperforms unsupported dieting.",
+        "trigger_above": 25
+      },
+      "EXERANY2": {
+        "title": "Getting started with activity",
+        "nudge": "Begin with walking most days and build gradually. Ask about supervised exercise programmes if a cardiac or joint condition makes you cautious about starting.",
+        "trigger_values": [
+          2,
+          0
+        ]
+      },
+      "_TOTINDA": {
+        "title": "Building activity",
+        "nudge": "Increasing activity from none to any level gives the largest single risk reduction. Ask about local activity referral schemes.",
+        "trigger_values": [
+          2,
+          0
+        ]
+      },
+      "DRNK3GE5": {
+        "title": "Alcohol reduction",
+        "nudge": "Ask a clinician about brief intervention support. Tracking units for two weeks is usually more informative than estimating from memory.",
+        "trigger_values": [
+          1
+        ]
+      },
+      "GENHLTH": {
+        "title": "Whole-health review",
+        "nudge": "Book a general review rather than a single-symptom appointment - low self-rated health often reflects several small things at once.",
+        "trigger_above": 3
+      },
+      "MENTHLTH": {
+        "title": "Mental health support",
+        "nudge": "Ask about talking-therapy self-referral, which does not require a GP appointment in many systems.",
+        "trigger_above": 5
+      },
+      "BPHIGH4": {
+        "title": "Blood pressure monitoring",
+        "nudge": "A validated home monitor and a week of morning readings gives a clinician far more to work with than a single clinic measurement.",
+        "trigger_values": [
+          1
+        ]
+      },
+      "ALCDAY5": {
+        "title": "Alcohol reduction",
+        "nudge": "Ask a clinician about brief intervention support. Tracking units for two weeks is usually more informative than estimating from memory.",
+        "trigger_above": 8
+      },
+      "PHYSHLTH": {
+        "title": "Recurrent unwell days",
+        "nudge": "Bring the pattern of unwell days to a review rather than each episode separately - the trend is the useful information.",
+        "trigger_above": 5
+      },
+      "TOLDHI2": {
+        "title": "Cholesterol review",
+        "nudge": "Ask when your lipids were last measured and what the target is for your risk level; both change with overall cardiovascular risk.",
+        "trigger_values": [
+          1
+        ]
+      }
+    }
+  },
+  "disclaimer": "Advisory information is general health guidance derived from your risk profile and assessment history. It is not personalised medical advice, not a diagnosis, and does not replace review by a qualified clinician."
+}

@@ -1,0 +1,147 @@
+{
+  "severity_actions": {
+    "EMERGENCY": {
+      "primary_action": "Seek emergency care immediately",
+      "urgency_timeline": "immediate",
+      "urgency_description": "Go to the nearest emergency room or call emergency services now"
+    },
+    "URGENT": {
+      "primary_action": "Seek same-day medical attention",
+      "urgency_timeline": "same-day",
+      "urgency_description": "Contact your doctor today or visit an urgent care clinic"
+    },
+    "MODERATE": {
+      "primary_action": "Schedule a medical appointment soon",
+      "urgency_timeline": "within a week",
+      "urgency_description": "Book an appointment with your healthcare provider within the next few days"
+    },
+    "MILD": {
+      "primary_action": "Self-care and monitor symptoms",
+      "urgency_timeline": "2-4 weeks",
+      "urgency_description": "Monitor your symptoms and seek care if they worsen or persist beyond 2 weeks"
+    }
+  },
+  "chronic_risk_threshold": 60,
+  "chronic_risk_high_threshold": 75,
+  "preventive_care_templates": {
+    "diabetes": {
+      "template": "Your diabetes risk assessment shows elevated likelihood. Key contributing factors include {factors}. Consider discussing {actions} with your healthcare provider.",
+      "actions": {
+        "BMI": "weight management strategies",
+        "_BMI5": "weight management strategies",
+        "GENHLTH": "overall health optimization",
+        "general_health": "overall health optimization",
+        "_SMOKER3": "smoking cessation programs",
+        "smoker_status": "smoking cessation programs",
+        "EXERANY2": "regular physical activity plans",
+        "exercise": "regular physical activity plans",
+        "_TOTINDA": "structured exercise programs",
+        "meets_activity_guidance": "structured exercise programs"
+      }
+    },
+    "heart_attack": {
+      "template": "Your cardiovascular risk profile shows elevated likelihood. Key contributing factors include {factors}. Consider discussing {actions} with your healthcare provider.",
+      "actions": {
+        "BMI": "weight management and cardiac health",
+        "_BMI5": "weight management and cardiac health",
+        "BPHIGH4": "blood pressure management",
+        "high_blood_pressure": "blood pressure management",
+        "TOLDHI2": "cholesterol control strategies",
+        "high_cholesterol": "cholesterol control strategies",
+        "_SMOKER3": "smoking cessation for heart health",
+        "smoker_status": "smoking cessation for heart health",
+        "EXERANY2": "cardiovascular exercise programs",
+        "exercise": "cardiovascular exercise programs"
+      }
+    },
+    "coronary_hd": {
+      "template": "Your coronary heart disease risk shows elevated likelihood. Key contributing factors include {factors}. Consider discussing {actions} with your healthcare provider.",
+      "actions": {
+        "BMI": "weight management for heart health",
+        "_BMI5": "weight management for heart health",
+        "BPHIGH4": "blood pressure control",
+        "high_blood_pressure": "blood pressure control",
+        "TOLDHI2": "cholesterol management",
+        "high_cholesterol": "cholesterol management",
+        "_SMOKER3": "smoking cessation programs",
+        "smoker_status": "smoking cessation programs"
+      }
+    },
+    "stroke": {
+      "template": "Your stroke risk assessment shows elevated likelihood. Key contributing factors include {factors}. Consider discussing {actions} with your healthcare provider.",
+      "actions": {
+        "BPHIGH4": "blood pressure management",
+        "high_blood_pressure": "blood pressure management",
+        "_SMOKER3": "smoking cessation for stroke prevention",
+        "smoker_status": "smoking cessation for stroke prevention",
+        "BMI": "weight management strategies",
+        "_BMI5": "weight management strategies"
+      }
+    },
+    "asthma": {
+      "template": "Your asthma risk assessment shows elevated likelihood. Key contributing factors include {factors}. Consider discussing {actions} with your healthcare provider.",
+      "actions": {
+        "_SMOKER3": "smoking cessation and environmental triggers",
+        "smoker_status": "smoking cessation and environmental triggers",
+        "EXERANY2": "appropriate exercise strategies for asthma",
+        "exercise": "appropriate exercise strategies for asthma"
+      }
+    },
+    "arthritis": {
+      "template": "Your arthritis risk shows elevated likelihood. Key contributing factors include {factors}. Consider discussing {actions} with your healthcare provider.",
+      "actions": {
+        "BMI": "weight management to reduce joint stress",
+        "_BMI5": "weight management to reduce joint stress",
+        "EXERANY2": "joint-friendly exercise programs",
+        "exercise": "joint-friendly exercise programs",
+        "_AGEG5YR": "age-appropriate joint health strategies",
+        "age": "age-appropriate joint health strategies"
+      }
+    },
+    "depression": {
+      "template": "Your depression risk assessment shows elevated likelihood. Key contributing factors include {factors}. Consider discussing {actions} with your healthcare provider.",
+      "actions": {
+        "MENTHLTH": "mental health support and counseling",
+        "mental_unwell_days": "mental health support and counseling",
+        "SLEPTIM1": "sleep hygiene and management",
+        "sleep_hours": "sleep hygiene and management",
+        "EXERANY2": "physical activity for mental health",
+        "exercise": "physical activity for mental health"
+      }
+    },
+    "default": {
+      "template": "Your risk assessment for {condition} shows elevated likelihood. Key contributing factors include {factors}. Consider discussing preventive care strategies with your healthcare provider.",
+      "actions": {
+        "BMI": "weight management",
+        "_BMI5": "weight management",
+        "_SMOKER3": "smoking cessation",
+        "smoker_status": "smoking cessation",
+        "EXERANY2": "regular exercise",
+        "exercise": "regular exercise",
+        "GENHLTH": "overall health optimization",
+        "general_health": "overall health optimization"
+      }
+    }
+  },
+  "specialist_priority_map": {
+    "EMERGENCY": ["emergency medicine", "surgeon", "cardiologist", "neurologist"],
+    "URGENT": ["cardiologist", "neurologist", "pulmonologist", "gastroenterologist"],
+    "MODERATE": [],
+    "MILD": []
+  },
+  "red_flag_specialist_map": {
+    "cardiac": ["cardiologist", "emergency medicine"],
+    "neurological": ["neurologist", "emergency medicine"],
+    "respiratory": ["pulmonologist", "emergency medicine"],
+    "gastrointestinal": ["gastroenterologist", "surgeon"]
+  },
+  "red_flag_patterns": {
+    "cardiac": ["chest pain", "chest tightness", "palpitations", "irregular heartbeat"],
+    "neurological": ["focal weakness", "seizure", "severe headache", "confusion", "slurred speech"],
+    "respiratory": ["difficulty breathing", "shortness of breath", "throat swelling"],
+    "gastrointestinal": ["vomiting blood", "blood in stool", "severe abdominal pain"]
+  },
+  "self_care_severity_limit": ["MILD", "MODERATE"],
+  "self_care_red_flag_exclusion": true,
+  "disclaimer": "This recommendation is for informational purposes only and does not constitute medical advice, diagnosis, or treatment. Always consult a qualified healthcare professional for medical concerns. If you are experiencing a medical emergency, call emergency services immediately."
+}
