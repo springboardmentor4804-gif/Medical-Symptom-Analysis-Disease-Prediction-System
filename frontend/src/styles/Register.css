@@ -1,0 +1,125 @@
+.register-page{
+
+    min-height:100vh;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    background:linear-gradient(
+        135deg,
+        #dbeafe,
+        #eef5ff
+    );
+
+}
+
+.register-card{
+
+    width:450px;
+
+    background:white;
+
+    padding:40px;
+
+    border-radius:18px;
+
+    box-shadow:0 15px 35px rgba(0,0,0,.12);
+
+}
+
+.register-card h1{
+
+    text-align:center;
+
+    color:#2563eb;
+
+    margin-bottom:10px;
+
+}
+
+.register-card p{
+
+    text-align:center;
+
+    color:#64748b;
+
+    margin-bottom:30px;
+
+}
+
+.register-card input[type="text"],
+.register-card input[type="email"],
+.register-card input[type="password"]{
+
+    width:100%;
+
+    padding:15px;
+
+    margin-bottom:18px;
+
+    border:1px solid #cbd5e1;
+
+    border-radius:10px;
+
+    font-size:16px;
+
+}
+
+.register-card input:focus{
+
+    outline:none;
+
+    border:2px solid #2563eb;
+
+}
+
+.role-section{
+
+    margin:25px 0;
+
+}
+
+.role-section label{
+
+    font-weight:bold;
+
+}
+
+.radio-group{
+
+    display:flex;
+
+    justify-content:space-around;
+
+    margin-top:15px;
+
+}
+
+.register-card button{
+
+    width:100%;
+
+    padding:15px;
+
+    background:#10b981;
+
+    color:white;
+
+    border:none;
+
+    border-radius:10px;
+
+    font-size:17px;
+
+    font-weight:bold;
+
+}
+
+.register-card button:hover{
+
+    background:#059669;
+
+}
