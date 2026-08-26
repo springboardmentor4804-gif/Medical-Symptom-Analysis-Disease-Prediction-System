@@ -218,4 +218,5 @@ __marimo__/
 .streamlit/secrets.toml
 
 
+# Generated patient reports
 backend/uploads/
