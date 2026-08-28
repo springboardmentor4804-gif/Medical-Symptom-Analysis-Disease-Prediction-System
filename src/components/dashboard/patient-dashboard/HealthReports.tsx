@@ -10,8 +10,6 @@ import {
   Check,
   X,
   Clock,
-  ChevronDown,
-  ChevronUp,
   Stethoscope,
   ShieldCheck,
   Heart,
@@ -19,68 +17,101 @@ import {
   Info,
   ShieldAlert,
   Brain,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { API_URL } from "@/config";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 
 interface ReportsProps {
   user: UserData;
 }
 
 export default function HealthReports({ user }: ReportsProps) {
-  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+  const [selectedReport, setSelectedReport] = useState<{ report: any; idx: number } | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const reports = (user.medicalHistory || []).filter(
     (item) => item.type === "Diagnosis" || item.details !== undefined,
   );
 
-  const toggleExpand = (idx: number) => {
-    setExpandedIdx(expandedIdx === idx ? null : idx);
-  };
+  const handleDownloadPDF = async (report: any, idx: number) => {
+    setIsDownloading(true);
+    const storedUserStr = localStorage.getItem("user");
+    let token = "";
+    if (storedUserStr) {
+      token = JSON.parse(storedUserStr).token;
+    }
 
-  const handleDownload = (report: any) => {
-    const jsonStr = JSON.stringify(report, null, 2);
-    const blob = new Blob([jsonStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `MedAssist_${report.condition?.replace(/\s+/g, "_")}_${report.date?.replace(/\//g, "-")}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    try {
+      toast.info("Generating PDF report...", { id: "pdf-gen" });
+      const res = await fetch(`${API_URL}/api/reports/${user._id}/${idx}/pdf`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to generate PDF");
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `MedAssist_Report_${report.date?.replace(/\//g, "-")}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast.success("PDF downloaded successfully", { id: "pdf-gen" });
+    } catch (err) {
+      toast.error("Unable to generate the report. Please try again.", { id: "pdf-gen" });
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   return (
-    <Card className="border-apple shadow-apple bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
-      <CardHeader className="border-b border-slate-50 dark:border-slate-850 p-6 sm:p-8">
-        <CardTitle className="text-xl font-bold flex items-center gap-2.5 text-slate-800 dark:text-white">
-          <FileText className="h-5 w-5 text-indigo-500" />
-          Health Reports & AI Diagnoses
-        </CardTitle>
-        <CardDescription className="text-slate-400">
-          Access diagnostic reports, AI advisory summaries, and clinical verification
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="p-6 sm:p-8">
-        {reports.length === 0 ? (
-          <div className="py-12 text-center text-xs text-slate-400 italic">
-            No diagnostic reports logged yet. Run a symptom analysis to generate your first report.
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {reports.map((report, idx) => {
-              const isExpanded = expandedIdx === idx;
-              const recs = report.details?.recommendations;
-              const isHighRisk = report.details?.riskCat === "High Risk";
-              const isModRisk = report.details?.riskCat === "Moderate Risk";
+    <>
+      <Card className="border-apple shadow-apple bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
+        <CardHeader className="border-b border-slate-50 dark:border-slate-850 p-6 sm:p-8">
+          <CardTitle className="text-xl font-bold flex items-center gap-2.5 text-slate-800 dark:text-white">
+            <FileText className="h-5 w-5 text-indigo-500" />
+            Health Reports & AI Diagnoses
+          </CardTitle>
+          <CardDescription className="text-slate-400">
+            Access diagnostic reports, AI advisory summaries, and clinical verification
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-6 sm:p-8">
+          {reports.length === 0 ? (
+            <div className="py-12 text-center text-xs text-slate-400 italic">
+              No diagnostic reports logged yet. Run a symptom analysis to generate your first
+              report.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {reports.map((report, idx) => {
+                const isHighRisk = report.details?.riskCat === "High Risk";
+                const isModRisk = report.details?.riskCat === "Moderate Risk";
 
-              return (
-                <div
-                  key={idx}
-                  className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850/50 p-5 space-y-4 shadow-sm transition-all"
-                >
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                    <div className="space-y-1.5 flex-1">
+                return (
+                  <div
+                    key={idx}
+                    className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850/50 p-5 shadow-sm transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
+                  >
+                    <div className="space-y-2 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[10px] font-bold text-slate-500 font-mono bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-200/25">
                           {report.date}
@@ -124,175 +155,407 @@ export default function HealthReports({ user }: ReportsProps) {
                         <Brain className="h-4 w-4 text-primary" />
                         {report.condition} Diagnostic Report
                       </h4>
-                      <p className="text-xs text-slate-500 leading-relaxed max-w-2xl">
+                      <p className="text-xs text-slate-500 leading-relaxed max-w-2xl line-clamp-1">
                         {report.notes || "Report processed with AI medical classification engine."}
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2 self-end sm:self-center">
+                    <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => toggleExpand(idx)}
-                        className="rounded-xl text-xs font-semibold px-3 py-1.5 h-8 cursor-pointer flex items-center gap-1"
+                        onClick={() => setSelectedReport({ report, idx })}
+                        className="rounded-xl text-xs font-semibold px-3 py-1.5 h-8 cursor-pointer flex items-center gap-1.5 hover:bg-slate-100 dark:hover:bg-slate-800"
                       >
-                        {isExpanded ? (
-                          <>
-                            Hide Advisory <ChevronUp className="h-3.5 w-3.5" />
-                          </>
-                        ) : (
-                          <>
-                            View Advisory <ChevronDown className="h-3.5 w-3.5" />
-                          </>
-                        )}
+                        <Eye className="h-3.5 w-3.5" /> View Report
                       </Button>
                       <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleDownload(report)}
-                        className="h-8 w-8 rounded-xl border-slate-200/60 dark:border-slate-800 hover:bg-slate-50 cursor-pointer shrink-0"
-                        title="Download JSON Report"
+                        variant="default"
+                        size="sm"
+                        onClick={() => handleDownloadPDF(report, idx)}
+                        disabled={isDownloading}
+                        className="rounded-xl text-xs font-semibold px-3 py-1.5 h-8 cursor-pointer flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white"
                       >
-                        <Download className="h-4 w-4 text-slate-500" />
+                        <Download className="h-3.5 w-3.5" /> Download PDF
                       </Button>
                     </div>
                   </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-                  {/* Clinician Note */}
-                  {report.doctorNotes && (
-                    <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed italic">
-                      <span className="font-bold text-slate-800 dark:text-slate-200 not-italic block mb-0.5">
-                        Clinician Note:
-                      </span>
-                      "{report.doctorNotes}"
+      {/* Report Preview Modal */}
+      <Dialog open={!!selectedReport} onOpenChange={(open) => !open && setSelectedReport(null)}>
+        <DialogContent className="max-w-3xl h-[85vh] p-0 flex flex-col overflow-hidden bg-white dark:bg-slate-900 border-apple shadow-2xl rounded-2xl">
+          <DialogHeader className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex-row justify-between items-start space-y-0">
+            <div>
+              <DialogTitle className="text-xl font-black text-slate-800 dark:text-white">
+                MEDASSIST AI
+              </DialogTitle>
+              <DialogDescription className="text-slate-500 font-medium mt-1">
+                AI Medical Symptom Analysis & Disease Prediction Report
+              </DialogDescription>
+            </div>
+            {selectedReport && (
+              <Button
+                size="sm"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm"
+                onClick={() => handleDownloadPDF(selectedReport.report, selectedReport.idx)}
+                disabled={isDownloading}
+              >
+                <Download className="h-4 w-4 mr-2" /> Download PDF
+              </Button>
+            )}
+          </DialogHeader>
+
+          <ScrollArea className="flex-1 p-6">
+            {selectedReport &&
+              (() => {
+                const { report, idx } = selectedReport;
+                const details = report.details || {};
+                const recs = details.recommendations || {};
+                const reportId = `MED-${new Date().getFullYear()}-${user._id.slice(-4)}-${idx.toString().padStart(3, "0")}`;
+                const isEmergency = details.isEmergency;
+
+                return (
+                  <div className="space-y-8 pb-10">
+                    {/* Report Info */}
+                    <div className="flex flex-wrap gap-x-12 gap-y-4 text-xs">
+                      <div>
+                        <p className="font-bold text-slate-800 dark:text-white mb-1">Report ID</p>
+                        <p className="text-slate-600 dark:text-slate-400 font-mono">{reportId}</p>
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-800 dark:text-white mb-1">
+                          Assessment Date
+                        </p>
+                        <p className="text-slate-600 dark:text-slate-400">
+                          {report.date || "Unknown"}
+                        </p>
+                      </div>
                     </div>
-                  )}
 
-                  {/* Expandable Recommendation Details */}
-                  {isExpanded && recs && (
-                    <div className="pt-4 border-t border-slate-200/50 dark:border-slate-800 space-y-4 animate-in fade-in duration-200">
-                      {/* Warning signs if present */}
-                      {recs.warningSigns && recs.warningSigns.length > 0 && (
-                        <div className="p-3.5 rounded-2xl bg-rose-50/80 dark:bg-rose-950/20 border border-rose-200/60 dark:border-rose-900/30 space-y-1.5">
-                          <h5 className="text-[11px] font-black text-rose-700 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
-                            <ShieldAlert className="h-4 w-4 text-rose-600" /> Warning Signs & Red
-                            Flags
-                          </h5>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                            {recs.warningSigns.map((sign: string, sIdx: number) => (
-                              <div
-                                key={sIdx}
-                                className="flex items-start gap-2 text-xs text-rose-800 dark:text-rose-300"
+                    <Separator className="bg-slate-100 dark:bg-slate-800" />
+
+                    {/* Patient Info */}
+                    <div>
+                      <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider mb-4">
+                        Patient Information
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                        <div>
+                          <p className="font-bold text-slate-800 dark:text-white mb-1">
+                            Patient ID
+                          </p>
+                          <p className="text-slate-600 dark:text-slate-400 truncate">{user._id}</p>
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-800 dark:text-white mb-1">
+                            Patient Name
+                          </p>
+                          <p className="text-slate-600 dark:text-slate-400">
+                            {user.name || "Not provided"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-800 dark:text-white mb-1">Age</p>
+                          <p className="text-slate-600 dark:text-slate-400">
+                            {user.age || "Not provided"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-800 dark:text-white mb-1">Gender</p>
+                          <p className="text-slate-600 dark:text-slate-400 capitalize">
+                            {user.sex === "m"
+                              ? "Male"
+                              : user.sex === "f"
+                                ? "Female"
+                                : user.sex || "Not provided"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Separator className="bg-slate-100 dark:bg-slate-800" />
+
+                    {/* Symptoms & Medical History */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div>
+                        <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider mb-3">
+                          Reported Symptoms
+                        </h3>
+                        {details.symptoms && details.symptoms.length > 0 ? (
+                          <ul className="space-y-1.5">
+                            {details.symptoms.map((s: string, i: number) => (
+                              <li
+                                key={i}
+                                className="text-xs text-slate-600 dark:text-slate-400 flex items-start gap-2"
                               >
-                                <AlertTriangle className="h-3.5 w-3.5 text-rose-500 shrink-0 mt-0.5" />
-                                <span>{sign}</span>
-                              </div>
+                                <span className="text-indigo-400">•</span>{" "}
+                                <span className="capitalize">{s}</span>
+                              </li>
                             ))}
+                          </ul>
+                        ) : (
+                          <p className="text-xs text-slate-500">Not provided</p>
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider mb-3">
+                          Medical History
+                        </h3>
+                        {user.chronicConditions?.length || user.allergies?.length ? (
+                          <div className="space-y-3">
+                            {user.chronicConditions && user.chronicConditions.length > 0 && (
+                              <div>
+                                <p className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                  Chronic Conditions:
+                                </p>
+                                <ul className="space-y-1">
+                                  {user.chronicConditions.map((c: string, i: number) => (
+                                    <li
+                                      key={i}
+                                      className="text-xs text-slate-600 dark:text-slate-400 flex items-start gap-2"
+                                    >
+                                      <span className="text-indigo-400">•</span> <span>{c}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {user.allergies && user.allergies.length > 0 && (
+                              <div>
+                                <p className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                  Allergies:
+                                </p>
+                                <ul className="space-y-1">
+                                  {user.allergies.map((a: string, i: number) => (
+                                    <li
+                                      key={i}
+                                      className="text-xs text-slate-600 dark:text-slate-400 flex items-start gap-2"
+                                    >
+                                      <span className="text-indigo-400">•</span> <span>{a}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      )}
+                        ) : (
+                          <p className="text-xs text-slate-500">Not provided</p>
+                        )}
+                      </div>
+                    </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                        {/* Healthcare suggestions */}
-                        <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 space-y-1.5">
-                          <span className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 flex items-center gap-1">
-                            <Stethoscope className="h-3.5 w-3.5" /> Healthcare Suggestions
-                          </span>
-                          {recs.healthcareSuggestions ? (
-                            <ul className="space-y-1 text-xs text-slate-600 dark:text-slate-350">
-                              {recs.healthcareSuggestions.map((item: string, i: number) => (
-                                <li key={i} className="flex items-start gap-1.5 leading-relaxed">
-                                  <span className="text-blue-500 font-bold">•</span>
-                                  <span>{item}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="text-xs text-slate-500 leading-relaxed">
-                              {recs.healthcare || "Consult GP."}
-                            </p>
-                          )}
-                        </div>
+                    <Separator className="bg-slate-100 dark:bg-slate-800" />
 
-                        {/* Preventive Care */}
-                        <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 space-y-1.5">
-                          <span className="text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                            <ShieldCheck className="h-3.5 w-3.5" /> Preventive Care
-                          </span>
-                          {recs.preventiveCare ? (
-                            <ul className="space-y-1 text-xs text-slate-600 dark:text-slate-350">
-                              {recs.preventiveCare.map((item: string, i: number) => (
-                                <li key={i} className="flex items-start gap-1.5 leading-relaxed">
-                                  <span className="text-emerald-500 font-bold">•</span>
-                                  <span>{item}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="text-xs text-slate-500 leading-relaxed">
-                              {recs.preventive || "Monitor vitals."}
+                    {/* AI Prediction & Risk */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="p-5 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30">
+                        <h3 className="text-sm font-black text-indigo-900 dark:text-indigo-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+                          <Brain className="h-4 w-4" /> AI Disease Prediction
+                        </h3>
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-xs font-bold text-indigo-700/70 dark:text-indigo-400 mb-0.5">
+                              Possible Condition:
                             </p>
-                          )}
-                        </div>
+                            <p className="text-base font-black text-indigo-950 dark:text-white">
+                              {report.condition || "Unknown"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-indigo-700/70 dark:text-indigo-400 mb-0.5">
+                              Model Confidence:
+                            </p>
+                            <p className="text-sm font-bold text-indigo-900 dark:text-indigo-200">
+                              {details.primaryProb}%
+                            </p>
+                          </div>
 
-                        {/* Lifestyle Advice */}
-                        <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 space-y-1.5">
-                          <span className="text-[10px] font-bold uppercase text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
-                            <Heart className="h-3.5 w-3.5" /> Lifestyle & Nutrition
-                          </span>
-                          {recs.lifestyleRecommendations ? (
-                            <ul className="space-y-1 text-xs text-slate-600 dark:text-slate-350">
-                              {recs.lifestyleRecommendations.map((item: string, i: number) => (
-                                <li key={i} className="flex items-start gap-1.5 leading-relaxed">
-                                  <span className="text-indigo-500 font-bold">•</span>
-                                  <span>{item}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="text-xs text-slate-500 leading-relaxed">
-                              {recs.lifestyle || "Rest and hydrate."}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Follow-Up Guidance */}
-                        <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 space-y-1.5">
-                          <span className="text-[10px] font-bold uppercase text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                            <Clock className="h-3.5 w-3.5" /> Follow-Up Timeline
-                          </span>
-                          {recs.followUpGuidance ? (
-                            <ul className="space-y-1 text-xs text-slate-600 dark:text-slate-350">
-                              {recs.followUpGuidance.map((item: string, i: number) => (
-                                <li key={i} className="flex items-start gap-1.5 leading-relaxed">
-                                  <span className="text-amber-500 font-bold">•</span>
-                                  <span>{item}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="text-xs text-slate-500 leading-relaxed">
-                              {recs.followUp || "Follow up if symptoms persist."}
-                            </p>
-                          )}
+                          {details.secondaryPredictions &&
+                            details.secondaryPredictions.length > 0 && (
+                              <div className="pt-2">
+                                <p className="text-xs font-bold text-indigo-700/70 dark:text-indigo-400 mb-1">
+                                  Other Probabilities:
+                                </p>
+                                <ul className="space-y-1">
+                                  {details.secondaryPredictions.map((p: any, i: number) => (
+                                    <li
+                                      key={i}
+                                      className="text-xs text-indigo-900 dark:text-indigo-200 flex justify-between"
+                                    >
+                                      <span>{p.name}</span>
+                                      <span className="font-bold">{p.probability}%</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
                         </div>
                       </div>
 
-                      {/* Uncertainty Note if applicable */}
-                      {report.details?.uncertaintyNote && (
-                        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
-                          <Info className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                          <span>{report.details.uncertaintyNote}</span>
+                      <div
+                        className={`p-5 rounded-2xl border ${isEmergency || details.riskCat === "High Risk" ? "bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/30" : "bg-slate-50 dark:bg-slate-850 border-slate-200 dark:border-slate-800"}`}
+                      >
+                        <h3
+                          className={`text-sm font-black uppercase tracking-wider mb-4 flex items-center gap-2 ${isEmergency || details.riskCat === "High Risk" ? "text-rose-700 dark:text-rose-400" : "text-slate-800 dark:text-slate-300"}`}
+                        >
+                          <AlertTriangle className="h-4 w-4" /> Risk Assessment
+                        </h3>
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-xs font-bold text-slate-500 mb-0.5">Risk Level:</p>
+                            <p
+                              className={`text-base font-black ${isEmergency || details.riskCat === "High Risk" ? "text-rose-700 dark:text-rose-400" : "text-slate-800 dark:text-white"}`}
+                            >
+                              {details.riskCat || "Unknown"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-slate-500 mb-0.5">Risk Score:</p>
+                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                              {details.riskScore || 0} / 100
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-slate-500 mb-0.5">Severity:</p>
+                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                              {details.severity || "Unknown"}
+                            </p>
+                          </div>
                         </div>
-                      )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+
+                    <Separator className="bg-slate-100 dark:bg-slate-800" />
+
+                    {/* AI Healthcare Advisory */}
+                    <div>
+                      <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider mb-4">
+                        AI Healthcare Advisory
+                      </h3>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {recs.warningSigns && recs.warningSigns.length > 0 && (
+                          <div className="md:col-span-2 p-4 rounded-xl bg-rose-50/80 dark:bg-rose-950/20 border border-rose-200/60 dark:border-rose-900/30">
+                            <h4 className="text-[11px] font-black text-rose-700 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                              <ShieldAlert className="h-4 w-4" /> Warning Signs & Red Flags
+                            </h4>
+                            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                              {recs.warningSigns.map((sign: string, i: number) => (
+                                <li
+                                  key={i}
+                                  className="flex items-start gap-2 text-xs text-rose-800 dark:text-rose-300"
+                                >
+                                  <span className="text-rose-500">•</span> {sign}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {recs.healthcareSuggestions && (
+                          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-850/50 border border-slate-100 dark:border-slate-800">
+                            <h4 className="text-[11px] font-bold uppercase text-blue-600 dark:text-blue-400 flex items-center gap-1.5 mb-2">
+                              <Stethoscope className="h-3.5 w-3.5" /> Healthcare Suggestions
+                            </h4>
+                            <ul className="space-y-1.5">
+                              {recs.healthcareSuggestions.map((item: string, i: number) => (
+                                <li
+                                  key={i}
+                                  className="flex items-start gap-1.5 text-xs text-slate-600 dark:text-slate-300"
+                                >
+                                  <span className="text-blue-500 font-bold">•</span> {item}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {recs.preventiveCare && (
+                          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-850/50 border border-slate-100 dark:border-slate-800">
+                            <h4 className="text-[11px] font-bold uppercase text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 mb-2">
+                              <ShieldCheck className="h-3.5 w-3.5" /> Preventive Care
+                            </h4>
+                            <ul className="space-y-1.5">
+                              {recs.preventiveCare.map((item: string, i: number) => (
+                                <li
+                                  key={i}
+                                  className="flex items-start gap-1.5 text-xs text-slate-600 dark:text-slate-300"
+                                >
+                                  <span className="text-emerald-500 font-bold">•</span> {item}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {recs.lifestyleRecommendations && (
+                          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-850/50 border border-slate-100 dark:border-slate-800">
+                            <h4 className="text-[11px] font-bold uppercase text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 mb-2">
+                              <Heart className="h-3.5 w-3.5" /> Lifestyle & Nutrition
+                            </h4>
+                            <ul className="space-y-1.5">
+                              {recs.lifestyleRecommendations.map((item: string, i: number) => (
+                                <li
+                                  key={i}
+                                  className="flex items-start gap-1.5 text-xs text-slate-600 dark:text-slate-300"
+                                >
+                                  <span className="text-indigo-500 font-bold">•</span> {item}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {recs.followUpGuidance && (
+                          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-850/50 border border-slate-100 dark:border-slate-800">
+                            <h4 className="text-[11px] font-bold uppercase text-amber-600 dark:text-amber-400 flex items-center gap-1.5 mb-2">
+                              <Clock className="h-3.5 w-3.5" /> Follow-Up Timeline
+                            </h4>
+                            <ul className="space-y-1.5">
+                              {recs.followUpGuidance.map((item: string, i: number) => (
+                                <li
+                                  key={i}
+                                  className="flex items-start gap-1.5 text-xs text-slate-600 dark:text-slate-300"
+                                >
+                                  <span className="text-amber-500 font-bold">•</span> {item}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {details.uncertaintyNote && (
+                      <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                        <Info className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                        <span>{details.uncertaintyNote}</span>
+                      </div>
+                    )}
+
+                    {/* Medical Disclaimer */}
+                    <div className="mt-8 p-4 bg-slate-50 dark:bg-slate-850 rounded-xl border border-slate-200 dark:border-slate-800">
+                      <p className="text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">
+                        <strong>Medical Disclaimer:</strong> This report contains AI-generated
+                        information intended for educational and informational purposes only. AI
+                        predictions are not a medical diagnosis, prescription, or substitute for
+                        professional medical advice. The prediction confidence represents the
+                        model's output and does not indicate medical certainty. Consult a qualified
+                        healthcare professional for diagnosis, treatment, and medical decisions.
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

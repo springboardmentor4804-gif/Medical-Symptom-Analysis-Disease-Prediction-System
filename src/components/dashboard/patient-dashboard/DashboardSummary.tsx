@@ -33,6 +33,20 @@ interface SummaryProps {
   setActiveTab?: (tab: string) => void;
 }
 
+const parseJSDate = (dateStr: string): Date => {
+  if (!dateStr) return new Date();
+  const parts = dateStr.includes("/") ? dateStr.split("/") : dateStr.split("-");
+  if (parts.length === 3) {
+    if (parts[0].length === 4) {
+      return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    } else if (parts[2].length === 4) {
+      return new Date(parseInt(parts[2], 10), parseInt(parts[0], 10) - 1, parseInt(parts[1], 10));
+    }
+  }
+  const parsed = Date.parse(dateStr);
+  return isNaN(parsed) ? new Date() : new Date(parsed);
+};
+
 export default function DashboardSummary({ user, setActiveTab }: SummaryProps) {
   // Extract AI diagnostic reports from medical history
   const historyList = user.medicalHistory || [];
@@ -57,7 +71,7 @@ export default function DashboardSummary({ user, setActiveTab }: SummaryProps) {
         day: "numeric",
         year: "numeric",
       };
-      return new Date(dateStr).toLocaleDateString("en-US", options);
+      return parseJSDate(dateStr).toLocaleDateString("en-US", options);
     } catch {
       return dateStr;
     }
@@ -67,7 +81,7 @@ export default function DashboardSummary({ user, setActiveTab }: SummaryProps) {
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const date = new Date(dateStr);
+      const date = parseJSDate(dateStr);
       date.setHours(0, 0, 0, 0);
       const diffTime = today.getTime() - date.getTime();
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));

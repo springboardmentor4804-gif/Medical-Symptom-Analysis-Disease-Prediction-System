@@ -9,3 +9,4 @@ email-validator>=2.1.1
 pandas
 scikit-learn
 numpy
+reportlab

@@ -25,6 +25,7 @@ import {
   Users,
   Brain,
   ShieldCheck,
+  PieChart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -35,6 +36,7 @@ import ProfileManagement from "@/components/dashboard/patient-dashboard/ProfileM
 import MedicalHistory from "@/components/dashboard/patient-dashboard/MedicalHistory";
 import SymptomAnalysis from "@/components/dashboard/patient-dashboard/SymptomAnalysis";
 import HealthReports from "@/components/dashboard/patient-dashboard/HealthReports";
+import PatientTrends from "@/components/dashboard/patient-dashboard/PatientTrends";
 import SystemPerformance from "@/components/dashboard/doctor-dashboard/SystemPerformance";
 
 export interface UserData {
@@ -174,6 +176,7 @@ export default function DashboardPage() {
     user.role === "doctor"
       ? [
           { id: "dashboard", name: "Patient Files", icon: Users },
+          { id: "analytics", name: "Healthcare Analytics", icon: PieChart },
           { id: "ai-diagnostics", name: "AI Diagnostics", icon: Brain },
           { id: "clinical-advisory", name: "Clinical Advisory", icon: ShieldCheck },
           { id: "history-timeline", name: "History Timeline", icon: History },
@@ -186,7 +189,7 @@ export default function DashboardPage() {
           { id: "medical-history", name: "Medical History", icon: History },
           { id: "symptoms", name: "Symptom Analysis", icon: Stethoscope },
           { id: "reports", name: "Health Reports", icon: FileText },
-          { id: "performance", name: "Health Insights", icon: TrendingUp },
+          { id: "trends", name: "My Health Trends", icon: TrendingUp },
         ];
 
   return (
@@ -440,6 +443,7 @@ export default function DashboardPage() {
           {/* Tab Components */}
           <div className="transition-all duration-300 flex-1">
             {(activeTab === "dashboard" ||
+              activeTab === "analytics" ||
               activeTab === "ai-diagnostics" ||
               activeTab === "clinical-advisory" ||
               activeTab === "history-timeline" ||
@@ -467,7 +471,7 @@ export default function DashboardPage() {
                   <SymptomAnalysis user={user} onUpdate={handleProfileUpdate} />
                 )}
                 {activeTab === "reports" && <HealthReports user={user} />}
-                {activeTab === "performance" && <SystemPerformance />}
+                {activeTab === "trends" && <PatientTrends user={user} />}
               </>
             )}
           </div>
