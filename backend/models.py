@@ -1,3 +1,4 @@
+
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
 from sqlalchemy.sql import func
 from database import Base
@@ -57,3 +58,4 @@ class Prediction(Base):
         server_default=func.now(),
         nullable=False
     )
+

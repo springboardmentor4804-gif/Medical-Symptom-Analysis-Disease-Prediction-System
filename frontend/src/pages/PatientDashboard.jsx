@@ -1,6 +1,7 @@
 import "../styles/PatientDashboard.css";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+
 import {
   FaHome,
   FaFileMedical,
@@ -12,10 +13,17 @@ import {
   FaFileAlt,
   FaSearch,
   FaHistory,
-  FaTrash
+  FaTrash,
+  FaEye,
+  FaDownload,
+  FaTimes,
+  FaExclamationTriangle,
+  FaStethoscope,
+  FaClipboardCheck
 } from "react-icons/fa";
 
 function PatientDashboard() {
+
   const navigate = useNavigate();
 
   const userName = localStorage.getItem("name") || "Patient";
@@ -31,6 +39,14 @@ function PatientDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [prediction, setPrediction] = useState(null);
   const [history, setHistory] = useState([]);
+
+  // =========================================
+  // REPORT
+  // =========================================
+
+  const [report, setReport] = useState(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [showReport, setShowReport] = useState(false);
 
   // =========================================
   // MEDICAL HISTORY
@@ -75,7 +91,7 @@ function PatientDashboard() {
     "muscle_wasting",
     "vomiting",
     "burning_micturition",
-    "spotting_ urination",
+    "spotting_urination",
     "fatigue",
     "weight_gain",
     "anxiety",
@@ -197,15 +213,17 @@ function PatientDashboard() {
   ];
 
   // =========================================
-  // LOAD PREDICTION HISTORY
+  // LOAD HISTORY
   // =========================================
 
   const loadHistory = async () => {
+
     if (!userId) return;
 
     setHistoryLoading(true);
 
     try {
+
       const response = await fetch(
         `http://127.0.0.1:8000/prediction-history/${userId}`
       );
@@ -217,11 +235,83 @@ function PatientDashboard() {
       const data = await response.json();
 
       setHistory(data.history || []);
+
     } catch (error) {
+
       console.error("History error:", error);
+
     } finally {
+
       setHistoryLoading(false);
+
     }
+  };
+
+  // =========================================
+  // LOAD REPORT
+  // =========================================
+
+  const loadReport = async (predictionId) => {
+
+    setReportLoading(true);
+    setShowReport(true);
+    setReport(null);
+
+    try {
+
+      const response = await fetch(
+        `http://127.0.0.1:8000/prediction-report/${predictionId}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+
+        throw new Error(
+          data.detail || "Unable to load report."
+        );
+
+      }
+
+      setReport(data.report);
+
+    } catch (error) {
+
+      console.error("Report error:", error);
+
+      alert(
+        error.message ||
+        "Unable to load medical report."
+      );
+
+      setShowReport(false);
+
+    } finally {
+
+      setReportLoading(false);
+
+    }
+  };
+
+  // =========================================
+  // CLOSE REPORT
+  // =========================================
+
+  const closeReport = () => {
+
+    setShowReport(false);
+    setReport(null);
+
+  };
+
+  // =========================================
+  // PRINT / SAVE PDF
+  // =========================================
+
+  const handleDownloadPDF = () => {
+
+    window.print();
+
   };
 
   // =========================================
@@ -229,15 +319,15 @@ function PatientDashboard() {
   // =========================================
 
   const handleDeletePrediction = async (predictionId) => {
+
     const confirmed = window.confirm(
       "Are you sure you want to delete this prediction?"
     );
 
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     try {
+
       const response = await fetch(
         `http://127.0.0.1:8000/prediction-history/${predictionId}`,
         {
@@ -248,21 +338,37 @@ function PatientDashboard() {
       const data = await response.json();
 
       if (!response.ok) {
+
         throw new Error(
           data.detail || "Unable to delete prediction."
         );
+
       }
 
       alert("Prediction deleted successfully.");
 
       await loadHistory();
+
+      if (
+        report?.report_id === predictionId
+      ) {
+        closeReport();
+      }
+
     } catch (error) {
-      console.error("Delete prediction error:", error);
+
+      console.error(
+        "Delete prediction error:",
+        error
+      );
 
       alert(
-        error.message || "Unable to delete prediction."
+        error.message ||
+        "Unable to delete prediction."
       );
+
     }
+
   };
 
   // =========================================
@@ -270,23 +376,36 @@ function PatientDashboard() {
   // =========================================
 
   const loadMedicalHistory = async () => {
+
     if (!userId) return;
 
     try {
+
       const response = await fetch(
         `http://127.0.0.1:8000/medical-history/${userId}`
       );
 
       if (!response.ok) {
-        throw new Error("Unable to load medical history.");
+        throw new Error(
+          "Unable to load medical history."
+        );
       }
 
       const data = await response.json();
 
-      setMedicalHistory(data.medical_history || "");
+      setMedicalHistory(
+        data.medical_history || ""
+      );
+
     } catch (error) {
-      console.error("Medical history error:", error);
+
+      console.error(
+        "Medical history error:",
+        error
+      );
+
     }
+
   };
 
   // =========================================
@@ -294,17 +413,21 @@ function PatientDashboard() {
   // =========================================
 
   const loadPatientProfile = async () => {
+
     if (!userId) return;
 
     setProfileLoading(true);
 
     try {
+
       const response = await fetch(
         `http://127.0.0.1:8000/patient-profile/${userId}`
       );
 
       if (!response.ok) {
-        throw new Error("Unable to load patient profile.");
+        throw new Error(
+          "Unable to load patient profile."
+        );
       }
 
       const data = await response.json();
@@ -312,28 +435,42 @@ function PatientDashboard() {
       const profile = data.profile || {};
 
       setAge(
-        profile.age !== null && profile.age !== undefined
+        profile.age !== null &&
+        profile.age !== undefined
           ? String(profile.age)
           : ""
       );
 
       setGender(profile.gender || "");
-      setBloodGroup(profile.blood_group || "");
+      setBloodGroup(
+        profile.blood_group || ""
+      );
+
     } catch (error) {
-      console.error("Patient profile error:", error);
+
+      console.error(
+        "Patient profile error:",
+        error
+      );
+
     } finally {
+
       setProfileLoading(false);
+
     }
+
   };
 
   // =========================================
-  // LOAD DATA WHEN DASHBOARD OPENS
+  // LOAD DATA
   // =========================================
 
   useEffect(() => {
+
     loadHistory();
     loadMedicalHistory();
     loadPatientProfile();
+
   }, [userId]);
 
   // =========================================
@@ -341,8 +478,11 @@ function PatientDashboard() {
   // =========================================
 
   const handleLogout = () => {
+
     localStorage.clear();
+
     navigate("/");
+
   };
 
   // =========================================
@@ -350,15 +490,21 @@ function PatientDashboard() {
   // =========================================
 
   const handleProfileClick = () => {
+
     const profileSection =
-      document.getElementById("patient-profile");
+      document.getElementById(
+        "patient-profile"
+      );
 
     if (profileSection) {
+
       profileSection.scrollIntoView({
         behavior: "smooth",
         block: "start"
       });
+
     }
+
   };
 
   // =========================================
@@ -366,128 +512,230 @@ function PatientDashboard() {
   // =========================================
 
   const handleSymptomChange = (symptom) => {
+
     if (symptoms.includes(symptom)) {
+
       setSymptoms(
-        symptoms.filter((item) => item !== symptom)
+        symptoms.filter(
+          (item) => item !== symptom
+        )
       );
+
     } else {
-      setSymptoms([...symptoms, symptom]);
+
+      setSymptoms([
+        ...symptoms,
+        symptom
+      ]);
+
     }
+
   };
 
   // =========================================
   // SEARCH
   // =========================================
 
-  const filteredSymptoms = symptomList.filter((symptom) =>
-    symptom
-      .replaceAll("_", " ")
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase())
-  );
+  const filteredSymptoms =
+    symptomList.filter((symptom) =>
+      symptom
+        .replaceAll("_", " ")
+        .toLowerCase()
+        .includes(
+          searchTerm.toLowerCase()
+        )
+    );
 
-  // =========================================
-  // PREDICTION
-  // =========================================
 
-  const handlePrediction = async () => {
-    if (symptoms.length === 0) {
-      alert("Please select at least one symptom.");
-      return;
-    }
+// =========================================
+// PREDICTION
+// =========================================
 
-    if (!userId) {
-      alert("User session not found. Please login again.");
-      navigate("/login");
-      return;
-    }
+const handlePrediction = async () => {
 
-    setLoading(true);
-    setPrediction(null);
+  if (symptoms.length === 0) {
 
-    try {
-      const response = await fetch(
-        "http://127.0.0.1:8000/predict-disease",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            user_id: Number(userId),
-            symptoms: symptoms
-          })
-        }
-      );
+    alert(
+      "Please select at least one symptom."
+    );
 
-      const data = await response.json();
+    return;
 
-      if (!response.ok) {
-        throw new Error(
-          data.detail || "Prediction failed."
-        );
+  }
+
+  if (!userId) {
+
+    alert(
+      "User session not found. Please login again."
+    );
+
+    navigate("/login");
+
+    return;
+
+  }
+
+  setLoading(true);
+  setPrediction(null);
+
+  try {
+
+    const response = await fetch(
+      "http://127.0.0.1:8000/predict-disease",
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+          user_id: Number(userId),
+          symptoms: symptoms
+        })
+
       }
+    );
 
-      setPrediction(data);
+    const data = await response.json();
 
-      await loadHistory();
-    } catch (error) {
-      console.error("Prediction error:", error);
+    if (!response.ok) {
 
-      alert(
-        error.message ||
-          "Unable to connect to the disease prediction server."
+      throw new Error(
+        data.detail || "Prediction failed."
       );
-    } finally {
-      setLoading(false);
+
     }
-  };
+
+    // =========================================
+    // SHOW CURRENT PREDICTION
+    // =========================================
+
+    setPrediction(data);
+
+    // =========================================
+    // IMMEDIATELY UPDATE LATEST REPORT
+    // =========================================
+
+    const newHistoryItem = {
+      id: data.prediction_id,
+      predicted_disease: data.predicted_disease,
+      confidence: data.confidence,
+      risk_level: data.risk_level,
+      created_at: data.created_at,
+      recommendation: data.recommendation,
+      treatment: data.treatment,
+      advisory: data.advisory
+    };
+
+    setHistory((previousHistory) => [
+
+      newHistoryItem,
+
+      ...previousHistory.filter(
+        (item) =>
+          item.id !== data.prediction_id
+      )
+
+    ]);
+
+    // =========================================
+    // REFRESH HISTORY FROM DATABASE
+    // =========================================
+
+    await loadHistory();
+
+  } catch (error) {
+
+    console.error(
+      "Prediction error:",
+      error
+    );
+
+    alert(
+      error.message ||
+      "Unable to connect to the disease prediction server."
+    );
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+};
+
+
 
   // =========================================
   // SAVE MEDICAL HISTORY
   // =========================================
 
   const handleSaveMedicalHistory = async () => {
+
     if (!userId) {
-      alert("User session not found. Please login again.");
+
+      alert(
+        "User session not found. Please login again."
+      );
+
       navigate("/login");
+
       return;
+
     }
 
     if (!medicalHistory.trim()) {
-      alert("Please enter your medical history.");
+
+      alert(
+        "Please enter your medical history."
+      );
+
       return;
+
     }
 
     setMedicalHistoryLoading(true);
 
     try {
+
       const response = await fetch(
         "http://127.0.0.1:8000/medical-history",
         {
           method: "POST",
+
           headers: {
             "Content-Type": "application/json"
           },
+
           body: JSON.stringify({
             user_id: Number(userId),
-            medical_history: medicalHistory
+            medical_history:
+              medicalHistory
           })
+
         }
       );
 
       const data = await response.json();
 
       if (!response.ok) {
+
         throw new Error(
-          data.detail || "Unable to save medical history."
+          data.detail ||
+          "Unable to save medical history."
         );
+
       }
 
-      alert("Medical history saved successfully.");
+      alert(
+        "Medical history saved successfully."
+      );
 
       await loadMedicalHistory();
+
     } catch (error) {
+
       console.error(
         "Save medical history error:",
         error
@@ -495,64 +743,97 @@ function PatientDashboard() {
 
       alert(
         error.message ||
-          "Unable to save medical history."
+        "Unable to save medical history."
       );
+
     } finally {
+
       setMedicalHistoryLoading(false);
+
     }
+
   };
 
   // =========================================
-  // SAVE PATIENT PROFILE
+  // SAVE PROFILE
   // =========================================
 
   const handleSaveProfile = async () => {
+
     if (!userId) {
-      alert("User session not found. Please login again.");
+
+      alert(
+        "User session not found. Please login again."
+      );
+
       navigate("/login");
+
       return;
+
     }
 
     if (!age || Number(age) <= 0) {
-      alert("Please enter a valid age.");
+
+      alert(
+        "Please enter a valid age."
+      );
+
       return;
+
     }
 
     if (!gender) {
-      alert("Please select your gender.");
+
+      alert(
+        "Please select your gender."
+      );
+
       return;
+
     }
 
     if (!bloodGroup) {
-      alert("Please select your blood group.");
+
+      alert(
+        "Please select your blood group."
+      );
+
       return;
+
     }
 
     setProfileSaving(true);
 
     try {
+
       const response = await fetch(
         "http://127.0.0.1:8000/patient-profile",
         {
           method: "POST",
+
           headers: {
             "Content-Type": "application/json"
           },
+
           body: JSON.stringify({
             user_id: Number(userId),
             age: Number(age),
             gender: gender,
             blood_group: bloodGroup
           })
+
         }
       );
 
       const data = await response.json();
 
       if (!response.ok) {
+
         throw new Error(
-          data.detail || "Unable to save patient profile."
+          data.detail ||
+          "Unable to save patient profile."
         );
+
       }
 
       setAge(
@@ -566,11 +847,16 @@ function PatientDashboard() {
       );
 
       setBloodGroup(
-        data.patient?.blood_group || bloodGroup
+        data.patient?.blood_group ||
+        bloodGroup
       );
 
-      alert("Patient profile saved successfully.");
+      alert(
+        "Patient profile saved successfully."
+      );
+
     } catch (error) {
+
       console.error(
         "Save profile error:",
         error
@@ -578,18 +864,23 @@ function PatientDashboard() {
 
       alert(
         error.message ||
-          "Unable to save patient profile."
+        "Unable to save patient profile."
       );
+
     } finally {
+
       setProfileSaving(false);
+
     }
+
   };
 
   // =========================================
-  // FORMAT DATE / TIME
+  // FORMAT DATE
   // =========================================
 
   const formatDateTime = (dateValue) => {
+
     if (!dateValue) {
       return "Date unavailable";
     }
@@ -600,45 +891,72 @@ function PatientDashboard() {
       return "Date unavailable";
     }
 
-    return date.toLocaleString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
+    return date.toLocaleString(
+      "en-IN",
+      {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      }
+    );
+
   };
 
   // =========================================
-  // DISPLAY SYMPTOM NAME
+  // FORMAT SYMPTOM
   // =========================================
 
   const formatSymptom = (symptom) => {
+
     return symptom
       .replaceAll("_", " ")
       .replace(/\s+/g, " ")
       .trim();
+
   };
 
+  // =========================================
+  // GET LATEST HISTORY
+  // =========================================
+
+  const latestHistory =
+    history.length > 0
+      ? history[0]
+      : null;
+
   return (
+
     <div className="patient-container">
 
-      {/* SIDEBAR */}
+      {/* =========================================
+          SIDEBAR
+      ========================================= */}
 
       <aside className="sidebar">
 
         <div className="logo">
+
           <FaHeartbeat className="logo-icon" />
-          <h2>MedAssist AI</h2>
+
+          <h2>
+            MedAssist AI
+          </h2>
+
         </div>
 
         <div className="profile">
 
           <div className="avatar">
-            {userName.charAt(0).toUpperCase()}
+            {userName
+              .charAt(0)
+              .toUpperCase()}
           </div>
 
-          <h3>{userName}</h3>
+          <h3>
+            {userName}
+          </h3>
 
           <p>
             {userRole === "doctor"
@@ -679,7 +997,10 @@ function PatientDashboard() {
 
       </aside>
 
-      {/* MAIN CONTENT */}
+
+      {/* =========================================
+          MAIN CONTENT
+      ========================================= */}
 
       <main className="content">
 
@@ -696,9 +1017,13 @@ function PatientDashboard() {
 
         </div>
 
+
         <div className="dashboard-grid">
 
-          {/* SYMPTOMS */}
+
+          {/* =========================================
+              SYMPTOMS
+          ========================================= */}
 
           <div className="card">
 
@@ -730,16 +1055,22 @@ function PatientDashboard() {
 
               <span>
                 {symptoms.length} symptom
-                {symptoms.length !== 1 ? "s" : ""} selected
+                {symptoms.length !== 1
+                  ? "s"
+                  : ""} selected
               </span>
 
               {symptoms.length > 0 && (
+
                 <button
                   type="button"
-                  onClick={() => setSymptoms([])}
+                  onClick={() =>
+                    setSymptoms([])
+                  }
                 >
                   Clear All
                 </button>
+
               )}
 
             </div>
@@ -748,28 +1079,36 @@ function PatientDashboard() {
 
               {filteredSymptoms.length > 0 ? (
 
-                filteredSymptoms.map((symptom) => (
+                filteredSymptoms.map(
+                  (symptom) => (
 
-                  <label
-                    key={symptom}
-                    className="symptom-option"
-                  >
+                    <label
+                      key={symptom}
+                      className="symptom-option"
+                    >
 
-                    <input
-                      type="checkbox"
-                      checked={symptoms.includes(symptom)}
-                      onChange={() =>
-                        handleSymptomChange(symptom)
-                      }
-                    />
+                      <input
+                        type="checkbox"
+                        checked={symptoms.includes(
+                          symptom
+                        )}
+                        onChange={() =>
+                          handleSymptomChange(
+                            symptom
+                          )
+                        }
+                      />
 
-                    <span>
-                      {formatSymptom(symptom)}
-                    </span>
+                      <span>
+                        {formatSymptom(
+                          symptom
+                        )}
+                      </span>
 
-                  </label>
+                    </label>
 
-                ))
+                  )
+                )
 
               ) : (
 
@@ -793,7 +1132,10 @@ function PatientDashboard() {
 
           </div>
 
-          {/* CURRENT PREDICTION */}
+
+          {/* =========================================
+              CURRENT PREDICTION
+          ========================================= */}
 
           <div className="card">
 
@@ -804,32 +1146,112 @@ function PatientDashboard() {
 
             {prediction ? (
 
-              <div className="recommendation-box prediction-result">
+              <div className="prediction-result">
 
-                <p>
-                  <strong>
-                    Predicted Disease
-                  </strong>
-                </p>
+                <div className="prediction-disease-label">
+                  Predicted Disease
+                </div>
 
                 <h2 className="predicted-disease">
                   {prediction.predicted_disease}
                 </h2>
 
-                <p className="prediction-note">
-                  {prediction.recommendation}
-                </p>
+                <div className="prediction-info-grid">
+
+                  <div className="prediction-info-item">
+
+                    <span>
+                      Confidence
+                    </span>
+
+                    <strong>
+                      {prediction.confidence}%
+                    </strong>
+
+                  </div>
+
+                  <div className="prediction-info-item">
+
+                    <span>
+                      Risk Level
+                    </span>
+
+                    <strong>
+                      {prediction.risk_level ||
+                        "Needs Review"}
+                    </strong>
+
+                  </div>
+
+                </div>
+
+                <div className="result-section">
+
+                  <h4>
+                    <FaLightbulb />
+                    Recommendation
+                  </h4>
+
+                  <p>
+                    {prediction.recommendation ||
+                      "No recommendation available."}
+                  </p>
+
+                </div>
+
+                <div className="result-section">
+
+                  <h4>
+                    <FaStethoscope />
+                    Treatment Suggestion
+                  </h4>
+
+                  <p>
+                    {prediction.treatment ||
+                      "Please consult a healthcare professional for appropriate treatment."}
+                  </p>
+
+                </div>
+
+                <div className="result-section">
+
+                  <h4>
+                    <FaClipboardCheck />
+                    Advisory
+                  </h4>
+
+                  <p>
+                    {prediction.advisory ||
+                      "Please monitor your symptoms and seek professional medical advice if they worsen."}
+                  </p>
+
+                </div>
+
+                <button
+                  type="button"
+                  className="view-report-main-btn"
+                  onClick={() =>
+                    loadReport(
+                      prediction.prediction_id
+                    )
+                  }
+                >
+                  <FaEye />
+                  View Feedback / Full Report
+                </button>
 
               </div>
 
             ) : (
 
-              <div className="recommendation-box">
+              <div className="recommendation-box empty-result">
+
+                <FaHeartbeat />
 
                 <p>
                   Select your symptoms and click
                   <strong> Predict Disease </strong>
-                  to receive an AI-generated prediction.
+                  to receive your health assessment.
                 </p>
 
               </div>
@@ -838,7 +1260,10 @@ function PatientDashboard() {
 
           </div>
 
-          {/* PREDICTION HISTORY */}
+
+          {/* =========================================
+              PREDICTION HISTORY
+          ========================================= */}
 
           <div className="card history-card">
 
@@ -848,7 +1273,8 @@ function PatientDashboard() {
             </h3>
 
             <p className="symptom-description">
-              Your previous AI-generated disease predictions.
+              View your previous disease predictions
+              and healthcare feedback.
             </p>
 
             {historyLoading ? (
@@ -877,48 +1303,70 @@ function PatientDashboard() {
 
               <div className="history-list">
 
-                {history.map((item, index) => (
+                {history.map(
+                  (item, index) => (
 
-                  <div
-                    className="history-item"
-                    key={item.id}
-                  >
-
-                    <div className="history-number">
-                      {index + 1}
-                    </div>
-
-                    <div className="history-details">
-
-                      <h4>
-                        {item.predicted_disease}
-                      </h4>
-
-                      <p>
-                        <FaFileMedical />
-                        Prediction #{item.id}
-                      </p>
-
-                      <span>
-                        🕒 {formatDateTime(item.created_at)}
-                      </span>
-
-                    </div>
-
-                    <button
-                      type="button"
-                      className="delete-history-btn"
-                      onClick={() =>
-                        handleDeletePrediction(item.id)
-                      }
-                      title="Delete prediction"
+                    <div
+                      className="history-item"
+                      key={item.id}
                     >
-                      <FaTrash />
-                    </button>
 
-                  </div>
+                      <div className="history-number">
+                        {index + 1}
+                      </div>
 
-                ))}
+                      <div className="history-details">
+
+                        <h4>
+                          {item.predicted_disease}
+                        </h4>
+
+                        <p>
+                          <FaFileMedical />
+                          Prediction #{item.id}
+                        </p>
+
+                        <span>
+                          🕒{" "}
+                          {formatDateTime(
+                            item.created_at
+                          )}
+                        </span>
+
+                      </div>
+
+                      <div className="history-actions">
+
+                        <button
+                          type="button"
+                          className="history-view-btn"
+                          onClick={() =>
+                            loadReport(item.id)
+                          }
+                          title="View Feedback"
+                        >
+                          <FaEye />
+                        </button>
+
+                        <button
+                          type="button"
+                          className="delete-history-btn"
+                          onClick={() =>
+                            handleDeletePrediction(
+                              item.id
+                            )
+                          }
+                          title="Delete prediction"
+                        >
+                          <FaTrash />
+                        </button>
+
+                      </div>
+
+                    </div>
+
+                  )
+                )}
 
               </div>
 
@@ -926,7 +1374,10 @@ function PatientDashboard() {
 
           </div>
 
-          {/* MEDICAL HISTORY */}
+
+          {/* =========================================
+              MEDICAL HISTORY
+          ========================================= */}
 
           <div className="card">
 
@@ -940,14 +1391,20 @@ function PatientDashboard() {
               rows="5"
               value={medicalHistory}
               onChange={(e) =>
-                setMedicalHistory(e.target.value)
+                setMedicalHistory(
+                  e.target.value
+                )
               }
             />
 
             <button
               className="primary-btn"
-              onClick={handleSaveMedicalHistory}
-              disabled={medicalHistoryLoading}
+              onClick={
+                handleSaveMedicalHistory
+              }
+              disabled={
+                medicalHistoryLoading
+              }
             >
               {medicalHistoryLoading
                 ? "Saving..."
@@ -956,7 +1413,10 @@ function PatientDashboard() {
 
           </div>
 
-          {/* RECOMMENDATIONS */}
+
+          {/* =========================================
+              RECOMMENDATIONS
+          ========================================= */}
 
           <div className="card">
 
@@ -965,30 +1425,81 @@ function PatientDashboard() {
               Recommendations
             </h3>
 
-            <div className="recommendation-box">
+            {prediction ? (
 
-              <p>
-                ✔ Stay hydrated throughout the day.
-              </p>
+              <div className="recommendation-box">
 
-              <p>
-                ✔ Monitor your symptoms regularly.
-              </p>
+                <div className="recommendation-heading">
+                  Latest Health Recommendation
+                </div>
 
-              <p>
-                ✔ Maintain your medical records.
-              </p>
+                <p>
+                  {prediction.recommendation ||
+                    "No recommendation available."}
+                </p>
 
-              <p>
-                ✔ Consult a qualified healthcare
-                professional for medical advice.
-              </p>
+                <div className="recommendation-divider" />
 
-            </div>
+                <div className="recommendation-heading">
+                  Advisory
+                </div>
+
+                <p>
+                  {prediction.advisory ||
+                    "No advisory available."}
+                </p>
+
+              </div>
+
+            ) : latestHistory ? (
+
+              <div className="recommendation-box">
+
+                <div className="recommendation-heading">
+                  Latest Prediction
+                </div>
+
+                <p>
+                  Your latest prediction is{" "}
+                  <strong>
+                    {latestHistory.predicted_disease}
+                  </strong>.
+                </p>
+
+                <p>
+                  Click{" "}
+                  <strong>
+                    View Feedback
+                  </strong>{" "}
+                  in Prediction History to see
+                  the complete recommendation,
+                  treatment suggestion and advisory.
+                </p>
+
+              </div>
+
+            ) : (
+
+              <div className="recommendation-box empty-recommendation">
+
+                <FaLightbulb />
+
+                <p>
+                  Your personalized recommendations
+                  will appear here after you complete
+                  a disease prediction.
+                </p>
+
+              </div>
+
+            )}
 
           </div>
 
-          {/* REPORTS */}
+
+          {/* =========================================
+              LATEST REPORT
+          ========================================= */}
 
           <div className="card">
 
@@ -997,37 +1508,81 @@ function PatientDashboard() {
               Latest Report
             </h3>
 
-            <div className="report-box">
+            {latestHistory ? (
 
-              <p>
-                <strong>
-                  Latest Prediction:
-                </strong>{" "}
+              <div className="report-box">
 
-                {prediction
-                  ? prediction.predicted_disease
-                  : history.length > 0
-                    ? history[0].predicted_disease
-                    : "Pending"}
-              </p>
+                <p>
+                  <strong>
+                    Latest Prediction:
+                  </strong>{" "}
+                  {latestHistory.predicted_disease}
+                </p>
 
-              <p>
-                <strong>
-                  Date & Time:
-                </strong>{" "}
+                <p>
+                  <strong>
+                    Confidence:
+                  </strong>{" "}
+                  {latestHistory.confidence}%
+                </p>
 
-                {prediction
-                  ? formatDateTime(prediction.created_at)
-                  : history.length > 0
-                    ? formatDateTime(history[0].created_at)
-                    : "Pending"}
-              </p>
+                <p>
+                  <strong>
+                    Risk Level:
+                  </strong>{" "}
+                  {latestHistory.risk_level ||
+                    "Needs Review"}
+                </p>
 
-            </div>
+                <p>
+                  <strong>
+                    Date & Time:
+                  </strong>{" "}
+                  {formatDateTime(
+                    latestHistory.created_at
+                  )}
+                </p>
+
+                <button
+                  type="button"
+                  className="view-report-btn"
+                  onClick={() =>
+                    loadReport(
+                      latestHistory.id
+                    )
+                  }
+                >
+                  <FaEye />
+                  View Feedback
+                </button>
+
+              </div>
+
+            ) : (
+
+              <div className="report-box empty-report">
+
+                <FaFileAlt />
+
+                <p>
+                  No report available yet.
+                </p>
+
+                <span>
+                  Generate a prediction to create
+                  your health report.
+                </span>
+
+              </div>
+
+            )}
 
           </div>
 
-          {/* PATIENT PROFILE */}
+
+          {/* =========================================
+              PATIENT PROFILE
+          ========================================= */}
 
           <div
             className="card patient-profile-card"
@@ -1144,7 +1699,9 @@ function PatientDashboard() {
                     <select
                       value={bloodGroup}
                       onChange={(e) =>
-                        setBloodGroup(e.target.value)
+                        setBloodGroup(
+                          e.target.value
+                        )
                       }
                     >
 
@@ -1192,8 +1749,12 @@ function PatientDashboard() {
 
                 <button
                   className="primary-btn"
-                  onClick={handleSaveProfile}
-                  disabled={profileSaving}
+                  onClick={
+                    handleSaveProfile
+                  }
+                  disabled={
+                    profileSaving
+                  }
                 >
                   {profileSaving
                     ? "Saving Profile..."
@@ -1209,6 +1770,399 @@ function PatientDashboard() {
         </div>
 
       </main>
+
+
+      {/* =========================================
+          MEDICAL REPORT MODAL
+      ========================================= */}
+
+      {showReport && (
+
+        <div
+          className="report-modal-overlay"
+          onClick={(e) => {
+
+            if (
+              e.target.className ===
+              "report-modal-overlay"
+            ) {
+              closeReport();
+            }
+
+          }}
+        >
+
+          <div className="medical-report-modal">
+
+            <div className="report-modal-header">
+
+              <div>
+
+                <h2>
+                  <FaFileMedical />
+                  MedAssist AI Medical Report
+                </h2>
+
+                <p>
+                  Healthcare Assessment Report
+                </p>
+
+              </div>
+
+              <button
+                type="button"
+                className="report-close-btn"
+                onClick={closeReport}
+                title="Close report"
+              >
+                <FaTimes />
+              </button>
+
+            </div>
+
+
+            {reportLoading ? (
+
+              <div className="report-loading">
+
+                <FaFileMedical />
+
+                <h3>
+                  Preparing your report...
+                </h3>
+
+                <p>
+                  Please wait while your healthcare
+                  assessment is loaded.
+                </p>
+
+              </div>
+
+            ) : report ? (
+
+              <>
+
+                <div
+                  className="medical-report-print"
+                  id="medical-report"
+                >
+
+                  <div className="print-report-title">
+
+                    <h1>
+                      MedAssist AI
+                    </h1>
+
+                    <p>
+                      Medical Prediction & Healthcare
+                      Recommendation Report
+                    </p>
+
+                  </div>
+
+
+                  {/* PATIENT INFORMATION */}
+
+                  <div className="report-section">
+
+                    <h3>
+                      Patient Information
+                    </h3>
+
+                    <div className="report-info-grid">
+
+                      <div>
+                        <span>
+                          Name
+                        </span>
+
+                        <strong>
+                          {report.patient?.name ||
+                            userName}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span>
+                          Email
+                        </span>
+
+                        <strong>
+                          {report.patient?.email ||
+                            userEmail}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span>
+                          Age
+                        </span>
+
+                        <strong>
+                          {report.patient?.age ||
+                            "Not provided"}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span>
+                          Gender
+                        </span>
+
+                        <strong>
+                          {report.patient?.gender ||
+                            "Not provided"}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span>
+                          Blood Group
+                        </span>
+
+                        <strong>
+                          {report.patient?.blood_group ||
+                            "Not provided"}
+                        </strong>
+                      </div>
+
+                    </div>
+
+                  </div>
+
+
+                  {/* CLINICAL INFORMATION */}
+
+                  <div className="report-section">
+
+                    <h3>
+                      Clinical Information
+                    </h3>
+
+                    <div className="report-text-box">
+
+                      <p>
+                        <strong>
+                          Symptoms:
+                        </strong>
+                      </p>
+
+                      <p>
+                        {report.clinical_information
+                          ?.symptoms ||
+                          "No symptoms recorded."}
+                      </p>
+
+                    </div>
+
+                    <div className="report-text-box">
+
+                      <p>
+                        <strong>
+                          Medical History:
+                        </strong>
+                      </p>
+
+                      <p>
+                        {report.clinical_information
+                          ?.medical_history ||
+                          "No medical history recorded."}
+                      </p>
+
+                    </div>
+
+                  </div>
+
+
+                  {/* PREDICTION */}
+
+                  <div className="report-section">
+
+                    <h3>
+                      Disease Prediction
+                    </h3>
+
+                    <div className="prediction-report-card">
+
+                      <div>
+
+                        <span>
+                          Predicted Disease
+                        </span>
+
+                        <strong className="report-disease">
+                          {report.prediction
+                            ?.disease ||
+                            "Not available"}
+                        </strong>
+
+                      </div>
+
+                      <div>
+
+                        <span>
+                          Confidence
+                        </span>
+
+                        <strong>
+                          {report.prediction
+                            ?.confidence ?? 0}%
+                        </strong>
+
+                      </div>
+
+                      <div>
+
+                        <span>
+                          Risk Level
+                        </span>
+
+                        <strong>
+                          {report.prediction
+                            ?.risk_level ||
+                            "Needs Review"}
+                        </strong>
+
+                      </div>
+
+                    </div>
+
+                    <p className="report-date">
+                      Prediction Date:{" "}
+                      {formatDateTime(
+                        report.prediction
+                          ?.prediction_date
+                      )}
+                    </p>
+
+                  </div>
+
+
+                  {/* RECOMMENDATION */}
+
+                  <div className="report-section">
+
+                    <h3>
+                      <FaLightbulb />
+                      Recommendation
+                    </h3>
+
+                    <div className="report-advice-box">
+
+                      {report.recommendation ||
+                        "No recommendation available."}
+
+                    </div>
+
+                  </div>
+
+
+                  {/* TREATMENT */}
+
+                  <div className="report-section">
+
+                    <h3>
+                      <FaStethoscope />
+                      Treatment Suggestion
+                    </h3>
+
+                    <div className="report-advice-box">
+
+                      {report.treatment ||
+                        "No treatment suggestion available."}
+
+                    </div>
+
+                  </div>
+
+
+                  {/* ADVISORY */}
+
+                  <div className="report-section">
+
+                    <h3>
+                      <FaClipboardCheck />
+                      Health Advisory
+                    </h3>
+
+                    <div className="report-advice-box">
+
+                      {report.advisory ||
+                        "No advisory available."}
+
+                    </div>
+
+                  </div>
+
+
+                  {/* DISCLAIMER */}
+
+                  <div className="report-disclaimer">
+
+                    <FaExclamationTriangle />
+
+                    <div>
+
+                      <strong>
+                        Important Medical Notice
+                      </strong>
+
+                      <p>
+                        {report.disclaimer ||
+                          "This report is intended for preliminary informational purposes and should not replace professional medical evaluation."}
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+
+                {/* REPORT ACTIONS */}
+
+                <div className="report-modal-actions">
+
+                  <button
+                    type="button"
+                    className="download-report-btn"
+                    onClick={
+                      handleDownloadPDF
+                    }
+                  >
+                    <FaDownload />
+                    Print / Save as PDF
+                  </button>
+
+                  <button
+                    type="button"
+                    className="close-report-action"
+                    onClick={closeReport}
+                  >
+                    Close
+                  </button>
+
+                </div>
+
+              </>
+
+            ) : (
+
+              <div className="report-loading">
+
+                <p>
+                  Unable to load the report.
+                </p>
+
+              </div>
+
+            )}
+
+          </div>
+
+        </div>
+
+      )}
 
     </div>
   );
