@@ -17,6 +17,7 @@ function PatientDashboard() {
   const [allergies, setAllergies] = useState("");
 const [medications, setMedications] = useState("");
 const [previousTreatments, setPreviousTreatments] = useState("");
+const [activePage, setActivePage] = useState("dashboard");
 
   useEffect(() => {
     const loadMedicalHistory = async () => {
@@ -324,27 +325,34 @@ const handleSaveMedicalHistory = async () => {
           </h2>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            <button style={navBtnActive}>Dashboard</button>
-           <button
-  style={navBtn}
-  onClick={() =>
-    document.getElementById("medical-history")?.scrollIntoView({ behavior: "smooth" })
-  }
->
-  Medical History
-</button>
+  <button
+    style={activePage === "dashboard" ? navBtnActive : navBtn}
+    onClick={() => setActivePage("dashboard")}
+  >
+    Dashboard
+  </button>
 
-<button
-  style={navBtn}
-  onClick={() =>
-    document.getElementById("reports")?.scrollIntoView({ behavior: "smooth" })
-  }
->
-  Reports
-</button>
+  <button
+    style={activePage === "medical-history" ? navBtnActive : navBtn}
+    onClick={() => setActivePage("medical-history")}
+  >
+    Medical History
+  </button>
 
-<button style={navBtn}>Settings</button>
-          </div>
+  <button
+    style={activePage === "reports" ? navBtnActive : navBtn}
+    onClick={() => setActivePage("reports")}
+  >
+    Reports
+  </button>
+
+  <button
+    style={activePage === "settings" ? navBtnActive : navBtn}
+    onClick={() => setActivePage("settings")}
+  >
+    Settings
+  </button>
+</div>
 
           <button
             style={{
@@ -364,6 +372,8 @@ const handleSaveMedicalHistory = async () => {
 
         {/* Main Content */}
         <div style={{ flex: 1, padding: "30px" }}>
+          {activePage === "dashboard" && (
+            <>
           {/* Header */}
           <div
             style={{
@@ -740,180 +750,211 @@ const handleSaveMedicalHistory = async () => {
     Book Appointment
   </button>
 </SectionCard>
+</>
+  )}
 
-                    {/* Medical History */}
-<div id="medical-history">
-  <SectionCard title="Medical History">
+{/* ================= MEDICAL HISTORY ================= */}
+{activePage === "medical-history" && (
+  <div id="medical-history">
+    <SectionCard title="Medical History">
 
-    <label><strong>Allergies</strong></label>
+      <label>
+        <strong>Allergies</strong>
+      </label>
 
-    <input
-      type="text"
-      placeholder="Enter allergies"
-      value={allergies}
-      onChange={(e) => setAllergies(e.target.value)}
-      style={{
-        width: "100%",
-        padding: "10px",
-        marginTop: "6px",
-        marginBottom: "12px",
-        borderRadius: "8px",
-        border: "1px solid #d1d5db",
-        boxSizing: "border-box",
-      }}
-    />
-
-    <label><strong>Medications</strong></label>
-
-    <input
-      type="text"
-      placeholder="Enter current medications"
-      value={medications}
-      onChange={(e) => setMedications(e.target.value)}
-      style={{
-        width: "100%",
-        padding: "10px",
-        marginTop: "6px",
-        marginBottom: "12px",
-        borderRadius: "8px",
-        border: "1px solid #d1d5db",
-        boxSizing: "border-box",
-      }}
-    />
-
-    <label><strong>Previous Treatments</strong></label>
-
-    <textarea
-      placeholder="Enter previous treatments"
-      value={previousTreatments}
-      onChange={(e) => setPreviousTreatments(e.target.value)}
-      style={{
-        width: "100%",
-        padding: "10px",
-        marginTop: "6px",
-        marginBottom: "12px",
-        borderRadius: "8px",
-        border: "1px solid #d1d5db",
-        boxSizing: "border-box",
-        minHeight: "80px",
-      }}
-    />
-
-    <button
-      onClick={handleSaveMedicalHistory}
-      style={{
-        marginTop: "5px",
-        background: "#0f766e",
-        color: "white",
-        padding: "10px 20px",
-        border: "none",
-        borderRadius: "10px",
-        cursor: "pointer",
-        fontWeight: "600",
-      }}
-    >
-      Save Medical History
-    </button>
-
-    <HistoryRow
-      label="Existing Diseases"
-      value={
-        predictionHistory.length > 0
-          ? [...new Set(
-              predictionHistory.map(
-                (item) => item.predicted_disease
-              )
-            )].join(", ")
-          : "No records available"
-      }
-    />
-
-  </SectionCard>
-</div>
-          {/* Reports */}
-          <div id="reports">
-            <SectionCard title="Medical Reports">
-              <div
-                style={{
-                  border: "2px dashed #cbd5e1",
-                  borderRadius: "16px",
-                  padding: "25px",
-                  textAlign: "center",
-                  background: "#fafafa",
-                }}
-              >
-                <p style={{ marginTop: 0, color: "#6b7280" }}>
-                  Upload PDF, JPG, or PNG medical reports
-                </p>
-
-                <input
-                  type="file"
-                  onChange={(e) => setReportFile(e.target.files[0])}
-                  style={{ marginBottom: "15px" }}
-                />
-
-                <br />
-
-                <button
-                  onClick={handleUpload}
-                  style={{
-                    background: "#0f766e",
-                    color: "white",
-                    padding: "10px 20px",
-                    border: "none",
-                    borderRadius: "12px",
-                    cursor: "pointer",
-                    fontWeight: "600",
-                  }}
-                >
-                  Upload Report
-                </button>
-
-                {reports.length === 0 ? (
-  <p style={{ marginTop: "12px", color: "#64748b" }}>
-    No reports uploaded yet.
-  </p>
-) : (
-  <div style={{ marginTop: "15px" }}>
-    <h4>Uploaded Reports</h4>
-
-    {reports.map((report, index) => (
-      <div
-        key={index}
+      <input
+        type="text"
+        placeholder="Enter allergies"
+        value={allergies}
+        onChange={(e) => setAllergies(e.target.value)}
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "12px",
-          marginBottom: "10px",
-          background: "#f8fafc",
+          width: "100%",
+          padding: "10px",
+          marginTop: "6px",
+          marginBottom: "12px",
+          borderRadius: "8px",
+          border: "1px solid #d1d5db",
+          boxSizing: "border-box",
+        }}
+      />
+
+      <label>
+        <strong>Medications</strong>
+      </label>
+
+      <input
+        type="text"
+        placeholder="Enter current medications"
+        value={medications}
+        onChange={(e) => setMedications(e.target.value)}
+        style={{
+          width: "100%",
+          padding: "10px",
+          marginTop: "6px",
+          marginBottom: "12px",
+          borderRadius: "8px",
+          border: "1px solid #d1d5db",
+          boxSizing: "border-box",
+        }}
+      />
+
+      <label>
+        <strong>Previous Treatments</strong>
+      </label>
+
+      <textarea
+        placeholder="Enter previous treatments"
+        value={previousTreatments}
+        onChange={(e) => setPreviousTreatments(e.target.value)}
+        style={{
+          width: "100%",
+          padding: "10px",
+          marginTop: "6px",
+          marginBottom: "12px",
+          borderRadius: "8px",
+          border: "1px solid #d1d5db",
+          boxSizing: "border-box",
+          minHeight: "80px",
+        }}
+      />
+
+      <button
+        onClick={handleSaveMedicalHistory}
+        style={{
+          marginTop: "5px",
+          background: "#0f766e",
+          color: "white",
+          padding: "10px 20px",
+          border: "none",
           borderRadius: "10px",
-          border: "1px solid #e2e8f0",
+          cursor: "pointer",
+          fontWeight: "600",
         }}
       >
-        <span>📄 {report.filename}</span>
+        Save Medical History
+      </button>
 
-        <a
-          href={`http://127.0.0.1:8000/uploads/${encodeURIComponent(
-            report.filename
-          )}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            color: "#2563eb",
-            fontWeight: "600",
-            textDecoration: "none",
-          }}
-        >
-          View Report
-        </a>
-      </div>
-    ))}
+      <HistoryRow
+        label="Existing Diseases"
+        value={
+          predictionHistory.length > 0
+            ? [
+                ...new Set(
+                  predictionHistory.map(
+                    (item) => item.predicted_disease
+                  )
+                ),
+              ].join(", ")
+            : "No records available"
+        }
+      />
+
+    </SectionCard>
   </div>
 )}
+
+
+{/* ================= REPORTS ================= */}
+{activePage === "reports" && (
+  <div id="reports">
+    <SectionCard title="Medical Reports">
+
+      <div
+        style={{
+          border: "2px dashed #cbd5e1",
+          borderRadius: "16px",
+          padding: "25px",
+          textAlign: "center",
+          background: "#fafafa",
+        }}
+      >
+        <p style={{ marginTop: 0, color: "#6b7280" }}>
+          Upload PDF, JPG, or PNG medical reports
+        </p>
+
+        <input
+          type="file"
+          onChange={(e) => setReportFile(e.target.files[0])}
+          style={{ marginBottom: "15px" }}
+        />
+
+        <br />
+
+        <button
+          onClick={handleUpload}
+          style={{
+            background: "#0f766e",
+            color: "white",
+            padding: "10px 20px",
+            border: "none",
+            borderRadius: "12px",
+            cursor: "pointer",
+            fontWeight: "600",
+          }}
+        >
+          Upload Report
+        </button>
+
+        {reports.length === 0 ? (
+          <p style={{ marginTop: "12px", color: "#64748b" }}>
+            No reports uploaded yet.
+          </p>
+        ) : (
+          <div style={{ marginTop: "15px" }}>
+            <h4>Uploaded Reports</h4>
+
+            {reports.map((report, index) => (
+              <div
+                key={index}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "12px",
+                  marginBottom: "10px",
+                  background: "#f8fafc",
+                  borderRadius: "10px",
+                  border: "1px solid #e2e8f0",
+                }}
+              >
+                <span>📄 {report.filename}</span>
+
+                <a
+                  href={`http://127.0.0.1:8000/uploads/${encodeURIComponent(
+                    report.filename
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    color: "#2563eb",
+                    fontWeight: "600",
+                    textDecoration: "none",
+                  }}
+                >
+                  View Report
+                </a>
               </div>
-            </SectionCard>
+            ))}
           </div>
+        )}
+      </div>
+
+    </SectionCard>
+  </div>
+)}
+
+
+{/* ================= SETTINGS ================= */}
+{activePage === "settings" && (
+  <div id="settings">
+    <SectionCard title="Settings">
+      <p style={{ color: "#64748b" }}>
+        Settings will be available here.
+      </p>
+    </SectionCard>
+  </div>
+)}
+
         </div>
       </div>
     </div>
@@ -933,7 +974,10 @@ function InfoCard({ title, value }) {
         boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
       }}
     >
-      <div style={{ color: "#6b7280", fontSize: "14px" }}>{title}</div>
+      <div style={{ color: "#6b7280", fontSize: "14px" }}>
+        {title}
+      </div>
+
       <div
         style={{
           marginTop: "8px",
@@ -960,9 +1004,16 @@ function SectionCard({ title, children }) {
         boxShadow: "0 2px 10px rgba(0,0,0,0.04)",
       }}
     >
-      <h3 style={{ marginTop: 0, marginBottom: "16px", color: "#1f2937" }}>
+      <h3
+        style={{
+          marginTop: 0,
+          marginBottom: "16px",
+          color: "#1f2937",
+        }}
+      >
         {title}
       </h3>
+
       {children}
     </div>
   );
@@ -979,8 +1030,18 @@ function HistoryRow({ label, value }) {
         gap: "15px",
       }}
     >
-      <strong style={{ color: "#374151" }}>{label}:</strong>
-      <span style={{ color: "#64748b", textAlign: "right" }}>{value}</span>
+      <strong style={{ color: "#374151" }}>
+        {label}:
+      </strong>
+
+      <span
+        style={{
+          color: "#64748b",
+          textAlign: "right",
+        }}
+      >
+        {value}
+      </span>
     </div>
   );
 }
@@ -1001,6 +1062,5 @@ const navBtnActive = {
   background: "#5b46c5",
   color: "white",
 };
-
 
 export default PatientDashboard;

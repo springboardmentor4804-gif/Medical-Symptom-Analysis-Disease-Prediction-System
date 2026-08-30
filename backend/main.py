@@ -442,29 +442,36 @@ def predict(request: SymptomRequest):
     # SAVE PREDICTION TO DATABASE
     # --------------------------------------------------------
 
-    cursor.execute(
-        """
-        INSERT INTO predictions
-        (
-            patient_name,
-            symptoms,
-            predicted_disease,
-            confidence,
-            risk_level
-        )
-        VALUES (?, ?, ?, ?, ?)
-        """,
-        (
-            request.patient_name,
-            ", ".join(matched_symptoms),
-            primary_disease,
-            primary_confidence,
-            risk_level
-        )
-    )
+    local_conn = sqlite3.connect("medassist.db")
+    local_cursor = local_conn.cursor()
 
-    conn.commit()
+    try:
+        local_cursor.execute(
+            """
+            INSERT INTO predictions
+            (
+                patient_name,
+                symptoms,
+                predicted_disease,
+                confidence,
+                risk_level
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                request.patient_name,
+                ", ".join(matched_symptoms),
+                primary_disease,
+                primary_confidence,
+                risk_level
+            )
+        )
 
+        local_conn.commit()
+
+    finally:
+        local_cursor.close()
+        local_conn.close()
     # --------------------------------------------------------
     # FINAL RESPONSE
     # --------------------------------------------------------
@@ -517,6 +524,164 @@ def predict(request: SymptomRequest):
             "Follow-up Advice":
                 follow_up
         }
+    }
+
+# ============================================================
+# DISEASE PREDICTION REPORT
+# ============================================================
+
+@app.get("/prediction-report/{patient_name}")
+def generate_prediction_report(patient_name: str):
+
+    cursor.execute(
+        """
+        SELECT
+            patient_name,
+            symptoms,
+            predicted_disease,
+            confidence,
+            risk_level
+        FROM predictions
+        WHERE patient_name = ?
+        ORDER BY rowid DESC
+        LIMIT 1
+        """,
+        (patient_name,)
+    )
+
+    row = cursor.fetchone()
+
+    if not row:
+        return {
+            "message": "No prediction found for this patient"
+        }
+
+    patient_name = row[0]
+    symptoms = row[1]
+    predicted_disease = row[2]
+    confidence = row[3]
+    risk_level = row[4]
+
+    disease_details = disease_info.get(
+        predicted_disease,
+        {}
+    )
+
+    recommendations = recommendation_data.get(
+        predicted_disease,
+        {}
+    )
+
+    return {
+        "Patient Name": patient_name,
+
+        "Symptoms": symptoms,
+
+        "Predicted Disease": predicted_disease,
+
+        "Confidence": confidence,
+
+        "Risk Level": risk_level,
+
+        "Disease Information": {
+            "About": disease_details.get(
+                "about",
+                ""
+            ),
+
+            "Common Symptoms": disease_details.get(
+                "symptoms",
+                ""
+            ),
+
+            "Basic Recommendation": disease_details.get(
+                "recommendation",
+                ""
+            )
+        },
+
+        "Healthcare Recommendations": {
+            "Treatment": recommendations.get(
+                "treatment",
+                ""
+            ),
+
+            "Preventive Care": recommendations.get(
+                "prevention",
+                ""
+            ),
+
+            "Follow-up Advice": recommendations.get(
+                "follow_up",
+                ""
+            )
+        }
+    }
+# ============================================================
+# HEALTHCARE ANALYTICS
+# ============================================================
+
+@app.get("/analytics")
+def get_analytics():
+
+    # Total patients
+    cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'Patient'")
+    total_patients = cursor.fetchone()[0]
+
+    # Total predictions
+    cursor.execute("SELECT COUNT(*) FROM predictions")
+    total_predictions = cursor.fetchone()[0]
+ 
+    # Total reports
+    cursor.execute("SELECT COUNT(*) FROM reports")
+    total_reports = cursor.fetchone()[0]
+
+    # Total appointments
+    cursor.execute("SELECT COUNT(*) FROM appointments")
+    total_appointments = cursor.fetchone()[0]
+
+    # Disease distribution
+    cursor.execute("""
+        SELECT predicted_disease, COUNT(*)
+        FROM predictions
+        GROUP BY predicted_disease
+        ORDER BY COUNT(*) DESC
+    """)
+
+    disease_rows = cursor.fetchall()
+
+    disease_distribution = []
+
+    for row in disease_rows:
+        disease_distribution.append({
+            "disease": row[0],
+            "count": row[1]
+        })
+
+    # Risk distribution
+    cursor.execute("""
+        SELECT risk_level, COUNT(*)
+        FROM predictions
+        GROUP BY risk_level
+    """)
+
+    risk_rows = cursor.fetchall()
+
+    risk_distribution = []
+
+    for row in risk_rows:
+        risk_distribution.append({
+            "risk_level": row[0],
+            "count": row[1]
+        })
+
+    return {
+        "total_patients": total_patients,
+        "total_predictions": total_predictions,
+        "total_reports": total_reports,
+        "total_appointments": total_appointments,
+        "disease_distribution": disease_distribution,
+        "risk_distribution": risk_distribution
     }
 
 @app.post("/risk-assessment")
@@ -585,81 +750,87 @@ def risk_assessment(
     }
 
 
-# ============================================================
-# GENERATE MEDICAL REPORT
-# ============================================================
-
 @app.post("/generate-report")
-def generate_report(
-    data: ReportRequest
-):
+def generate_report(data: ReportRequest):
 
     # --------------------------------------------------------
-    # Normalize symptoms
+    # Get the patient's latest prediction from database
     # --------------------------------------------------------
 
-    user_symptoms = [
-
-        s.strip()
-        .lower()
-        .replace(" ", "_")
-
-        for s in data.symptoms
-
-    ]
-
-
-    # --------------------------------------------------------
-    # Create model input
-    # --------------------------------------------------------
-
-    input_data = [
-        0
-    ] * len(symptoms_list)
-
-
-    for symptom in user_symptoms:
-
-        if symptom in symptoms_list:
-
-            index = symptoms_list.index(
-                symptom
-            )
-
-            input_data[index] = 1
-
-
-    # --------------------------------------------------------
-    # Predict disease
-    # --------------------------------------------------------
-
-    prediction = model.predict(
-        [input_data]
-    )[0]
-
-
-    probabilities = model.predict_proba(
-        [input_data]
-    )[0]
-
-
-    confidence = round(
-        max(probabilities) * 100,
-        2
+    cursor.execute(
+        """
+        SELECT
+            predicted_disease,
+            confidence,
+            risk_level,
+            symptoms
+        FROM predictions
+        WHERE patient_name = ?
+        ORDER BY rowid DESC
+        LIMIT 1
+        """,
+        (data.patient_name,)
     )
 
+    row = cursor.fetchone()
+
+    if not row:
+        return {
+            "message": "No prediction found for this patient"
+        }
+
+    prediction = row[0].strip()
+    confidence = row[1]
+    risk_level = row[2]
+    saved_symptoms = row[3]
 
     # --------------------------------------------------------
-    # Low confidence handling
+    # Get disease information
     # --------------------------------------------------------
 
-    if confidence < 50:
+    disease_details = disease_info.get(
+        prediction,
+        {}
+    )
 
-        prediction = (
-            "Uncertain prediction - "
-            "please provide more specific symptoms"
-        )
+    about = disease_details.get(
+        "about",
+        "Information about this condition is not available."
+    )
 
+    common_symptoms = disease_details.get(
+        "symptoms",
+        "Information not available."
+    )
+
+    basic_recommendation = disease_details.get(
+        "recommendation",
+        "Please consult a qualified healthcare provider."
+    )
+
+    # --------------------------------------------------------
+    # Get healthcare recommendations
+    # --------------------------------------------------------
+
+    recommendations = recommendation_data.get(
+        prediction,
+        {}
+    )
+
+    treatment = recommendations.get(
+        "treatment",
+        basic_recommendation
+    )
+
+    prevention = recommendations.get(
+        "prevention",
+        "Maintain healthy lifestyle habits and follow appropriate preventive healthcare practices."
+    )
+
+    follow_up = recommendations.get(
+        "follow_up",
+        "Consult a healthcare provider if symptoms persist or worsen."
+    )
 
     # --------------------------------------------------------
     # Create reports folder
@@ -670,18 +841,15 @@ def generate_report(
         exist_ok=True
     )
 
-
     filename = (
         f"report_"
         f"{data.patient_name.replace(' ', '_')}.pdf"
     )
 
-
     filepath = os.path.join(
         "reports",
         filename
     )
-
 
     # --------------------------------------------------------
     # Create PDF
@@ -691,11 +859,13 @@ def generate_report(
         filepath
     )
 
-
     styles = getSampleStyleSheet()
 
     elements = []
 
+    # --------------------------------------------------------
+    # Title
+    # --------------------------------------------------------
 
     elements.append(
         Paragraph(
@@ -704,20 +874,20 @@ def generate_report(
         )
     )
 
-
     elements.append(
         Spacer(1, 12)
     )
 
+    # --------------------------------------------------------
+    # Patient details
+    # --------------------------------------------------------
 
     elements.append(
         Paragraph(
-            f"<b>Patient Name:</b> "
-            f"{data.patient_name}",
+            f"<b>Patient Name:</b> {data.patient_name}",
             styles["BodyText"]
         )
     )
-
 
     elements.append(
         Paragraph(
@@ -727,63 +897,144 @@ def generate_report(
         )
     )
 
+    elements.append(
+        Spacer(1, 15)
+    )
+
+    # --------------------------------------------------------
+    # Symptoms
+    # --------------------------------------------------------
+
+    elements.append(
+        Paragraph(
+            "<b>Symptoms</b>",
+            styles["Heading2"]
+        )
+    )
+
+    elements.append(
+        Paragraph(
+            saved_symptoms,
+            styles["BodyText"]
+        )
+    )
 
     elements.append(
         Spacer(1, 12)
     )
 
+    # --------------------------------------------------------
+    # Prediction
+    # --------------------------------------------------------
 
     elements.append(
         Paragraph(
-            "<b>Symptoms:</b>",
+            "<b>Prediction</b>",
             styles["Heading2"]
         )
     )
 
-
-    for symptom in data.symptoms:
-
-        elements.append(
-            Paragraph(
-                f"• {symptom}",
-                styles["BodyText"]
-            )
-        )
-
-
     elements.append(
-        Spacer(1, 12)
+        Paragraph(
+            f"<b>Predicted Disease:</b> {prediction}",
+            styles["BodyText"]
+        )
     )
-
 
     elements.append(
         Paragraph(
-            "<b>Prediction:</b>",
+            f"<b>Confidence:</b> {confidence}%",
+            styles["BodyText"]
+        )
+    )
+
+    elements.append(
+        Paragraph(
+            f"<b>Risk Level:</b> {risk_level}",
+            styles["BodyText"]
+        )
+    )
+
+    elements.append(
+        Spacer(1, 15)
+    )
+
+    # --------------------------------------------------------
+    # Disease Information
+    # --------------------------------------------------------
+
+    elements.append(
+        Paragraph(
+            "<b>Disease Information</b>",
             styles["Heading2"]
         )
     )
 
-
     elements.append(
         Paragraph(
-            f"Disease: {prediction.strip()}",
+            f"<b>About:</b> {about}",
             styles["BodyText"]
         )
     )
 
-
     elements.append(
         Paragraph(
-            f"Confidence: {confidence}%",
+            f"<b>Common Symptoms:</b> {common_symptoms}",
             styles["BodyText"]
         )
     )
 
+    elements.append(
+        Paragraph(
+            f"<b>Basic Recommendation:</b> "
+            f"{basic_recommendation}",
+            styles["BodyText"]
+        )
+    )
+
+    elements.append(
+        Spacer(1, 15)
+    )
+
+    # --------------------------------------------------------
+    # Healthcare Recommendations
+    # --------------------------------------------------------
+
+    elements.append(
+        Paragraph(
+            "<b>Healthcare Recommendations</b>",
+            styles["Heading2"]
+        )
+    )
+
+    elements.append(
+        Paragraph(
+            f"<b>Treatment / Management:</b> {treatment}",
+            styles["BodyText"]
+        )
+    )
+
+    elements.append(
+        Paragraph(
+            f"<b>Preventive Care:</b> {prevention}",
+            styles["BodyText"]
+        )
+    )
+
+    elements.append(
+        Paragraph(
+            f"<b>Follow-up Advice:</b> {follow_up}",
+            styles["BodyText"]
+        )
+    )
 
     elements.append(
         Spacer(1, 20)
     )
 
+    # --------------------------------------------------------
+    # Footer
+    # --------------------------------------------------------
 
     elements.append(
         Paragraph(
@@ -792,19 +1043,17 @@ def generate_report(
         )
     )
 
-
     doc.build(elements)
 
+    # --------------------------------------------------------
+    # Return PDF
+    # --------------------------------------------------------
 
     return FileResponse(
-
         filepath,
-
         media_type="application/pdf",
-
         filename=filename
     )
-
 
 # ============================================================
 # REGISTER
@@ -905,65 +1154,48 @@ def register(
 # ============================================================
 
 @app.post("/login")
-def login(
-    user: LoginRequest
-):
+def login(user: LoginRequest):
 
-    cursor.execute(
+    # Create a separate connection and cursor for this request
+    local_conn = sqlite3.connect("medassist.db")
+    local_cursor = local_conn.cursor()
 
-        """
-        SELECT *
-        FROM users
-        WHERE email=?
-        AND password=?
-        AND role=?
-        """,
-
-        (
-            user.email,
-            user.password,
-            user.role
+    try:
+        local_cursor.execute(
+            """
+            SELECT *
+            FROM users
+            WHERE email=?
+            AND password=?
+            AND role=?
+            """,
+            (
+                user.email,
+                user.password,
+                user.role
+            )
         )
-    )
 
+        existing_user = local_cursor.fetchone()
 
-    existing_user = cursor.fetchone()
-
-
-    if existing_user:
+        if existing_user:
+            return {
+                "message": "Login Successful",
+                "role": user.role,
+                "fullname": existing_user[1],
+                "age": existing_user[2],
+                "gender": existing_user[3],
+                "phone": existing_user[4],
+                "email": existing_user[5]
+            }
 
         return {
-
-            "message":
-                "Login Successful",
-
-            "role":
-                user.role,
-
-            "fullname":
-                existing_user[1],
-
-            "age":
-                existing_user[2],
-
-            "gender":
-                existing_user[3],
-
-            "phone":
-                existing_user[4],
-
-            "email":
-                existing_user[5]
+            "message": "Invalid Email or Password"
         }
 
-
-    return {
-
-        "message":
-            "Invalid Email or Password"
-    }
-
-
+    finally:
+        local_cursor.close()
+        local_conn.close()
 # ============================================================
 # GET SYMPTOMS
 # ============================================================

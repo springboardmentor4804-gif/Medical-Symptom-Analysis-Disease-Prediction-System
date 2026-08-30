@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import {BarChart,Bar,XAxis,YAxis,CartesianGrid,Tooltip, ResponsiveContainer,} from "recharts";
 function HealthcareProviderDashboard() {
   const [patients, setPatients] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -7,6 +8,8 @@ function HealthcareProviderDashboard() {
   const [reports, setReports] = useState([]);
 const [predictions, setPredictions] = useState([]);
 const [appointments, setAppointments] = useState([]);
+const [analytics, setAnalytics] = useState(null);
+const [loadingAnalytics, setLoadingAnalytics] = useState(true);
 
     useEffect(() => {
     async function loadPatients() {
@@ -28,6 +31,18 @@ const [appointments, setAppointments] = useState([]);
         console.error(error);
       }
     }
+    async function loadAnalytics() {
+  try {
+    const response = await fetch("http://127.0.0.1:8000/analytics");
+    const data = await response.json();
+
+    setAnalytics(data);
+  } catch (error) {
+    console.error("Analytics error:", error);
+  } finally {
+    setLoadingAnalytics(false);
+  }
+}
     async function loadReports() {
   try {
     const response = await fetch("http://127.0.0.1:8000/reports");
@@ -46,11 +61,11 @@ async function loadAppointments() {
     console.error(error);
   }
 }
-
-   loadPatients();
+loadPatients();
 loadPredictions();
 loadReports();
 loadAppointments();
+loadAnalytics();
 }, []);
 
   const handleSave = () => {
@@ -80,6 +95,149 @@ loadAppointments();
         <h1 style={{ textAlign: "center", color: "#1e3a8a" }}>
           Healthcare Provider Dashboard
         </h1>
+        {/* ============================================================
+    HEALTHCARE ANALYTICS DASHBOARD
+============================================================ */}
+
+<div
+  style={{
+    marginTop: "25px",
+    background: "#f8fafc",
+    borderRadius: "20px",
+    padding: "24px",
+  }}
+>
+  <h2 style={{ color: "#1e3a8a", marginTop: 0 }}>
+    Healthcare Analytics Dashboard
+  </h2>
+
+  {loadingAnalytics ? (
+    <p>Loading analytics...</p>
+  ) : analytics ? (
+
+    <>
+      {/* Summary Cards */}
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: "15px",
+          marginTop: "20px",
+        }}
+      >
+
+        <div style={analyticsCardStyle}>
+          <h3>Total Patients</h3>
+          <p>{analytics.total_patients}</p>
+        </div>
+
+        <div style={analyticsCardStyle}>
+          <h3>Total Predictions</h3>
+          <p>{analytics.total_predictions}</p>
+        </div>
+
+        <div style={analyticsCardStyle}>
+          <h3>Total Reports</h3>
+          <p>{analytics.total_reports}</p>
+        </div>
+
+        <div style={analyticsCardStyle}>
+          <h3>Total Appointments</h3>
+          <p>{analytics.total_appointments}</p>
+        </div>
+
+      </div>
+
+      {/* Disease Distribution */}
+
+      <div
+        style={{
+          marginTop: "25px",
+          background: "white",
+          borderRadius: "16px",
+          padding: "20px",
+        }}
+      >
+        <h3 style={{ color: "#1e3a8a" }}>
+          Disease Distribution
+        </h3>
+
+        {analytics.disease_distribution.map((item, index) => (
+          <div
+            key={index}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              padding: "10px 0",
+              borderBottom: "1px solid #e5e7eb",
+            }}
+          >
+            <span>{item.disease}</span>
+            <strong>{item.count}</strong>
+          </div>
+        ))}
+      </div>
+
+      {/* Risk Distribution */}
+
+      <div
+        style={{
+          marginTop: "25px",
+          background: "white",
+          borderRadius: "16px",
+          padding: "20px",
+        }}
+      >
+        <h3 style={{ color: "#1e3a8a" }}>
+          Risk Level Distribution
+        </h3>
+
+        {analytics.risk_distribution.map((item, index) => (
+          <div
+            key={index}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              padding: "10px 0",
+              borderBottom: "1px solid #e5e7eb",
+            }}
+          >
+            <span>{item.risk_level}</span>
+            <strong>{item.count}</strong>
+          </div>
+        ))}
+        <div
+  style={{
+    width: "100%",
+    height: "350px",
+    marginTop: "25px",
+  }}
+>
+  <ResponsiveContainer width="100%" height="100%">
+    <BarChart data={analytics.disease_distribution}>
+      <CartesianGrid strokeDasharray="3 3" />
+      <XAxis
+        dataKey="disease"
+        angle={-30}
+        textAnchor="end"
+        interval={0}
+        height={100}
+      />
+      <YAxis />
+      <Tooltip />
+      <Bar dataKey="count" />
+    </BarChart>
+  </ResponsiveContainer>
+</div>
+      </div>
+
+    </>
+
+  ) : (
+    <p>Unable to load analytics.</p>
+  )}
+</div>
 
         {/* Patient Table */}
         <div
@@ -367,6 +525,16 @@ loadAppointments();
     </div>
   );
 }
+
+const analyticsCardStyle = {
+  background: "white",
+  borderRadius: "16px",
+  padding: "18px",
+  textAlign: "center", 
+  border: "1px solid #e5e7eb",
+  boxShadow: "0 3px 10px rgba(0,0,0,0.05)",
+};
+
 
 const thStyle = {
   padding: "14px",
