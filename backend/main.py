@@ -73,4 +73,3 @@ app.include_router(mongo_routes.router)  # MongoDB read-only admin routes
 @app.get("/")
 def read_root():
     return {"message": "Welcome to MedAssist AI API!"}
-
