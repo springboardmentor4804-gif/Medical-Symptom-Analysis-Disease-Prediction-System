@@ -1,0 +1,584 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  --background: #f3f6fc;
+  --foreground: #090d16;
+  --card: #ffffff;
+  --card-border: #d0dbe7;
+  --card-foreground: #090d16;
+  --muted: #f8fafc;
+  --muted-foreground: #334155;
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+  --accent: #059669;
+  --accent-foreground: #ffffff;
+  --accent-muted: #e6f7f2;
+  --accent-muted-border: #99f6e4;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+  --danger-border: #fca5a5;
+  --danger-foreground: #991b1b;
+  --success-bg: #f0fdf4;
+  --success-border: #86efac;
+  --success-foreground: #047857;
+  --navbar-bg: rgba(255, 255, 255, 0.95);
+  --navbar-border: #d0dbe7;
+  --shadow-sm: 0 2px 5px 0 rgb(15 23 42 / 0.05);
+  --shadow-md: 0 12px 30px -8px rgb(15 23 42 / 0.09), 0 4px 12px -2px rgb(15 23 42 / 0.04);
+  --shadow-lg: 0 20px 45px -12px rgb(15 23 42 / 0.13), 0 8px 20px -4px rgb(15 23 42 / 0.06);
+  --selection-bg: #a7f3d0;
+  --selection-text: #064e3b;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: #020617;
+  --foreground: #f8fafc;
+  --card: #0f172a;
+  --card-border: #1e293b;
+  --card-foreground: #e2e8f0;
+  --muted: #0f172a;
+  --muted-foreground: #94a3b8;
+  --input-bg: #020617;
+  --input-border: #1e293b;
+  --accent: #10b981;
+  --accent-foreground: #022c22;
+  --accent-muted: rgba(16, 185, 129, 0.1);
+  --accent-muted-border: rgba(16, 185, 129, 0.25);
+  --danger: #ef4444;
+  --danger-bg: rgba(239, 68, 68, 0.1);
+  --danger-border: rgba(239, 68, 68, 0.2);
+  --danger-foreground: #fca5a5;
+  --success-bg: rgba(16, 185, 129, 0.1);
+  --success-border: rgba(16, 185, 129, 0.2);
+  --success-foreground: #34d399;
+  --navbar-bg: rgba(2, 6, 23, 0.8);
+  --navbar-border: #1e293b;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+  --selection-bg: rgba(16, 185, 129, 0.2);
+  --selection-text: #34d399;
+}
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+}
+
+:root {
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+button, a, input, select, textarea, .med-card-hover, .med-card-interactive {
+  transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), 
+              border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), 
+              color 0.15s ease, 
+              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), 
+              transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html {
+  scroll-behavior: smooth;
+  min-height: 100%;
+}
+
+/* Minimal Light Theme Ambient Background Mesh */
+html:not(.dark) {
+  background:
+    radial-gradient(circle at 12% 15%, rgba(16, 185, 129, 0.05), transparent 35%),
+    radial-gradient(circle at 88% 20%, rgba(20, 184, 166, 0.04), transparent 30%),
+    radial-gradient(circle at 50% 60%, rgba(14, 165, 233, 0.03), transparent 40%),
+    var(--background);
+}
+
+html:not(.dark) body {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(circle at 15% 10%, rgba(16, 185, 129, 0.04), transparent 22rem),
+    radial-gradient(circle at 85% 15%, rgba(20, 184, 166, 0.03), transparent 20rem),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.9), transparent 18rem);
+  color: var(--foreground);
+}
+
+/* Light Mode Specific Enhanced Cards & High-Contrast Typography */
+html:not(.dark) {
+  --card: #ffffff;
+  --card-border: #d0dbe7;
+  --card-foreground: #090d16;
+}
+
+html:not(.dark) input,
+html:not(.dark) textarea,
+html:not(.dark) select {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #090d16 !important;
+  box-shadow: 0 2px 4px 0 rgba(15, 23, 42, 0.04);
+}
+
+html:not(.dark) input:focus,
+html:not(.dark) textarea:focus,
+html:not(.dark) select:focus {
+  border-color: #059669 !important;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.18) !important;
+}
+
+html:not(.dark) input::placeholder,
+html:not(.dark) textarea::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
+/* Explicit Toggle Button Visibility in Light Mode */
+html:not(.dark) button[aria-label*="Switch"] {
+  background-color: #e2e8f0 !important;
+  color: #090d16 !important;
+  border-color: #cbd5e1 !important;
+}
+
+html:not(.dark) button[aria-label*="Switch"] svg {
+  color: #090d16 !important;
+  stroke: #090d16 !important;
+}
+
+/* Enhanced Pure Solid White Cards with Hover Elevation in Light Theme */
+html:not(.dark) .bg-white,
+html:not(.dark) [class*="bg-white/"],
+html:not(.dark) [class*="bg-[var(--card)]"] {
+  background-color: #ffffff !important;
+  border-color: #d0dbe7;
+  box-shadow: 0 12px 32px -6px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(15, 23, 42, 0.03);
+}
+
+html:not(.dark) .bg-white:hover,
+html:not(.dark) [class*="bg-white/"]:hover {
+  box-shadow: 0 16px 40px -8px rgba(5, 150, 105, 0.12), 0 6px 16px -3px rgba(15, 23, 42, 0.04);
+}
+
+html:not(.dark) .bg-slate-50 {
+  background-color: #f1f5f9 !important;
+}
+
+html:not(.dark) .border-slate-200,
+html:not(.dark) .border-slate-300 {
+  border-color: #d0dbe7 !important;
+}
+
+html:not(.dark) .border-slate-100 {
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) h1,
+html:not(.dark) h2,
+html:not(.dark) h3,
+html:not(.dark) h4,
+html:not(.dark) .text-slate-950,
+html:not(.dark) .text-slate-900 {
+  color: #090d16 !important;
+}
+
+html:not(.dark) .text-slate-800,
+html:not(.dark) .text-slate-700,
+html:not(.dark) .text-slate-600 {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .text-slate-500 {
+  color: #334155 !important;
+}
+
+html:not(.dark) .text-slate-400 {
+  color: #475569 !important;
+}
+
+html:not(.dark) .text-emerald-800,
+html:not(.dark) .text-emerald-700 {
+  color: #047857 !important;
+}
+
+html:not(.dark) .text-teal-800,
+html:not(.dark) .text-teal-700 {
+  color: #0f766e !important;
+}
+
+html:not(.dark) .text-cyan-800,
+html:not(.dark) .text-cyan-700 {
+  color: #0e7490 !important;
+}
+
+/* Light Mode UI Component Enhancements */
+html:not(.dark) nav {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: #d0dbe7 !important;
+  box-shadow: 0 8px 30px -6px rgba(15, 23, 42, 0.06);
+}
+
+html:not(.dark) .bg-emerald-600 {
+  background-image: linear-gradient(135deg, #059669 0%, #0d9488 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 24px -4px rgba(5, 150, 105, 0.25);
+}
+
+html:not(.dark) .bg-emerald-600:hover {
+  background-image: linear-gradient(135deg, #047857 0%, #0f766e 100%) !important;
+  box-shadow: 0 12px 28px -4px rgba(5, 150, 105, 0.35);
+}
+
+html:not(.dark) .bg-emerald-100 {
+  background-color: #dcfce7 !important;
+  color: #047857 !important;
+  border-color: #86efac !important;
+}
+
+html:not(.dark) .bg-teal-100 {
+  background-color: #ccfbf1 !important;
+  color: #0f766e !important;
+  border-color: #99f6e4 !important;
+}
+
+html:not(.dark) .bg-cyan-100 {
+  background-color: #e0f2fe !important;
+  color: #0e7490 !important;
+  border-color: #bae6fd !important;
+}
+
+html:not(.dark) .bg-slate-100 {
+  background-color: #e2e8f0 !important;
+  color: #1e293b !important;
+  border-color: #cbd5e1 !important;
+}
+
+html:not(.dark) table thead {
+  background-color: #f1f5f9 !important;
+  border-color: #d0dbe7 !important;
+  color: #090d16 !important;
+}
+
+html:not(.dark) table tbody tr:hover {
+  background-color: #f8fafc !important;
+}
+
+::selection {
+  background-color: var(--selection-bg);
+  color: var(--selection-text);
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+input,
+textarea,
+select {
+  background-color: var(--input-bg);
+  border-color: var(--input-border);
+  color: var(--foreground);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes floatSoft {
+
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(0, -10px, 0) scale(1.03);
+  }
+}
+
+@keyframes shimmerSweep {
+  0% {
+    transform: translateX(-120%) skewX(-12deg);
+    opacity: 0;
+  }
+
+  20% {
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: translateX(180%) skewX(-12deg);
+    opacity: 0;
+  }
+}
+
+@keyframes fadeRise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes softPulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+
+  50% {
+    transform: scale(1.08);
+    opacity: 0.9;
+  }
+}
+
+@keyframes ecgFlow {
+  0% {
+    transform: translateX(-18%);
+    opacity: 0;
+  }
+
+  15% {
+    opacity: 1;
+  }
+
+  50% {
+    transform: translateX(0%);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateX(18%);
+    opacity: 0;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s ease-out;
+}
+
+.animate-float-soft {
+  animation: floatSoft 8s ease-in-out infinite;
+}
+
+.animate-float-medium {
+  animation: floatSoft 10s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  animation: shimmerSweep 4s ease-in-out infinite;
+}
+
+.animate-fade-rise {
+  animation: fadeRise 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-soft-pulse {
+  animation: softPulse 3.5s ease-in-out infinite;
+}
+
+.animate-ecg-flow {
+  animation: ecgFlow 3.8s ease-in-out infinite;
+}
+
+/* Professional Tailwind Medical Card Animations for Both Themes */
+.med-card-hover {
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, box-shadow;
+}
+
+html:not(.dark) .med-card-hover:hover {
+  transform: translateY(-5px);
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.1), 0 0 0 1px rgba(16, 185, 129, 0.18) !important;
+}
+
+.dark .med-card-hover:hover {
+  transform: translateY(-5px);
+  border-color: rgba(16, 185, 129, 0.45) !important;
+  box-shadow: 0 24px 55px -10px rgba(0, 0, 0, 0.65), 0 0 30px -4px rgba(16, 185, 129, 0.18), 0 0 0 1px rgba(16, 185, 129, 0.25) !important;
+}
+
+.med-card-hover:active {
+  transform: translateY(-2px) scale(0.995);
+  transition-duration: 0.15s;
+}
+
+/* Professional Interactive Card Shimmer Reflection Sweep */
+.med-card-interactive {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.med-card-interactive::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 50%;
+  height: 200%;
+  background: linear-gradient(
+    60deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 70%
+  );
+  transform: rotate(25deg);
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.6s ease;
+  pointer-events: none;
+}
+
+.dark .med-card-interactive::after {
+  background: linear-gradient(
+    60deg,
+    transparent 30%,
+    rgba(16, 185, 129, 0.15) 50%,
+    transparent 70%
+  );
+}
+
+.med-card-interactive:hover::after {
+  opacity: 1;
+  transform: rotate(25deg) translate(250%, -30%);
+}
+
+html:not(.dark) .med-card-interactive:hover {
+  transform: translateY(-5px);
+  border-color: rgba(16, 185, 129, 0.45) !important;
+  box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.1), 0 0 0 1px rgba(16, 185, 129, 0.2) !important;
+}
+
+.dark .med-card-interactive:hover {
+  transform: translateY(-5px);
+  border-color: rgba(16, 185, 129, 0.5) !important;
+  box-shadow: 0 24px 55px -10px rgba(0, 0, 0, 0.7), 0 0 35px -4px rgba(16, 185, 129, 0.2), 0 0 0 1px rgba(16, 185, 129, 0.3) !important;
+}
+
+.med-card-interactive:active {
+  transform: translateY(-2px) scale(0.995);
+  transition-duration: 0.15s;
+}
+
+/* Admin dashboard slide-in panel */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Professional Micro-Interaction Utilities */
+.btn-press {
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+.btn-press:active {
+  transform: scale(0.97);
+}
+
+.hover-glow {
+  transition: box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.hover-glow:hover {
+  box-shadow: 0 0 25px -3px rgba(16, 185, 129, 0.25);
+}
+
+.badge-pulse {
+  position: relative;
+}
+.badge-pulse::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: inherit;
+  opacity: 0.4;
+  animation: badgePulse 2.5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  z-index: -1;
+}
+
+@keyframes badgePulse {
+  0% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.18); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+/* Skeleton Loading Shimmer */
+.skeleton-shimmer {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.2) 50%, rgba(255, 255, 255, 0) 100%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.8s infinite;
+}
+.dark .skeleton-shimmer {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0) 100%);
+  background-size: 200% 100%;
+}
+
+@keyframes skeletonShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Stagger Animation Utility Classes */
+.stagger-1 { animation-delay: 0.06s; }
+.stagger-2 { animation-delay: 0.12s; }
+.stagger-3 { animation-delay: 0.18s; }
+.stagger-4 { animation-delay: 0.24s; }
+.stagger-5 { animation-delay: 0.30s; }

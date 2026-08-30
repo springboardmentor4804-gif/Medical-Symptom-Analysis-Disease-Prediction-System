@@ -1,0 +1,16 @@
+{
+  "name": "med",
+  "version": "1.0.0",
+  "description": "MedAssist AI is a medical symptom-checker and patient-profile management system. This repository contains the full-stack codebase for Milestone 1.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon server.js",
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
