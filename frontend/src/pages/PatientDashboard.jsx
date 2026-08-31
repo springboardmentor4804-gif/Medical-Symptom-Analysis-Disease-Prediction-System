@@ -442,6 +442,7 @@ function PatientDashboard() {
       );
 
       setGender(profile.gender || "");
+
       setBloodGroup(
         profile.blood_group || ""
       );
@@ -486,19 +487,16 @@ function PatientDashboard() {
   };
 
   // =========================================
-  // PROFILE NAVIGATION
+  // SIDEBAR NAVIGATION
   // =========================================
 
-  const handleProfileClick = () => {
+  const handleSidebarNavigation = (sectionId) => {
 
-    const profileSection =
-      document.getElementById(
-        "patient-profile"
-      );
+    const section = document.getElementById(sectionId);
 
-    if (profileSection) {
+    if (section) {
 
-      profileSection.scrollIntoView({
+      section.scrollIntoView({
         behavior: "smooth",
         block: "start"
       });
@@ -546,126 +544,123 @@ function PatientDashboard() {
         )
     );
 
+  // =========================================
+  // PREDICTION
+  // =========================================
 
-// =========================================
-// PREDICTION
-// =========================================
+  const handlePrediction = async () => {
 
-const handlePrediction = async () => {
+    if (symptoms.length === 0) {
 
-  if (symptoms.length === 0) {
-
-    alert(
-      "Please select at least one symptom."
-    );
-
-    return;
-
-  }
-
-  if (!userId) {
-
-    alert(
-      "User session not found. Please login again."
-    );
-
-    navigate("/login");
-
-    return;
-
-  }
-
-  setLoading(true);
-  setPrediction(null);
-
-  try {
-
-    const response = await fetch(
-      "http://127.0.0.1:8000/predict-disease",
-      {
-        method: "POST",
-
-        headers: {
-          "Content-Type": "application/json"
-        },
-
-        body: JSON.stringify({
-          user_id: Number(userId),
-          symptoms: symptoms
-        })
-
-      }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-
-      throw new Error(
-        data.detail || "Prediction failed."
+      alert(
+        "Please select at least one symptom."
       );
+
+      return;
 
     }
 
-    // =========================================
-    // SHOW CURRENT PREDICTION
-    // =========================================
+    if (!userId) {
 
-    setPrediction(data);
+      alert(
+        "User session not found. Please login again."
+      );
 
-    // =========================================
-    // IMMEDIATELY UPDATE LATEST REPORT
-    // =========================================
+      navigate("/login");
 
-    const newHistoryItem = {
-      id: data.prediction_id,
-      predicted_disease: data.predicted_disease,
-      confidence: data.confidence,
-      risk_level: data.risk_level,
-      created_at: data.created_at,
-      recommendation: data.recommendation,
-      treatment: data.treatment,
-      advisory: data.advisory
-    };
+      return;
 
-    setHistory((previousHistory) => [
+    }
 
-      newHistoryItem,
+    setLoading(true);
+    setPrediction(null);
 
-      ...previousHistory.filter(
-        (item) =>
-          item.id !== data.prediction_id
-      )
+    try {
 
-    ]);
+      const response = await fetch(
+        "http://127.0.0.1:8000/predict-disease",
+        {
+          method: "POST",
 
-    // =========================================
-    // REFRESH HISTORY FROM DATABASE
-    // =========================================
+          headers: {
+            "Content-Type": "application/json"
+          },
 
-    await loadHistory();
+          body: JSON.stringify({
+            user_id: Number(userId),
+            symptoms: symptoms
+          })
 
-  } catch (error) {
+        }
+      );
 
-    console.error(
-      "Prediction error:",
-      error
-    );
+      const data = await response.json();
 
-    alert(
-      error.message ||
-      "Unable to connect to the disease prediction server."
-    );
+      if (!response.ok) {
 
-  } finally {
+        throw new Error(
+          data.detail || "Prediction failed."
+        );
 
-    setLoading(false);
+      }
 
-  }
+      // =========================================
+      // SHOW CURRENT PREDICTION
+      // =========================================
 
-};
+      setPrediction(data);
 
+      // =========================================
+      // IMMEDIATELY UPDATE LATEST REPORT
+      // =========================================
 
+      const newHistoryItem = {
+        id: data.prediction_id,
+        predicted_disease: data.predicted_disease,
+        confidence: data.confidence,
+        risk_level: data.risk_level,
+        created_at: data.created_at,
+        recommendation: data.recommendation,
+        treatment: data.treatment,
+        advisory: data.advisory
+      };
+
+      setHistory((previousHistory) => [
+
+        newHistoryItem,
+
+        ...previousHistory.filter(
+          (item) =>
+            item.id !== data.prediction_id
+        )
+
+      ]);
+
+      // =========================================
+      // REFRESH HISTORY FROM DATABASE
+      // =========================================
+
+      await loadHistory();
+
+    } catch (error) {
+
+      console.error(
+        "Prediction error:",
+        error
+      );
+
+      alert(
+        error.message ||
+        "Unable to connect to the disease prediction server."
+      );
+
+    } finally {
+
+      setLoading(false);
+
+    }
+
+  };
 
   // =========================================
   // SAVE MEDICAL HISTORY
@@ -966,24 +961,53 @@ const handlePrediction = async () => {
 
         </div>
 
+        {/* =========================================
+            FUNCTIONAL SIDEBAR
+        ========================================= */}
+
         <ul>
 
-          <li className="active">
+          <li
+            className="active"
+            onClick={() =>
+              handleSidebarNavigation(
+                "patient-dashboard"
+              )
+            }
+          >
             <FaHome />
             Dashboard
           </li>
 
-          <li>
+          <li
+            onClick={() =>
+              handleSidebarNavigation(
+                "patient-symptoms"
+              )
+            }
+          >
             <FaNotesMedical />
             Symptoms
           </li>
 
-          <li>
+          <li
+            onClick={() =>
+              handleSidebarNavigation(
+                "patient-reports"
+              )
+            }
+          >
             <FaFileMedical />
             Reports
           </li>
 
-          <li onClick={handleProfileClick}>
+          <li
+            onClick={() =>
+              handleSidebarNavigation(
+                "patient-profile"
+              )
+            }
+          >
             <FaUser />
             Profile
           </li>
@@ -1002,7 +1026,10 @@ const handlePrediction = async () => {
           MAIN CONTENT
       ========================================= */}
 
-      <main className="content">
+      <main
+        className="content"
+        id="patient-dashboard"
+      >
 
         <div className="dashboard-header">
 
@@ -1025,7 +1052,10 @@ const handlePrediction = async () => {
               SYMPTOMS
           ========================================= */}
 
-          <div className="card">
+          <div
+            className="card"
+            id="patient-symptoms"
+          >
 
             <h3>
               <FaNotesMedical />
@@ -1262,10 +1292,13 @@ const handlePrediction = async () => {
 
 
           {/* =========================================
-              PREDICTION HISTORY
+              PREDICTION HISTORY / REPORTS
           ========================================= */}
 
-          <div className="card history-card">
+          <div
+            className="card history-card"
+            id="patient-reports"
+          >
 
             <h3>
               <FaHistory />
@@ -1364,7 +1397,6 @@ const handlePrediction = async () => {
                       </div>
 
                     </div>
-
                   )
                 )}
 

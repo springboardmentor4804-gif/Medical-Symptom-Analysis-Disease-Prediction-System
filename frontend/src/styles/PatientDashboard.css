@@ -1278,5 +1278,14 @@
   .history-actions {
     flex-direction: column;
   }
+/* =========================================
+   SIDEBAR SCROLL TARGETS
+========================================= */
 
+#patient-dashboard,
+#patient-symptoms,
+#patient-reports,
+#patient-profile {
+  scroll-margin-top: 30px;
+}
 }
