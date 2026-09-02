@@ -147,6 +147,7 @@ class ProviderSettingsUpdate(BaseModel):
 
 class ProviderReportCreate(BaseModel):
     patient_id: int
+    prediction_id: Optional[int] = None
     report_name: str
     report_type: Optional[str] = None
     status: Optional[str] = None

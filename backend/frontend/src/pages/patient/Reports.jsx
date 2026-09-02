@@ -38,7 +38,7 @@ export default function Reports({ dashboardData }){
                 <article className="history-card" key={item.id} onClick={() => setSelectedReportId(item.id)} role="button" tabIndex={0} onKeyDown={(event) => event.key === 'Enter' && setSelectedReportId(item.id)}>
                   <div>
                     <p className="history-title">Report #{item.id}</p>
-                    <p className="history-meta">{formatDate(item.generated_at)} · {item.predicted_disease || 'Prediction pending'}</p>
+                    <p className="history-meta">Prediction #{item.prediction_id || 'N/A'} · {formatDate(item.prediction_date || item.generated_at)} · {item.predicted_disease || 'Prediction pending'}</p>
                   </div>
                   <span className={`status-pill ${item.provider_status === 'approved' ? 'success' : item.provider_status === 'rejected' ? 'danger' : 'warning'}`}>{item.provider_status || 'Pending'}</span>
                 </article>
@@ -56,7 +56,7 @@ export default function Reports({ dashboardData }){
             <div>
               <span className="eyebrow">Prediction report</span>
               <h3>{selectedReport.report_name || `Report #${selectedReport.id}`}</h3>
-              <p className="muted">Prediction #{selectedReport.prediction_id || 'N/A'} · {formatDate(selectedReport.generated_at)}</p>
+              <p className="muted">Prediction #{selectedReport.prediction_id || 'N/A'} · Predicted {formatDate(selectedReport.prediction_date || selectedReport.generated_at)}</p>
             </div>
             <div className="report-detail-actions">
               {selectedReport.report_url && <a className="primary-button" href={selectedReport.report_url} target="_blank" rel="noreferrer" download={`medassist-report-${selectedReport.prediction_id || selectedReport.id}.pdf`}>Download Report</a>}
@@ -68,7 +68,7 @@ export default function Reports({ dashboardData }){
             <div className="report-section"><h4>Symptoms</h4><p>{(selectedReport.symptoms || []).join(', ') || 'Not available'}</p></div>
             <div className="report-section"><h4>Risk assessment</h4><p>{selectedReport.risk_assessment || 'Not available'}</p></div>
             <div className="report-section"><h4>Provider review</h4><div className="report-detail-row"><strong>Approval status</strong><span>{selectedReport.provider_status || 'Pending'}</span></div><p>{selectedReport.provider_comments || 'No comments provided.'}</p></div>
-            <div className="report-section report-section-wide"><h4>Recommendations</h4><p>{selectedReport.recommendations || 'Not available'}</p></div>
+            <div className="report-section report-section-wide"><h4>Approved recommendations</h4><p>{selectedReport.recommendations || 'No approved recommendations for this prediction.'}</p></div>
             {selectedReport.healthcare_advisory && <div className="report-section report-section-wide"><h4>Healthcare Advisory</h4><div className="advisory-report-grid"><div><strong>Preventive care</strong><ul>{selectedReport.healthcare_advisory.preventive_care?.map((item) => <li key={item}>{item}</li>)}</ul></div><div><strong>Lifestyle advice</strong><ul>{selectedReport.healthcare_advisory.lifestyle_advice?.map((item) => <li key={item}>{item}</li>)}</ul></div><div><strong>Follow-up guidance</strong><p>{selectedReport.healthcare_advisory.follow_up_guidance}</p></div><div><strong>When to seek care</strong><p>{selectedReport.healthcare_advisory.when_to_seek_care}</p></div></div><p className="advisory-disclaimer">{selectedReport.healthcare_advisory.disclaimer}</p></div>}
           </div>
         </section>

@@ -134,6 +134,7 @@ CREATE TABLE IF NOT EXISTS reports (
     status VARCHAR(50) DEFAULT 'pending',
     report_url TEXT,
     generated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+    prediction_date TIMESTAMP WITHOUT TIME ZONE,
     symptoms TEXT,
     predicted_disease VARCHAR(255),
     confidence_score FLOAT,

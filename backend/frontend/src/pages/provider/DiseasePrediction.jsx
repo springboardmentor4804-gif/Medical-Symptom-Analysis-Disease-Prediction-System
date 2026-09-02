@@ -14,7 +14,7 @@ export default function ProviderDiseasePrediction({ dashboardData }) {
   const [selectedPatientName, setSelectedPatientName] = useState('')
   const [symptomModalOpen, setSymptomModalOpen] = useState(false)
   const [commentModalOpen, setCommentModalOpen] = useState(false)
-  const [pendingDecision, setPendingDecision] = useState({ id: null, feedback: 'accept', comments: '' })
+  const [pendingDecision, setPendingDecision] = useState({ id: null, feedback: 'approved', comments: '' })
 
   useEffect(() => {
     setPredictionsState(predictions)
@@ -92,7 +92,7 @@ export default function ProviderDiseasePrediction({ dashboardData }) {
     if (!pendingDecision.id) return
     await handlePredictionFeedback(pendingDecision.id, pendingDecision.feedback, pendingDecision.comments)
     setCommentModalOpen(false)
-    setPendingDecision({ id: null, feedback: 'accept', comments: '' })
+    setPendingDecision({ id: null, feedback: 'approved', comments: '' })
   }
 
   const openSymptomModal = (patientId) => {
@@ -210,7 +210,7 @@ export default function ProviderDiseasePrediction({ dashboardData }) {
                   const confidenceClass = item.confidence != null
                     ? item.confidence >= 0.8 ? 'success' : item.confidence >= 0.5 ? 'warning' : 'danger'
                     : 'neutral'
-                  const feedbackClass = item.provider_feedback === 'accept' ? 'success' : item.provider_feedback === 'reject' ? 'danger' : 'neutral'
+                  const feedbackClass = item.provider_feedback === 'approved' ? 'success' : item.provider_feedback === 'rejected' ? 'danger' : 'neutral'
                   const feedbackLabel = item.provider_feedback ? item.provider_feedback.toUpperCase() : 'Pending'
                   return (
                     <tr key={`${item.patient_id}-${index}`}>
@@ -232,12 +232,12 @@ export default function ProviderDiseasePrediction({ dashboardData }) {
                         <ActionsMenu
                           actions={[
                             {
-                              label: 'Accept prediction',
-                              onClick: () => openReviewModal(item.id, 'accept'),
+                              label: 'Approve prediction',
+                              onClick: () => openReviewModal(item.id, 'approved'),
                             },
                             {
                               label: 'Reject prediction',
-                              onClick: () => openReviewModal(item.id, 'reject'),
+                              onClick: () => openReviewModal(item.id, 'rejected'),
                             },
                             {
                               label: 'View symptoms',
@@ -299,7 +299,7 @@ export default function ProviderDiseasePrediction({ dashboardData }) {
         )}
       </Modal>
 
-      <Modal open={commentModalOpen} title={`Review prediction: ${pendingDecision.feedback === 'accept' ? 'Approve' : 'Reject'}`} onClose={() => setCommentModalOpen(false)}>
+      <Modal open={commentModalOpen} title={`Review prediction: ${pendingDecision.feedback === 'approved' ? 'Approve' : 'Reject'}`} onClose={() => setCommentModalOpen(false)}>
         <div className="modal-form">
           <label>
             Provider comments
@@ -312,7 +312,7 @@ export default function ProviderDiseasePrediction({ dashboardData }) {
           </label>
           <div className="form-actions">
             <button className="btn primary" type="button" onClick={submitPendingDecision}>
-              {pendingDecision.feedback === 'accept' ? 'Approve prediction' : 'Reject prediction'}
+              {pendingDecision.feedback === 'approved' ? 'Approve prediction' : 'Reject prediction'}
             </button>
             <button className="btn outline" type="button" onClick={() => setCommentModalOpen(false)}>
               Cancel

@@ -9,13 +9,14 @@ function statusClass(status) {
   return 'warning'
 }
 
-function formatDate(value) {
+function formatDate(value, includeTime = false) {
   if (!value) return '—'
   try {
-    return new Date(value).toLocaleDateString(undefined, {
+    return new Date(value).toLocaleString(undefined, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
+      ...(includeTime ? { hour: 'numeric', minute: '2-digit' } : {}),
     })
   } catch {
     return '—'
@@ -56,36 +57,22 @@ export default function ProviderRecommendations({ dashboardData }) {
     [risks]
   )
 
-  const predictionsByPatient = useMemo(() => {
-    const map = {}
-    for (const prediction of predictions) {
-      const list = map[prediction.patient_id] || []
-      list.push(prediction)
-      map[prediction.patient_id] = list
-    }
-    for (const patientId of Object.keys(map)) {
-      map[patientId].sort((a, b) => new Date(b.prediction_date || 0) - new Date(a.prediction_date || 0))
-    }
-    return map
-  }, [predictions])
-
   const recommendationGroups = useMemo(() => {
     const groups = new Map()
 
     for (const recommendation of recommendationsState) {
       const patientId = recommendation.patient_id
-      const prediction =
-        recommendation.prediction_id && predictionMap[recommendation.prediction_id]
-          ? predictionMap[recommendation.prediction_id]
-          : (predictionsByPatient[patientId] || [])[0] || null
-
-      const key = `${patientId}:${recommendation.prediction_id ?? prediction?.id ?? 'manual'}`
+      const predictionId = recommendation.prediction_id ?? null
+      const prediction = predictionId ? predictionMap[predictionId] || null : null
+      const key = predictionId ? `prediction:${predictionId}` : `unlinked:${patientId}`
       if (!groups.has(key)) {
         groups.set(key, {
           patientId,
           patient: patientMap[patientId] || null,
           prediction,
+          predictionId,
           risk: riskMap[patientId] || null,
+          unlinked: !predictionId,
           recommendations: [],
         })
       }
@@ -98,18 +85,22 @@ export default function ProviderRecommendations({ dashboardData }) {
       const timeB = b.recommendations[0]?.created_at || b.prediction?.prediction_date || 0
       return new Date(timeB) - new Date(timeA)
     })
-  }, [recommendationsState, patientMap, predictionMap, predictionsByPatient, riskMap])
+  }, [recommendationsState, patientMap, predictionMap, riskMap])
 
   const filteredGroups = useMemo(() => {
     const search = searchText.trim().toLowerCase()
     return recommendationGroups.filter((group) => {
       const patientName = group.patient?.name || `Patient ${group.patientId}`
       const predictionDisease = group.prediction?.predicted_disease || '—'
+      const predictionStatus = group.prediction?.provider_feedback || group.prediction?.status || 'pending'
       const matchesSearch =
         !search ||
         patientName.toLowerCase().includes(search) ||
         String(group.patientId).includes(search) ||
+        String(group.predictionId || '').includes(search) ||
         predictionDisease.toLowerCase().includes(search) ||
+        String(group.prediction?.prediction_date || '').toLowerCase().includes(search) ||
+        predictionStatus.toLowerCase().includes(search) ||
         group.recommendations.some(
           (item) =>
             String(item.recommendation || '').toLowerCase().includes(search) ||
@@ -117,6 +108,7 @@ export default function ProviderRecommendations({ dashboardData }) {
         )
       const matchesStatus =
         statusFilter === 'all' ||
+        predictionStatus === statusFilter ||
         group.recommendations.some((item) => String(item.status || 'pending').toLowerCase() === statusFilter)
       return matchesSearch && matchesStatus
     })
@@ -176,7 +168,7 @@ export default function ProviderRecommendations({ dashboardData }) {
             </p>
           </div>
           <div className="overview-meta">
-            <span className="badge">{filteredGroups.length} patient reviews</span>
+            <span className="badge">{filteredGroups.length} prediction reviews</span>
           </div>
         </div>
 
@@ -203,10 +195,10 @@ export default function ProviderRecommendations({ dashboardData }) {
       <section className="history-controls card">
         <div className="history-filters">
           <label className="filter-field">
-            Search patient or recommendation
+            Search patient, prediction, or recommendation
             <input
               type="search"
-              placeholder="Search patient, disease, or guidance"
+              placeholder="Patient, ID, disease, prediction ID, or status"
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
             />
@@ -242,12 +234,26 @@ export default function ProviderRecommendations({ dashboardData }) {
             const confidence = prediction?.confidence != null ? `${Math.round(prediction.confidence * 100)}%` : 'N/A'
             const riskLevel = group.risk?.risk_level || 'Not available'
             const approvalStatus = prediction?.provider_feedback || prediction?.status || 'pending'
+            const categoryLabels = {
+              treatment: 'Treatment / Care',
+              preventive: 'Preventive Care',
+              lifestyle: 'Lifestyle',
+              'follow-up': 'Follow-up',
+              other: 'Other guidance',
+            }
+            const groupedRecommendations = group.recommendations.reduce((result, item) => {
+              const type = String(item.recommendation_type || 'other').toLowerCase()
+              const category = type === 'ai-generated' ? 'treatment' : type
+              if (!result[category]) result[category] = []
+              result[category].push(item)
+              return result
+            }, {})
 
             return (
               <div key={`${group.patientId}-${prediction?.id || groupIndex}`} className="recommendation-group card">
                 <div className="group-header">
                   <div>
-                    <span className="eyebrow quiet">Patient</span>
+                    <span className="eyebrow quiet">{group.unlinked ? 'Unlinked recommendation' : 'Prediction review'}</span>
                     <h3>{patientName}</h3>
                   </div>
                   <div className="group-summary-grid">
@@ -256,12 +262,20 @@ export default function ProviderRecommendations({ dashboardData }) {
                       <strong>{group.patientId}</strong>
                     </div>
                     <div className="mini-stat">
+                      <span>Prediction ID</span>
+                      <strong>{group.predictionId || 'Not linked'}</strong>
+                    </div>
+                    <div className="mini-stat">
                       <span>Predicted disease</span>
                       <strong>{prediction?.predicted_disease || '—'}</strong>
                     </div>
                     <div className="mini-stat">
                       <span>Confidence</span>
                       <strong>{confidence}</strong>
+                    </div>
+                    <div className="mini-stat">
+                      <span>Prediction date</span>
+                      <strong>{formatDate(prediction?.prediction_date, true)}</strong>
                     </div>
                     <div className="mini-stat">
                       <span>Risk level</span>
@@ -275,7 +289,13 @@ export default function ProviderRecommendations({ dashboardData }) {
                 </div>
 
                 <div className="recommendation-list">
-                  {group.recommendations.map((item) => {
+                  {Object.entries(groupedRecommendations).map(([category, items]) => (
+                    <section className="recommendation-category" key={category}>
+                      <div className="recommendation-category-header">
+                        <h4>{categoryLabels[category] || 'Other guidance'}</h4>
+                        <span>{items.length}</span>
+                      </div>
+                      {items.map((item) => {
                     const isPending = !item.status || item.status === 'pending'
                     const statusValue = String(item.status || 'pending').toUpperCase()
 
@@ -334,7 +354,9 @@ export default function ProviderRecommendations({ dashboardData }) {
                         )}
                       </article>
                     )
-                  })}
+                      })}
+                    </section>
+                  ))}
                 </div>
               </div>
             )

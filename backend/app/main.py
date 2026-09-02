@@ -95,6 +95,14 @@ DEFAULT_MODEL_INPUT = {
 }
 
 SYMPTOM_FEATURES = [f"symptom_{i}" for i in range(1, 8)]
+VALID_APPROVAL_STATUSES = {'pending', 'approved', 'rejected'}
+STATUS_ALIASES = {'accept': 'approved', 'approve': 'approved', 'reject': 'rejected'}
+
+
+def normalize_approval_status(value: Optional[str], default: str = 'pending') -> str:
+    normalized = str(value or default).strip().lower()
+    normalized = STATUS_ALIASES.get(normalized, normalized)
+    return normalized if normalized in VALID_APPROVAL_STATUSES else default
 
 
 def get_prediction_artifacts() -> Tuple[Any, Any, Any]:
@@ -174,7 +182,7 @@ def build_report_payload(
         'predicted_disease': str(predicted_disease).strip(),
         'confidence_score': float(confidence_score) if confidence_score is not None else 0.0,
         'risk_assessment': str(risk_assessment).strip() if risk_assessment is not None else 'No risk assessment available',
-        'provider_status': str(provider_status).strip().lower() if provider_status else 'approved',
+        'provider_status': normalize_approval_status(provider_status, default='approved'),
         'provider_comments': str(provider_comments).strip() if provider_comments is not None else '',
         'recommendations': str(recommendations).strip() if recommendations is not None else '',
         'date': datetime.utcnow().date().isoformat(),
@@ -513,7 +521,7 @@ def serialize_report(report: Report, include_patient_id: bool = False) -> dict:
             predicted_disease=report.predicted_disease or 'Not available',
             confidence_score=report.confidence_score,
             risk_assessment=report.risk_assessment or 'No risk assessment available',
-            provider_status=report.provider_status or report.status or 'pending',
+            provider_status=normalize_approval_status(report.provider_status or report.status),
             provider_comments=report.provider_comments or '',
             recommendations=report.recommendations or '',
         )
@@ -527,17 +535,18 @@ def serialize_report(report: Report, include_patient_id: bool = False) -> dict:
         'report_type': report.report_type,
         'report_url': report_url,
         'generated_at': report.generated_at.isoformat() if report.generated_at else None,
+        'prediction_date': report.prediction_date.isoformat() if report.prediction_date else None,
         'symptoms': parse_report_symptoms(report.symptoms),
         'predicted_disease': report.predicted_disease,
         'confidence_score': report.confidence_score,
         'risk_assessment': report.risk_assessment,
-        'provider_status': report.provider_status,
+        'provider_status': normalize_approval_status(report.provider_status or report.status),
         'provider_comments': report.provider_comments,
         'recommendations': report.recommendations,
         'healthcare_advisory': build_healthcare_advisory(
             report.predicted_disease or '', report.risk_assessment or '', parse_report_symptoms(report.symptoms)
         ),
-        'status': report.status,
+        'status': normalize_approval_status(report.status or report.provider_status),
     }
     if include_patient_id:
         result['patient_id'] = report.patient_id
@@ -575,7 +584,7 @@ def get_patient_recommendation_text(session, patient_id: int, prediction_id: Opt
     if not recommendations:
         return 'No recommendations available.'
     parts = []
-    for item in recommendations[:3]:
+    for item in recommendations:
         medicine = f" ({item.medicine})" if item.medicine else ''
         parts.append(f"{item.recommendation}{medicine}")
     return '; '.join(parts)
@@ -770,9 +779,10 @@ def build_provider_analytics(session) -> dict:
     prediction_counts = Counter((item.predicted_disease or 'Unknown').strip() for item in predictions)
     confidence_values = [item.confidence for item in predictions if item.confidence is not None]
     total_prediction_count = len(predictions)
-    approved_count = sum(1 for item in predictions if (item.status or item.provider_feedback or '').lower() == 'approved')
-    pending_count = sum(1 for item in predictions if (item.status or item.provider_feedback or 'pending').lower() == 'pending')
-    rejected_count = sum(1 for item in predictions if (item.status or item.provider_feedback or '').lower() == 'rejected')
+    prediction_statuses = [normalize_approval_status(item.status or item.provider_feedback) for item in predictions]
+    approved_count = prediction_statuses.count('approved')
+    pending_count = prediction_statuses.count('pending')
+    rejected_count = prediction_statuses.count('rejected')
 
     prediction_trend_counts = Counter(
         item.prediction_date.strftime('%Y-%m')
@@ -843,6 +853,7 @@ def get_patient_dashboard(authorization: str = Header(None), session=Depends(get
     symptoms = []
     predictions = []
     risk = None
+    risk_history = []
     recommendations = []
     reports = []
     healthcare_advisory = None
@@ -875,32 +886,54 @@ def get_patient_dashboard(authorization: str = Header(None), session=Depends(get
 
         predictions = [
             {
+                'id': dp.id,
                 'predicted_disease': dp.predicted_disease,
                 'confidence': dp.confidence,
                 'prediction_date': dp.prediction_date.isoformat(),
+                'status': normalize_approval_status(dp.status or dp.provider_feedback),
+                'provider_feedback': normalize_approval_status(dp.provider_feedback or dp.status),
             }
-            for dp in session.execute(select(DiseasePrediction).where(DiseasePrediction.patient_id == patient_id)).scalars().all()
+            for dp in session.execute(
+                select(DiseasePrediction)
+                .where(DiseasePrediction.patient_id == patient_id)
+                .order_by(DiseasePrediction.prediction_date.desc())
+            ).scalars().all()
         ]
 
-        risk = session.execute(select(RiskAssessment).where(RiskAssessment.patient_id == patient_id)).scalar_one_or_none()
+        risk_history = [
+            {
+                'id': assessment.id,
+                'risk_level': assessment.risk_level,
+                'score': assessment.score,
+                'remarks': assessment.remarks,
+                'created_at': assessment.created_at.isoformat() if assessment.created_at else None,
+            }
+            for assessment in session.execute(
+                select(RiskAssessment)
+                .where(RiskAssessment.patient_id == patient_id)
+                .order_by(RiskAssessment.created_at.desc())
+            ).scalars().all()
+        ]
+        risk = risk_history[0] if risk_history else None
         risk_fields = {}
         if risk:
             risk_fields = {
-                'risk_level': risk.risk_level,
-                'score': risk.score,
-                'remarks': risk.remarks,
-                'factors': ['age', 'symptom burden', 'chronic conditions'] if 'risk' in (risk.remarks or '').lower() else ['monitoring'],
-                'warning': 'Consult a healthcare provider promptly and seek urgent care if symptoms worsen.' if (risk.risk_level or '').lower() == 'high' else 'Continue routine monitoring and maintain follow-up health habits.',
+                'risk_level': risk['risk_level'],
+                'score': risk['score'],
+                'remarks': risk['remarks'],
+                'factors': ['age', 'symptom burden', 'chronic conditions'] if 'risk' in (risk['remarks'] or '').lower() else ['monitoring'],
+                'warning': 'Consult a healthcare provider promptly and seek urgent care if symptoms worsen.' if (risk['risk_level'] or '').lower() == 'high' else 'Continue routine monitoring and maintain follow-up health habits.',
             }
         latest_prediction = predictions[0] if predictions else None
         healthcare_advisory = build_healthcare_advisory(
             predicted_disease=latest_prediction['predicted_disease'] if latest_prediction else '',
-            risk_assessment=(risk.remarks if risk else ''),
+            risk_assessment=(risk['remarks'] if risk else ''),
             symptoms=[item['symptom_name'] for item in symptoms],
         ) if latest_prediction or risk or symptoms else None
         recommendations = [
             {
                 'id': rec.id,
+                'prediction_id': rec.prediction_id,
                 'recommendation': rec.recommendation,
                 'medicine': rec.medicine,
                 'priority': rec.priority,
@@ -943,6 +976,7 @@ def get_patient_dashboard(authorization: str = Header(None), session=Depends(get
         'symptoms': symptoms,
         'predictions': predictions,
         'risk': risk_fields if risk_fields else None,
+        'risk_history': risk_history,
         'recommendations': recommendations,
         'reports': reports,
         'healthcare_advisory': healthcare_advisory,
@@ -1347,8 +1381,33 @@ def run_disease_prediction(payload: PredictionRequest, authorization: str = Head
         provider_feedback='pending',
         provider_comments='Awaiting provider review.'
     )
+    dp.prediction_date = datetime.utcnow()
     session.add(dp)
     session.flush()
+
+    medical_histories = session.execute(
+        select(MedicalHistory).where(MedicalHistory.patient_id == profile.id)
+    ).scalars().all()
+    medical_history_text = ' | '.join(item.disease for item in medical_histories) if medical_histories else None
+    generate_recommendations_for_prediction(
+        session=session,
+        patient_id=profile.id,
+        prediction_id=dp.id,
+        predicted_disease=predicted,
+        confidence=confidence,
+        patient_profile=profile,
+        risk_assessment=get_latest_patient_risk(session, profile.id),
+        symptoms=symptoms,
+        medical_history_text=medical_history_text,
+        status='pending',
+    )
+
+    prediction_risk = get_latest_patient_risk(session, profile.id)
+    prediction_risk_text = (
+        prediction_risk.remarks
+        if prediction_risk and prediction_risk.remarks
+        else (f'{prediction_risk.risk_level} ({prediction_risk.score})' if prediction_risk else 'No risk assessment available')
+    )
 
     report = Report(
         patient_id=profile.id,
@@ -1358,10 +1417,11 @@ def run_disease_prediction(payload: PredictionRequest, authorization: str = Head
         status='pending',
         provider_status='pending',
         generated_at=datetime.utcnow(),
+        prediction_date=dp.prediction_date,
         symptoms=json.dumps(symptoms),
         predicted_disease=predicted,
         confidence_score=confidence,
-        risk_assessment='Pending provider review',
+        risk_assessment=prediction_risk_text,
         provider_comments='',
         recommendations='Pending provider approval',
     )
@@ -1377,26 +1437,16 @@ def run_disease_prediction(payload: PredictionRequest, authorization: str = Head
     ))
     session.add(report)
 
-    preliminary_recommendations = generate_preliminary_recommendations(symptoms, predicted)
-    for item in preliminary_recommendations:
-        recommendation = Recommendation(
-            patient_id=profile.id,
-            prediction_id=dp.id,
-            recommendation=item['recommendation'],
-            medicine=item['medicine'],
-            priority=item['priority'],
-            recommendation_type=item['recommendation_type'],
-            status='pending',
-            ai_generated='yes',
-            provider_comments='Awaiting provider review.',
-        )
-        session.add(recommendation)
-
     notify_providers(
         session,
         'New disease prediction',
         f'{user.full_name} submitted a new AI disease prediction for review.',
     )
+    generated_recommendations = session.execute(
+        select(Recommendation)
+        .where(Recommendation.patient_id == profile.id, Recommendation.prediction_id == dp.id)
+        .order_by(Recommendation.created_at.asc())
+    ).scalars().all()
     session.commit()
 
     return {
@@ -1404,10 +1454,20 @@ def run_disease_prediction(payload: PredictionRequest, authorization: str = Head
         'report_id': report.id,
         'predicted_disease': predicted,
         'confidence': confidence,
-        'status': dp.status,
-        'provider_feedback': dp.provider_feedback,
+                'status': normalize_approval_status(dp.status or dp.provider_feedback),
+                'provider_feedback': normalize_approval_status(dp.provider_feedback or dp.status),
         'prediction_date': dp.prediction_date.isoformat(),
-        'preliminary_recommendations': preliminary_recommendations,
+        'recommendations': [
+            {
+                'id': item.id,
+                'recommendation': item.recommendation,
+                'medicine': item.medicine,
+                'priority': item.priority,
+                'recommendation_type': item.recommendation_type,
+                'status': item.status,
+            }
+            for item in generated_recommendations
+        ],
     }
 
 
@@ -1462,10 +1522,8 @@ def run_risk_assessment(payload: RiskAssessmentRequest, authorization: str = Hea
         lifestyle=lifestyle,
     )
 
-    ra = session.execute(select(RiskAssessment).where(RiskAssessment.patient_id == profile.id)).scalar_one_or_none()
-    if not ra:
-        ra = RiskAssessment(patient_id=profile.id)
-        session.add(ra)
+    ra = RiskAssessment(patient_id=profile.id)
+    session.add(ra)
     ra.risk_level = risk['risk_level']
     ra.score = risk['score']
     ra.remarks = risk['remarks']
@@ -1523,6 +1581,7 @@ def list_patient_recommendations(authorization: str = Header(None), session=Depe
     return {'recommendations': [
         {
             'id': r.id,
+            'prediction_id': r.prediction_id,
             'recommendation': r.recommendation,
             'medicine': r.medicine,
             'priority': r.priority,
@@ -1656,8 +1715,8 @@ def get_provider_dashboard(authorization: str = Header(None), session=Depends(ge
             'predicted_disease': dp.predicted_disease,
             'confidence': dp.confidence,
             'prediction_date': dp.prediction_date.isoformat(),
-            'status': dp.status,
-            'provider_feedback': dp.provider_feedback,
+            'status': normalize_approval_status(dp.status or dp.provider_feedback),
+            'provider_feedback': normalize_approval_status(dp.provider_feedback or dp.status),
             'provider_comments': dp.provider_comments,
             'feedback_date': dp.feedback_date.isoformat() if dp.feedback_date else None,
         }
@@ -1678,6 +1737,7 @@ def get_provider_dashboard(authorization: str = Header(None), session=Depends(ge
         {
             'id': rec.id,
             'patient_id': rec.patient_id,
+                'prediction_id': rec.prediction_id,
             'recommendation': rec.recommendation,
             'medicine': rec.medicine,
             'priority': rec.priority,
@@ -1741,7 +1801,17 @@ def create_provider_recommendation(payload: ProviderRecommendationCreate, author
     if not patient:
         raise HTTPException(status_code=404, detail='Patient not found')
 
-    normalized_status = (payload.status or 'pending').strip().lower()
+    prediction = None
+    if payload.prediction_id is not None:
+        prediction = session.execute(
+            select(DiseasePrediction).where(DiseasePrediction.id == payload.prediction_id)
+        ).scalar_one_or_none()
+        if not prediction:
+            raise HTTPException(status_code=404, detail='Prediction not found')
+        if prediction.patient_id != payload.patient_id:
+            raise HTTPException(status_code=400, detail='Prediction does not belong to patient')
+
+    normalized_status = normalize_approval_status(payload.status)
     if normalized_status not in ('pending', 'approved', 'rejected'):
         raise HTTPException(status_code=400, detail='Status must be pending, approved, or rejected')
 
@@ -1800,8 +1870,8 @@ def review_recommendation(payload: RecommendationReviewRequest, authorization: s
         raise HTTPException(status_code=404, detail='Recommendation not found')
 
     status_value = getattr(payload, 'status', None)
-    normalized_status = (status_value or 'pending').strip().lower()
-    if normalized_status not in ('pending', 'approved', 'rejected'):
+    normalized_status = normalize_approval_status(status_value)
+    if status_value is not None and str(status_value).strip().lower() not in VALID_APPROVAL_STATUSES:
         raise HTTPException(status_code=400, detail='Status must be pending, approved, or rejected')
 
     recommendation_text = getattr(payload, 'recommendation', None)
@@ -1860,10 +1930,19 @@ def create_provider_report(payload: ProviderReportCreate, authorization: str = H
 
     report = Report(
         patient_id=payload.patient_id,
+        prediction_id=payload.prediction_id,
         report_name=payload.report_name,
         report_type=payload.report_type or 'Summary',
-        status=payload.status or 'ready',
+        status=normalize_approval_status(payload.status),
+        provider_status=normalize_approval_status(payload.provider_status or payload.status),
         report_url=payload.report_url,
+        prediction_date=prediction.prediction_date if prediction else None,
+        symptoms=json.dumps(payload.symptoms or []),
+        predicted_disease=payload.predicted_disease,
+        confidence_score=payload.confidence_score,
+        risk_assessment=payload.risk_assessment,
+        provider_comments=payload.provider_comments,
+        recommendations=payload.recommendations,
     )
     session.add(report)
     patient_user_id = session.execute(select(PatientProfile.user_id).where(PatientProfile.id == payload.patient_id)).scalar_one()
@@ -1900,13 +1979,10 @@ def submit_prediction_feedback(payload: PredictionFeedbackRequest, authorization
     if not prediction:
         raise HTTPException(status_code=404, detail='Prediction not found')
 
-    feedback = (payload.feedback or payload.status or '').strip().lower()
-    if feedback in ('approve', 'approved', 'accept'):
-        feedback = 'accept'
-    elif feedback in ('reject', 'rejected'):
-        feedback = 'reject'
-    else:
-        raise HTTPException(status_code=400, detail='Feedback must be accept or reject')
+    raw_feedback = (payload.feedback or payload.status or '').strip().lower()
+    feedback = normalize_approval_status(raw_feedback, default='')
+    if feedback not in ('approved', 'rejected'):
+        raise HTTPException(status_code=400, detail='Feedback must be approved or rejected')
 
     prediction.provider_feedback = feedback
     prediction.status = feedback
@@ -1916,7 +1992,7 @@ def submit_prediction_feedback(payload: PredictionFeedbackRequest, authorization
     session.commit()
 
     report_payload = None
-    if feedback == 'accept':
+    if feedback == 'approved':
         report = session.execute(
             select(Report).where(Report.prediction_id == prediction.id)
         ).scalar_one_or_none()
@@ -1928,14 +2004,24 @@ def submit_prediction_feedback(payload: PredictionFeedbackRequest, authorization
             symptoms = [item.strip() for item in str(report.symptoms).split(',') if item.strip()]
         if not symptoms:
             symptoms = get_patient_symptom_names(session, prediction.patient_id)
-        risk = get_latest_patient_risk(session, prediction.patient_id)
+        prediction_recommendations = session.execute(
+            select(Recommendation).where(
+                Recommendation.patient_id == prediction.patient_id,
+                Recommendation.prediction_id == prediction.id,
+                Recommendation.ai_generated == 'yes',
+            )
+        ).scalars().all()
+        for recommendation in prediction_recommendations:
+            recommendation.status = 'approved'
+            recommendation.reviewed_at = datetime.utcnow()
+            session.add(recommendation)
         report_payload = build_report_payload(
             patient_id=prediction.patient_id,
             symptoms=symptoms,
             predicted_disease=prediction.predicted_disease,
             confidence_score=prediction.confidence,
-            risk_assessment=risk.remarks if risk and risk.remarks else (f"{risk.risk_level} ({risk.score})" if risk else 'No risk assessment available'),
-            provider_status='approved',
+            risk_assessment=report.risk_assessment or 'No risk assessment available',
+            provider_status=feedback,
             provider_comments=prediction.provider_comments or 'No comments added.',
             recommendations=get_patient_recommendation_text(session, prediction.patient_id, prediction.id),
         )
@@ -1944,6 +2030,7 @@ def submit_prediction_feedback(payload: PredictionFeedbackRequest, authorization
         report.status = 'approved'
         report.report_url = build_report_download_url(report_payload)
         report.generated_at = datetime.utcnow()
+        report.prediction_date = prediction.prediction_date
         report.symptoms = json.dumps(report_payload['symptoms'])
         report.predicted_disease = report_payload['predicted_disease']
         report.confidence_score = report_payload['confidence_score']
@@ -1952,36 +2039,6 @@ def submit_prediction_feedback(payload: PredictionFeedbackRequest, authorization
         report.provider_comments = report_payload['provider_comments']
         report.recommendations = report_payload['recommendations']
         session.add(report)
-        
-        # MILESTONE 3: Generate comprehensive AI recommendations upon provider approval
-        patient_profile = session.execute(
-            select(PatientProfile).where(PatientProfile.id == prediction.patient_id)
-        ).scalar_one_or_none()
-        
-        medical_history_text = None
-        medical_histories = session.execute(
-            select(MedicalHistory).where(MedicalHistory.patient_id == prediction.patient_id)
-        ).scalars().all()
-        if medical_histories:
-            medical_history_text = ' | '.join([h.disease for h in medical_histories])
-        
-        try:
-            rec_ids = generate_recommendations_for_prediction(
-                session=session,
-                patient_id=prediction.patient_id,
-                prediction_id=prediction.id,
-                predicted_disease=prediction.predicted_disease,
-                confidence=prediction.confidence or 0.5,
-                patient_profile=patient_profile,
-                risk_assessment=risk,
-                symptoms=symptoms,
-                medical_history_text=medical_history_text,
-            )
-        except Exception as e:
-            # Log error but don't fail the feedback submission
-            import traceback
-            traceback.print_exc()
-            print(f"Warning: Failed to generate recommendations: {e}")
         
         patient_user_id = session.execute(select(PatientProfile.user_id).where(PatientProfile.id == prediction.patient_id)).scalar_one()
         add_notification(
@@ -1993,6 +2050,17 @@ def submit_prediction_feedback(payload: PredictionFeedbackRequest, authorization
         session.commit()
     else:
         report = session.execute(select(Report).where(Report.prediction_id == prediction.id)).scalar_one_or_none()
+        prediction_recommendations = session.execute(
+            select(Recommendation).where(
+                Recommendation.patient_id == prediction.patient_id,
+                Recommendation.prediction_id == prediction.id,
+                Recommendation.ai_generated == 'yes',
+            )
+        ).scalars().all()
+        for recommendation in prediction_recommendations:
+            recommendation.status = 'rejected'
+            recommendation.reviewed_at = datetime.utcnow()
+            session.add(recommendation)
         if report:
             report.status = 'rejected'
             report.provider_status = 'rejected'
@@ -2011,8 +2079,8 @@ def submit_prediction_feedback(payload: PredictionFeedbackRequest, authorization
     return {
         'status': 'ok',
         'prediction_id': prediction.id,
-        'provider_feedback': prediction.provider_feedback,
-        'status_value': prediction.status,
+        'provider_feedback': normalize_approval_status(prediction.provider_feedback or prediction.status),
+        'status_value': normalize_approval_status(prediction.status or prediction.provider_feedback),
         'provider_comments': prediction.provider_comments,
         'feedback_date': prediction.feedback_date.isoformat(),
         'report': report_payload,
@@ -2108,7 +2176,7 @@ def get_provider_prediction_recommendations(prediction_id: int, authorization: s
         'confidence': prediction.confidence,
         'prediction_date': prediction.prediction_date.isoformat(),
         'status': prediction.status,
-        'provider_feedback': prediction.provider_feedback,
+        'provider_feedback': normalize_approval_status(prediction.provider_feedback or prediction.status),
         'recommendations': [
             {
                 'id': r.id,

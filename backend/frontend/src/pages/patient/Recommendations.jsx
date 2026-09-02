@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 
 const RECOMMENDATION_TYPES = {
-  treatment: 'Treatment',
+  treatment: 'Treatment / Care',
   preventive: 'Preventive Care',
   lifestyle: 'Lifestyle',
   'follow-up': 'Follow-up'
@@ -15,16 +15,17 @@ const PRIORITY_COLORS = {
 }
 
 export default function Recommendations({ dashboardData }){
-  const recommendations = dashboardData?.recommendations ?? []
+  const predictions = dashboardData?.predictions ?? []
+  const recommendations = (dashboardData?.recommendations ?? []).filter((item) => item.status === 'approved')
+  const predictionMap = Object.fromEntries(predictions.map((prediction) => [prediction.id, prediction]))
   const [expandedId, setExpandedId] = useState(null)
-  
-  const groupedByType = recommendations.reduce((acc, rec) => {
-    const type = rec.recommendation_type || 'other'
-    if (!acc[type]) {
-      acc[type] = []
-    }
-    acc[type].push(rec)
-    return acc
+
+  const groupedByPrediction = recommendations.reduce((groups, recommendation) => {
+    const predictionId = recommendation.prediction_id
+    if (!predictionId || !predictionMap[predictionId]) return groups
+    if (!groups[predictionId]) groups[predictionId] = []
+    groups[predictionId].push(recommendation)
+    return groups
   }, {})
 
   const toggleExpand = (id) => {
@@ -61,20 +62,43 @@ export default function Recommendations({ dashboardData }){
         </div>
       </section>
 
-      {recommendations.length ? (
+      {Object.keys(groupedByPrediction).length ? (
         <>
-          {Object.entries(groupedByType).map(([type, recs]) => (
-            <section key={type} className="card recommendations-section">
-              <div className="card-header">
-                <div>
-                  <h3>{RECOMMENDATION_TYPES[type] || type}</h3>
-                  <p className="muted">{recs.length} {recs.length === 1 ? 'recommendation' : 'recommendations'} in this category</p>
-                </div>
-              </div>
+          {Object.entries(groupedByPrediction).map(([predictionId, predictionRecommendations]) => {
+            const prediction = predictionMap[predictionId]
+            const groupedByType = predictionRecommendations.reduce((groups, recommendation) => {
+              const type = recommendation.recommendation_type || 'other'
+              if (!groups[type]) groups[type] = []
+              groups[type].push(recommendation)
+              return groups
+            }, {})
 
-              <div className="card-body">
+            return (
+              <section key={predictionId} className="card recommendations-section prediction-recommendation-card">
+                <div className="prediction-card-header">
+                  <div>
+                    <span className="eyebrow quiet">Approved prediction</span>
+                    <h3>Prediction #{prediction.id}</h3>
+                    <p className="prediction-patient-name">{dashboardData?.user?.full_name || 'Patient'}</p>
+                  </div>
+                  <span className="status-badge status-approved">Approved</span>
+                </div>
+                <div className="prediction-meta-grid">
+                  <div><span>Patient ID</span><strong>{prediction.patient_id || dashboardData?.profile?.id || '—'}</strong></div>
+                  <div><span>Predicted disease</span><strong>{prediction.predicted_disease || '—'}</strong></div>
+                  <div><span>Confidence</span><strong>{prediction.confidence == null ? 'N/A' : `${Math.round(prediction.confidence * 100)}%`}</strong></div>
+                  <div><span>Prediction date</span><strong>{formatDate(prediction.prediction_date)}</strong></div>
+                  <div><span>Provider status</span><strong>Approved</strong></div>
+                </div>
+
                 <div className="recommendation-list">
-                  {recs.map((item) => (
+                  {Object.entries(groupedByType).map(([type, recs]) => (
+                    <section key={type} className="recommendation-category">
+                      <div className="recommendation-category-header">
+                        <h4>{RECOMMENDATION_TYPES[type] || 'Other guidance'}</h4>
+                        <span>{recs.length}</span>
+                      </div>
+                      {recs.map((item) => (
                     <article key={item.id} className="recommendation-card" style={{borderLeft: `4px solid ${PRIORITY_COLORS[item.priority] || '#9e9e9e'}`}}>
                       <div className="recommendation-header">
                         <div className="recommendation-title">
@@ -134,11 +158,13 @@ export default function Recommendations({ dashboardData }){
                         </div>
                       )}
                     </article>
+                      ))}
+                    </section>
                   ))}
                 </div>
-              </div>
-            </section>
-          ))}
+              </section>
+            )
+          })}
 
           <section className="card info-card">
             <div className="card-header">
@@ -203,6 +229,85 @@ export default function Recommendations({ dashboardData }){
 
         .recommendations-section {
           margin-top: 1rem;
+        }
+
+        .prediction-recommendation-card {
+          border-top: 4px solid #2563eb;
+        }
+
+        .prediction-card-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 1rem;
+          padding-bottom: 1rem;
+          border-bottom: 1px solid #e0e0e0;
+        }
+
+        .prediction-card-header h3 {
+          margin: 0.35rem 0;
+        }
+
+        .prediction-patient-name {
+          margin: 0;
+          color: #666;
+          font-weight: 600;
+        }
+
+        .prediction-meta-grid {
+          display: grid;
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+          gap: 0.75rem;
+          padding: 1rem 0 0;
+        }
+
+        .prediction-meta-grid div {
+          display: flex;
+          flex-direction: column;
+          gap: 0.3rem;
+          padding: 0.75rem;
+          background: #f7fafd;
+          border: 1px solid #e5e7eb;
+          border-radius: 6px;
+        }
+
+        .prediction-meta-grid span {
+          color: #666;
+          font-size: 0.72rem;
+          font-weight: 700;
+          text-transform: uppercase;
+        }
+
+        .prediction-meta-grid strong {
+          color: #1f2937;
+          line-height: 1.3;
+        }
+
+        .recommendation-category {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+
+        .recommendation-category-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding-bottom: 0.35rem;
+          border-bottom: 1px solid #e0e0e0;
+        }
+
+        .recommendation-category-header h4 {
+          margin: 0;
+          color: #1f4d6b;
+          font-size: 0.9rem;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
+
+        .recommendation-category-header span {
+          color: #666;
+          font-size: 0.8rem;
         }
 
         .recommendation-list {
@@ -399,6 +504,22 @@ export default function Recommendations({ dashboardData }){
         .empty-state p {
           margin: 0;
           color: #999;
+        }
+
+        @media (max-width: 768px) {
+          .prediction-meta-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+
+          .prediction-card-header {
+            flex-direction: column;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .prediction-meta-grid {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
     </div>

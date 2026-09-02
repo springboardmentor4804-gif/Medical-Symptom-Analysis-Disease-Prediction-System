@@ -170,6 +170,7 @@ class Report(Base):
     status = Column(String(50), default='pending')
     report_url = Column(Text)
     generated_at = Column(DateTime, server_default=func.now())
+    prediction_date = Column(DateTime)
     symptoms = Column(Text)
     predicted_disease = Column(String(255))
     confidence_score = Column(Float)

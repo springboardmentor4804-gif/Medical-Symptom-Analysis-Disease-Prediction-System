@@ -132,6 +132,71 @@ class RecommendationEngine:
             'treatment': 'Antidepressant therapy and psychotherapy',
             'priority': Priority.HIGH,
         },
+        'anemia': {
+            'medicines': ['Iron supplements', 'Vitamin B12 or folate replacement'],
+            'treatment': 'Confirm the cause with blood testing and treat the identified nutrient deficiency or underlying condition',
+            'priority': Priority.HIGH,
+        },
+        'appendicitis': {
+            'medicines': ['Clinician-directed antibiotics', 'Pain relief under supervision'],
+            'treatment': 'Urgent surgical assessment and hospital-based care to prevent rupture',
+            'priority': Priority.URGENT,
+        },
+        'bronchitis': {
+            'medicines': ['Prescribed bronchodilator when indicated', 'Clinician-directed symptom relief'],
+            'treatment': 'Rest, fluids, and evaluation for persistent or worsening respiratory symptoms',
+            'priority': Priority.HIGH,
+        },
+        'chickenpox': {
+            'medicines': ['Clinician-directed antiviral therapy', 'Calamine or other itch relief'],
+            'treatment': 'Supportive skin care, hydration, and isolation guidance; assess high-risk patients promptly',
+            'priority': Priority.HIGH,
+        },
+        'dermatitis': {
+            'medicines': ['Emollient moisturiser', 'Clinician-directed topical corticosteroid'],
+            'treatment': 'Identify and avoid triggers, restore the skin barrier, and treat inflammation under clinical guidance',
+            'priority': Priority.MEDIUM,
+        },
+        'gastritis': {
+            'medicines': ['Antacid or acid-reducing medicine', 'H. pylori treatment when confirmed'],
+            'treatment': 'Evaluate medication, infection, and dietary triggers and use clinician-directed acid control',
+            'priority': Priority.MEDIUM,
+        },
+        'gout': {
+            'medicines': ['NSAID or colchicine under supervision', 'Urate-lowering therapy when indicated'],
+            'treatment': 'Treat the acute flare safely and establish a long-term urate management plan',
+            'priority': Priority.HIGH,
+        },
+        'hepatitis': {
+            'medicines': ['Clinician-directed antiviral therapy when indicated', 'Avoidance of liver-toxic medicines'],
+            'treatment': 'Confirm the hepatitis type and monitor liver function with specialist-directed care',
+            'priority': Priority.HIGH,
+        },
+        'tuberculosis': {
+            'medicines': ['Multi-drug tuberculosis regimen prescribed by a specialist'],
+            'treatment': 'Prompt diagnostic confirmation and completion of supervised combination therapy',
+            'priority': Priority.URGENT,
+        },
+        'typhoid': {
+            'medicines': ['Culture-guided antibiotics', 'Oral rehydration solution'],
+            'treatment': 'Prompt clinical testing, appropriate antibiotics, hydration, and monitoring for complications',
+            'priority': Priority.HIGH,
+        },
+        'urinary tract infection': {
+            'medicines': ['Culture-guided antibiotics', 'Clinician-directed pain relief'],
+            'treatment': 'Urine testing and targeted treatment with hydration; assess promptly for kidney involvement',
+            'priority': Priority.HIGH,
+        },
+        'common cold': {
+            'medicines': ['Clinician-directed symptomatic relief', 'Saline nasal treatment'],
+            'treatment': 'Rest, fluids, and symptom relief while monitoring for persistent or worsening symptoms',
+            'priority': Priority.LOW,
+        },
+        'malaria': {
+            'medicines': ['Species- and region-appropriate antimalarial therapy', 'Clinician-directed fever relief'],
+            'treatment': 'Prompt diagnostic testing and a complete prescribed antimalarial course with hydration and monitoring',
+            'priority': Priority.URGENT,
+        },
     }
     
     # Preventive care recommendations by disease
@@ -187,6 +252,19 @@ class RecommendationEngine:
             'Bone density screening (if osteoarthritis)',
             'Rheumatoid factor screening (if rheumatoid)',
         ],
+        'anemia': ['Repeat blood counts as advised', 'Investigate and monitor iron, B12, or folate levels', 'Review sources of blood loss with a clinician'],
+        'appendicitis': ['Seek emergency assessment for worsening abdominal pain', 'Do not delay evaluation for fever, vomiting, or abdominal tenderness'],
+        'bronchitis': ['Avoid tobacco smoke and respiratory irritants', 'Seek review for breathlessness, high fever, or symptoms lasting several weeks'],
+        'chickenpox': ['Avoid close contact with pregnant or immunocompromised people', 'Keep lesions clean and monitor for skin infection'],
+        'dermatitis': ['Use fragrance-free moisturiser regularly', 'Avoid identified irritants and arrange review for spreading or infected rash'],
+        'gastritis': ['Review NSAID use and alcohol exposure with a clinician', 'Test for H. pylori when clinically indicated'],
+        'gout': ['Monitor uric acid as advised', 'Review kidney health and medicines that may raise urate'],
+        'hepatitis': ['Complete recommended hepatitis testing and vaccination review', 'Avoid sharing razors, needles, or personal items that may carry blood'],
+        'tuberculosis': ['Follow public-health testing and contact-tracing guidance', 'Complete the full prescribed course and attend monitoring visits'],
+        'typhoid': ['Use safe drinking water and food hygiene', 'Follow travel vaccination advice where relevant'],
+        'urinary tract infection': ['Seek prompt care for fever, flank pain, or vomiting', 'Discuss recurrent infections and contributing factors with a clinician'],
+        'common cold': ['Wash hands and avoid sharing personal items', 'Seek review for breathing difficulty, dehydration, or prolonged fever'],
+        'malaria': ['Use insect repellent, bed nets, and protective clothing', 'Seek urgent care for confusion, breathing difficulty, severe weakness, or persistent fever'],
     }
     
     # Lifestyle recommendations by disease
@@ -263,6 +341,19 @@ class RecommendationEngine:
             'sleep': '7-9 hours, maintain consistent schedule',
             'stress': 'Therapy, social support, stress reduction activities',
         },
+        'anemia': {'diet': 'Include clinician-recommended iron, B12, or folate sources', 'exercise': 'Pace activity and avoid overexertion while fatigue is being evaluated', 'sleep': 'Maintain regular restorative sleep', 'stress': 'Use support and pacing strategies while the cause is treated'},
+        'appendicitis': {'diet': 'Follow hospital instructions and do not self-treat abdominal pain', 'exercise': 'Avoid strenuous activity until medically cleared', 'sleep': 'Rest and follow post-treatment instructions', 'stress': 'Seek urgent care rather than delaying evaluation'},
+        'bronchitis': {'diet': 'Drink fluids and choose easy-to-tolerate nourishing meals', 'exercise': 'Rest during acute symptoms and resume activity gradually', 'sleep': 'Prioritise sleep and elevate the head if coughing at night', 'stress': 'Use breathing and relaxation techniques without delaying care'},
+        'chickenpox': {'diet': 'Maintain fluids and soft foods if mouth lesions are painful', 'exercise': 'Rest and avoid close-contact activities while contagious', 'sleep': 'Keep the room comfortable and prioritise sleep', 'stress': 'Use clinician-approved itch relief to support rest'},
+        'dermatitis': {'diet': 'Maintain balanced nutrition and avoid only confirmed food triggers', 'exercise': 'Continue tolerated activity while avoiding heat or sweat triggers', 'sleep': 'Keep nails short and use a skin-care routine before bed', 'stress': 'Use relaxation strategies because stress can worsen flares'},
+        'gastritis': {'diet': 'Choose smaller meals and avoid personal triggers such as alcohol or irritating foods', 'exercise': 'Use gentle activity and avoid exercise immediately after meals', 'sleep': 'Avoid late meals and follow reflux precautions if advised', 'stress': 'Use stress-reduction practices that do not aggravate symptoms'},
+        'gout': {'diet': 'Limit alcohol and discuss purine-rich foods and hydration with a clinician', 'exercise': 'Rest and protect an acutely painful joint, then resume low-impact activity', 'sleep': 'Elevate and protect the affected joint for comfort', 'stress': 'Plan flare management and seek care for severe or unusual pain'},
+        'hepatitis': {'diet': 'Choose balanced meals and avoid alcohol or unapproved supplements', 'exercise': 'Use activity as tolerated and avoid overexertion during fatigue', 'sleep': 'Maintain regular sleep and rest during symptomatic periods', 'stress': 'Use support and counselling for chronic illness management'},
+        'tuberculosis': {'diet': 'Prioritise adequate calories, protein, and fluids during treatment', 'exercise': 'Follow public-health and clinician guidance on activity and isolation', 'sleep': 'Maintain regular sleep to support recovery', 'stress': 'Use treatment support because adherence is essential'},
+        'typhoid': {'diet': 'Use safe fluids and easy-to-digest nourishing foods', 'exercise': 'Rest during fever and return gradually after recovery', 'sleep': 'Prioritise rest while fever or weakness persists', 'stress': 'Arrange follow-up if symptoms do not improve promptly'},
+        'urinary tract infection': {'diet': 'Drink fluids unless a clinician has restricted intake', 'exercise': 'Use gentle activity and rest if fever or pain is present', 'sleep': 'Plan regular bathroom access and rest', 'stress': 'Seek prompt review for recurrent or worsening symptoms'},
+        'common cold': {'diet': 'Drink fluids and choose nourishing foods as tolerated', 'exercise': 'Rest during fever and resume activity gradually', 'sleep': 'Prioritise sleep and comfortable breathing at night', 'stress': 'Use simple relaxation practices while recovering'},
+        'malaria': {'diet': 'Prioritise fluids and nourishing meals during recovery', 'exercise': 'Rest and return to activity only as strength returns', 'sleep': 'Prioritise rest while fever or weakness persists', 'stress': 'Follow the full treatment plan and seek care promptly if symptoms worsen'},
     }
     
     # Follow-up guidance by disease and risk level
@@ -503,6 +594,7 @@ def generate_recommendations_for_prediction(
     risk_assessment,
     symptoms: Optional[List[str]] = None,
     medical_history_text: Optional[str] = None,
+    status: str = 'pending',
 ) -> List[int]:
     """
     Generate and store recommendations for a prediction.
@@ -563,15 +655,14 @@ def generate_recommendations_for_prediction(
             medicine=rec_item.medicine,
             priority=rec_item.priority.value,
             recommendation_type=rec_item.recommendation_type.value,
-            status='approved',  # Auto-approved when provider approves prediction
+            status=status,
             ai_generated='yes',
             provider_comments=rec_item.additional_notes,
-            reviewed_at=datetime.utcnow(),
+            reviewed_at=datetime.utcnow() if status in ('approved', 'rejected') else None,
             created_at=datetime.utcnow(),
         )
         session.add(recommendation)
         session.flush()
         recommendation_ids.append(recommendation.id)
     
-    session.commit()
     return recommendation_ids

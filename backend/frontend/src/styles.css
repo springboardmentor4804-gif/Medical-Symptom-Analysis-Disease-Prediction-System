@@ -330,6 +330,30 @@ button.btn.primary.wide {
 .activity-card .activity-list{list-style:none;padding:0;margin:0}
 .activity-item{display:flex;justify-content:space-between;padding:12px;border-radius:10px;background:linear-gradient(180deg,#fff,#fbfdff);margin-bottom:8px}
 .chart-placeholder{height:160px;border-radius:12px;background:linear-gradient(180deg,#fbfdff,#f7fbff);display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.patient-trends-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:18px}
+.patient-trend-panel{padding:20px;min-width:0}
+.patient-activity-panel{grid-column:1 / -1}
+.trend-panel-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px}
+.trend-panel-heading h3{margin:5px 0 0;color:#062b4f;font-size:18px}
+.trend-count{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;border-radius:50%;background:#edf4ff;color:#2563eb;font-weight:700}
+.trend-empty,.trend-empty-state{color:#64748b;text-align:center;padding:30px 16px}
+.trend-empty-state{margin-top:18px;font-size:16px}
+.patient-line-chart{height:180px}
+.patient-line-chart svg{width:100%;height:145px;overflow:visible;background:linear-gradient(to bottom,transparent 24%,#edf4fb 25%,transparent 26%,transparent 49%,#edf4fb 50%,transparent 51%,transparent 74%,#edf4fb 75%,transparent 76%)}
+.chart-axis{stroke:#cbd5e1;stroke-width:.8}
+.chart-labels{display:flex;justify-content:space-between;color:#64748b;font-size:11px}
+.prediction-history-list{display:grid;gap:8px;max-height:245px;overflow:auto}
+.prediction-history-row{display:grid;grid-template-columns:110px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #edf4ff;font-size:13px}
+.prediction-history-row:last-child{border-bottom:0}
+.prediction-history-date{color:#64748b}
+.prediction-history-row strong{color:#102a43}
+.prediction-history-row span:last-child{color:#0b79a8;font-weight:700}
+.patient-monthly-chart{display:flex;align-items:flex-end;gap:12px;height:180px;padding:8px 4px 0;border-bottom:1px solid #dbe7f2}
+.patient-month-column{display:grid;flex:1;align-items:end;justify-items:center;gap:6px;height:100%;min-width:45px;color:#64748b;font-size:11px}
+.patient-month-column strong{color:#102a43;font-size:12px}
+.patient-month-bar{display:flex;align-items:flex-end;width:100%;height:125px;border-radius:7px 7px 0 0;background:#edf4fb;overflow:hidden}
+.patient-month-bar span{display:block;width:100%;min-height:4px;border-radius:7px 7px 0 0;background:linear-gradient(180deg,#2563eb,#14b8a6)}
+@media (max-width:720px){.patient-trends-grid{grid-template-columns:1fr}.patient-activity-panel{grid-column:auto}.prediction-history-row{grid-template-columns:1fr auto}.prediction-history-date{grid-column:1 / -1}}
 
 /* Tables */
 .table-card{overflow:visible}
@@ -396,6 +420,10 @@ button.btn.primary.wide {
 .compact-status.warning{background:rgba(250,204,21,0.12);color:#b45309}
 .compact-status.danger{background:rgba(239,68,68,0.12);color:#b91c1c}
 .recommendation-list{display:grid;gap:16px;padding-top:18px}
+.recommendation-category{display:grid;gap:12px}
+.recommendation-category-header{display:flex;align-items:center;justify-content:space-between;padding:8px 2px 4px;border-bottom:1px solid #edf4ff;color:#334155}
+.recommendation-category-header h4{margin:0;font-size:14px;text-transform:uppercase;letter-spacing:.06em;color:#0b5f87}
+.recommendation-category-header span{font-size:12px;color:#64748b}
 .recommendation-card{padding:18px;border-radius:18px;border:1px solid rgba(148,163,184,0.14);background:linear-gradient(180deg,#fff,#f8fbff);box-shadow:0 8px 18px rgba(11,31,70,0.04)}
 .recommendation-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
 .recommendation-title-wrap h4{margin:10px 0 0;font-size:18px;color:#102a43}

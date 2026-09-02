@@ -5,6 +5,7 @@ export default function ProviderReports({ dashboardData }) {
   const [searchText, setSearchText] = useState('')
   const [withUrlOnly, setWithUrlOnly] = useState(false)
   const [statusFilter, setStatusFilter] = useState('')
+  const [selectedReportId, setSelectedReportId] = useState(null)
 
   const filteredReports = useMemo(() => {
     const search = searchText.trim().toLowerCase()
@@ -12,7 +13,9 @@ export default function ProviderReports({ dashboardData }) {
       const matchesSearch =
         !search ||
         String(item.report_name || '').toLowerCase().includes(search) ||
-        String(item.patient_id || '').toLowerCase().includes(search)
+        String(item.patient_id || '').toLowerCase().includes(search) ||
+        String(item.prediction_id || '').toLowerCase().includes(search) ||
+        String(item.predicted_disease || '').toLowerCase().includes(search)
       const matchesUrl = !withUrlOnly || Boolean(item.report_url)
       const status = String(item.provider_status || item.status || 'pending').toLowerCase()
       const matchesStatus = !statusFilter || (statusFilter === 'completed' ? ['approved', 'rejected'].includes(status) : status === statusFilter)
@@ -128,7 +131,7 @@ export default function ProviderReports({ dashboardData }) {
                 <th>Patient ID</th>
                 <th>Report</th>
                 <th>Prediction</th>
-                <th>Generated</th>
+                <th>Prediction date</th>
                 <th>Status</th>
                 <th>Action</th>
               </tr>
@@ -154,14 +157,14 @@ export default function ProviderReports({ dashboardData }) {
                         <small>{item.confidence_score != null ? `${(item.confidence_score * 100).toFixed(1)}% confidence` : 'Confidence unavailable'}</small>
                       </div>
                     </td>
-                    <td>{item.generated_at || 'Unknown'}</td>
+                    <td>{item.prediction_date || item.generated_at || 'Unknown'}</td>
                     <td>
                       <span className={`status-pill ${String(item.provider_status || item.status || '').toLowerCase() === 'approved' ? 'success' : 'warning'}`}>
                         {String(item.provider_status || item.status || 'pending').toUpperCase()}
                       </span>
                     </td>
                     <td>
-                      {item.report_url ? <a className="text-button" href={item.report_url} target="_blank" rel="noreferrer" download={`medassist-report-${item.prediction_id || item.id}.pdf`}>Download</a> : <span className="muted">Not ready</span>}
+                      <button className="text-button" type="button" onClick={() => setSelectedReportId(item.id)}>View details</button>
                     </td>
                   </tr>
                 ))
@@ -170,6 +173,35 @@ export default function ProviderReports({ dashboardData }) {
           </table>
         </div>
       </section>
+
+      {selectedReportId !== null && (() => {
+        const report = reports.find((item) => item.id === selectedReportId)
+        if (!report) return null
+        const status = String(report.provider_status || report.status || 'pending').toLowerCase()
+        return (
+          <section className="history-table-card card report-detail-card">
+            <div className="card-header">
+              <div>
+                <span className="eyebrow">Prediction report</span>
+                <h3>{report.report_name || `Report #${report.id}`}</h3>
+                <p className="muted">Patient #{report.patient_id} · Prediction #{report.prediction_id || 'N/A'} · {report.prediction_date || report.generated_at || 'Unknown date'}</p>
+              </div>
+              <div className="report-detail-actions">
+                <span className={`status-pill ${status === 'approved' ? 'success' : status === 'rejected' ? 'danger' : 'warning'}`}>{status}</span>
+                <button className="text-button" type="button" onClick={() => setSelectedReportId(null)}>Close</button>
+              </div>
+            </div>
+            <div className="report-detail-grid">
+              <div className="report-section"><h4>Prediction</h4><div className="report-detail-row"><strong>Disease</strong><span>{report.predicted_disease || 'Not available'}</span></div><div className="report-detail-row"><strong>Confidence</strong><span>{report.confidence_score != null ? `${(report.confidence_score * 100).toFixed(1)}%` : 'Not available'}</span></div></div>
+              <div className="report-section"><h4>Symptoms used</h4><p>{(report.symptoms || []).join(', ') || 'Not available'}</p></div>
+              <div className="report-section"><h4>Risk assessment</h4><p>{report.risk_assessment || 'Not available'}</p></div>
+              <div className="report-section"><h4>Provider approval</h4><p>{status.toUpperCase()}</p><p>{report.provider_comments || 'No provider comments.'}</p></div>
+              <div className="report-section report-section-wide"><h4>Approved recommendations for this prediction</h4><p>{report.recommendations || 'No approved recommendations.'}</p></div>
+              <div className="report-section report-section-wide"><div className="report-detail-actions">{report.report_url && <a className="text-button" href={report.report_url} target="_blank" rel="noreferrer" download={`medassist-report-${report.prediction_id || report.id}.pdf`}>Download report</a>}</div></div>
+            </div>
+          </section>
+        )
+      })()}
     </div>
   )
 }

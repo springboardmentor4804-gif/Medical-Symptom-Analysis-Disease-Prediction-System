@@ -187,12 +187,49 @@ def run_schema() -> None:
             ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'pending',
             ADD COLUMN IF NOT EXISTS report_url TEXT,
             ADD COLUMN IF NOT EXISTS symptoms TEXT,
+            ADD COLUMN IF NOT EXISTS prediction_date TIMESTAMP WITHOUT TIME ZONE,
             ADD COLUMN IF NOT EXISTS predicted_disease VARCHAR(255),
             ADD COLUMN IF NOT EXISTS confidence_score FLOAT,
             ADD COLUMN IF NOT EXISTS risk_assessment TEXT,
             ADD COLUMN IF NOT EXISTS provider_status VARCHAR(50) DEFAULT 'pending',
             ADD COLUMN IF NOT EXISTS provider_comments TEXT,
             ADD COLUMN IF NOT EXISTS recommendations TEXT;
+            """
+        ))
+        conn.execute(text(
+            """
+            UPDATE disease_predictions
+            SET status = CASE lower(trim(COALESCE(status, 'pending')))
+                WHEN 'accept' THEN 'approved'
+                WHEN 'approve' THEN 'approved'
+                WHEN 'reject' THEN 'rejected'
+                WHEN 'approved' THEN 'approved'
+                WHEN 'rejected' THEN 'rejected'
+                ELSE 'pending'
+            END,
+            provider_feedback = CASE lower(trim(COALESCE(provider_feedback, 'pending')))
+                WHEN 'accept' THEN 'approved'
+                WHEN 'approve' THEN 'approved'
+                WHEN 'reject' THEN 'rejected'
+                WHEN 'approved' THEN 'approved'
+                WHEN 'rejected' THEN 'rejected'
+                ELSE 'pending'
+            END;
+
+            UPDATE reports
+            SET status = CASE lower(trim(COALESCE(status, 'pending')))
+                WHEN 'approved' THEN 'approved'
+                WHEN 'rejected' THEN 'rejected'
+                ELSE 'pending'
+            END,
+            provider_status = CASE lower(trim(COALESCE(provider_status, status, 'pending')))
+                WHEN 'accept' THEN 'approved'
+                WHEN 'approve' THEN 'approved'
+                WHEN 'approved' THEN 'approved'
+                WHEN 'reject' THEN 'rejected'
+                WHEN 'rejected' THEN 'rejected'
+                ELSE 'pending'
+            END;
             """
         ))
 
