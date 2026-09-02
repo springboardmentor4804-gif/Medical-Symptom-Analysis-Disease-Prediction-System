@@ -1,9 +1,11 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import OverviewCards from '../../components/OverviewCards'
 import ActivityList from '../../components/ActivityList'
 import SampleTable from '../../components/SampleTable'
 
 export default function PatientHome({ dashboardData }){
+  const navigate = useNavigate()
   const user = dashboardData?.user ?? {}
   const profile = dashboardData?.profile ?? {}
   const medicalHistory = dashboardData?.medical_history ?? []
@@ -33,8 +35,8 @@ export default function PatientHome({ dashboardData }){
           <p className="lead">Track your symptoms, review risk insights, and stay on top of your health with clear guidance.</p>
         </div>
         <div className="hero-actions">
-          <button className="btn small">Update Profile</button>
-          <button className="btn outline small">View Reports</button>
+          <button className="btn small" onClick={() => navigate('/dashboard/patient/profile')}>Update Profile</button>
+          <button className="btn outline small" onClick={() => navigate('/dashboard/patient/reports')}>View Reports</button>
         </div>
       </div>
 

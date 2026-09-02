@@ -8,22 +8,199 @@ function formatDate(value) {
   return Number.isNaN(date.getTime()) ? 'N/A' : date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-function LineChart({ values, color, label }) {
-  if (!values.length) return <div className="trend-empty">No health history available yet</div>
-  const max = Math.max(...values, 1)
-  const points = values.map((value, index) => `${(index / Math.max(values.length - 1, 1)) * 100},${100 - (value / max) * 82 - 9}`).join(' ')
+function polarPoint(angle, radius) {
+  const radians = (angle * Math.PI) / 180
+  return { x: 50 + radius * Math.cos(radians), y: 50 + radius * Math.sin(radians) }
+}
+
+function PieChart({ data, title }) {
+  if (!data.length) return <div className="analytics-empty">No prediction data available yet.</div>
+  const total = data.reduce((sum, item) => sum + item.count, 0)
+  const colors = ['#2563eb', '#14b8a6', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4']
+  let angle = -90
 
   return (
-    <div className="patient-line-chart">
-      <svg viewBox="0 0 100 100" role="img" aria-label={label} preserveAspectRatio="none">
-        <line x1="0" y1="91" x2="100" y2="91" className="chart-axis" />
-        <polyline points={points} fill="none" stroke={color} strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
-        {values.map((value, index) => {
-          const [x, y] = points.split(' ')[index].split(',')
-          return <circle key={`${x}-${y}`} cx={x} cy={y} r="2" fill={color} vectorEffect="non-scaling-stroke" />
-        })}
+    <div className="chart-container compact-pie-chart">
+      <h4 className="chart-title">{title}</h4>
+      <div className="pie-chart-layout">
+        <svg viewBox="0 0 100 100" className="pie-chart-svg" role="img" aria-label={title}>
+          {data.map((item, index) => {
+            const sliceAngle = (item.count / total) * 360
+            const start = polarPoint(angle, 34)
+            const end = polarPoint(angle + sliceAngle, 34)
+            const path = `M 50 50 L ${start.x} ${start.y} A 34 34 0 ${sliceAngle > 180 ? 1 : 0} 1 ${end.x} ${end.y} Z`
+            angle += sliceAngle
+            return <path key={item.disease} d={path} fill={colors[index % colors.length]} stroke="#fff" strokeWidth="1" />
+          })}
+          <circle cx="50" cy="50" r="13" fill="#fff" />
+          <text x="50" y="48" textAnchor="middle" className="pie-total-value">{total}</text>
+          <text x="50" y="58" textAnchor="middle" className="pie-total-label">Total</text>
+        </svg>
+        <div className="chart-legend pie-legend">
+          {data.map((item, index) => (
+            <div key={item.disease} className="legend-item">
+              <span className="legend-dot" style={{ backgroundColor: colors[index % colors.length] }} />
+              <span>{item.disease} ({item.count})</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ConfidenceDonut({ confidence }) {
+  if (confidence == null) return <div className="analytics-empty">No data available</div>
+  const percentage = Math.round(Math.max(0, Math.min(100, confidence)))
+  const end = polarPoint(-90 + percentage * 3.6, 31)
+  const largeArc = percentage > 50 ? 1 : 0
+  const arc = percentage === 100
+    ? 'M 50 19 A 31 31 0 1 1 49.99 19'
+    : `M 50 19 A 31 31 0 ${largeArc} 1 ${end.x} ${end.y}`
+
+  return (
+    <div className="chart-container confidence-donut-chart">
+      <h4 className="chart-title">Prediction Confidence</h4>
+      <svg viewBox="0 0 100 100" className="confidence-donut-svg" role="img" aria-label={`Average prediction confidence ${percentage}%`}>
+        <circle cx="50" cy="50" r="31" fill="none" stroke="#eaf1f8" strokeWidth="10" />
+        {percentage > 0 && <path d={arc} fill="none" stroke="#2563eb" strokeWidth="10" strokeLinecap="round" />}
+        <text x="50" y="48" textAnchor="middle" className="donut-center-value">{percentage}%</text>
+        <text x="50" y="59" textAnchor="middle" className="donut-center-label">Average confidence</text>
       </svg>
-      <div className="chart-labels"><span>{formatDate(values[0].date)}</span><span>{formatDate(values[values.length - 1].date)}</span></div>
+      <p className="analytics-note">Based on recorded predictions</p>
+    </div>
+  )
+}
+
+function RiskScoreBars({ assessments, patientName }) {
+  if (!assessments.length) return <div className="analytics-empty">Not enough data</div>
+  const maxScore = Math.max(...assessments.map((item) => item.score), 1)
+
+  return (
+    <div className="chart-container score-bar-chart">
+      <h4 className="chart-title">Risk Assessment Scores</h4>
+      <div className="score-bar-list">
+        {assessments.map((assessment, index) => (
+          <div className="score-bar-row" key={`${assessment.date}-${index}`}>
+            <div className="score-bar-label">
+              <strong>{patientName}</strong>
+              <span>{formatDate(assessment.date)}</span>
+            </div>
+            <div className="score-bar-track" title={`${assessment.score} risk score`}>
+              <span style={{ width: `${(assessment.score / maxScore) * 100}%` }} />
+            </div>
+            <strong className="score-bar-value">{assessment.score}</strong>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function MonthlyPredictionBars({ data }) {
+  if (!data.length) return <div className="analytics-empty">Not enough data</div>
+  const maxCount = Math.max(...data.map((item) => item.count), 1)
+
+  return (
+    <div className="chart-container monthly-bar-chart">
+      <h4 className="chart-title">Prediction Trends</h4>
+      <div className="monthly-bar-list">
+        {data.map((item) => (
+          <div className="monthly-bar-column" key={item.period}>
+            <strong>{item.count}</strong>
+            <div className="monthly-bar-track" title={`${item.count} predictions in ${item.label}`}>
+              <span style={{ height: `${(item.count / maxCount) * 100}%` }} />
+            </div>
+            <span>{item.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Donut Chart for Risk Distribution
+function DonutChart({ riskCounts, title }) {
+  const total = Object.values(riskCounts).reduce((sum, val) => sum + val, 0)
+  if (!total) return <div className="analytics-empty">No data available</div>
+  const colors = { low: '#10b981', moderate: '#f59e0b', high: '#ef4444' }
+  const labels = { low: 'Low', moderate: 'Moderate', high: 'High' }
+  const riskOrder = ['low', 'moderate', 'high']
+  
+  let currentOffset = 0
+  const slices = []
+  const legendItems = []
+  
+  for (const risk of riskOrder) {
+    const count = riskCounts[risk] || 0
+    if (count > 0) {
+      const percentage = (count / total) * 100
+      slices.push(
+        <circle
+          key={`slice-${risk}`}
+          cx="50"
+          cy="50"
+          r="24"
+          fill="none"
+          stroke={colors[risk]}
+          strokeWidth="12"
+          pathLength="100"
+          strokeDasharray={`${percentage} ${100 - percentage}`}
+          strokeDashoffset={-currentOffset}
+          transform="rotate(-90 50 50)"
+        />
+      )
+      
+      legendItems.push({ risk: labels[risk], count, percentage, color: colors[risk] })
+      currentOffset += percentage
+    }
+  }
+
+  return (
+    <div className="chart-container">
+      <h4 className="chart-title">{title}</h4>
+      <svg viewBox="0 0 100 100" className="risk-donut-svg" role="img" aria-label={`${title}, ${total} total assessments`}>
+        {slices}
+      </svg>
+      <div className="chart-summary">Total Assessments: <strong>{total}</strong></div>
+      <div className="chart-legend risk-legend">
+        {legendItems.map(item => (
+          <div key={item.risk} className="legend-item">
+            <span className="legend-dot" style={{ backgroundColor: item.color }} />
+            <span>{item.risk}: {item.count} ({item.percentage.toFixed(0)}%)</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Horizontal Bar Chart for Symptoms
+function SymptomChart({ symptoms, title }) {
+  if (symptoms.length === 0) return <div className="analytics-empty">No symptom data available yet.</div>
+  
+  const maxCount = Math.max(...symptoms.map(s => s.count), 1)
+  const topSymptoms = symptoms.slice(0, 8)
+
+  return (
+    <div className="chart-container">
+      <h4 className="chart-title">{title}</h4>
+      <div className="bar-chart-container">
+        {topSymptoms.map((symptom, idx) => {
+          const percentage = (symptom.count / maxCount) * 100
+          const colors = ['accent1', 'accent2', 'orange']
+          const colorClass = colors[idx % colors.length]
+          return (
+            <div key={symptom.symptom} className="bar-chart-item">
+              <span className="bar-chart-label" title={symptom.symptom}>{symptom.symptom}</span>
+              <div className={`bar-chart-bar ${colorClass}`}>
+                <span style={{ width: `${percentage}%` }} />
+              </div>
+              <span className="bar-chart-value">{symptom.count}</span>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -39,10 +216,34 @@ export default function Analytics({ dashboardData }){
 
   const predictionHistory = [...predictions].sort((a, b) => new Date(a.prediction_date) - new Date(b.prediction_date))
   const confidenceHistory = predictionHistory.filter((item) => item.confidence != null).map((item) => ({ value: item.confidence * 100, date: item.prediction_date }))
-  const riskScoreHistory = [...riskHistory]
-    .filter((item) => item.score != null)
-    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-    .map((item) => ({ value: item.score, date: item.created_at }))
+  const riskAssessments = [...riskHistory]
+    .filter((item) => item.score != null && item.created_at)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .map((item) => ({ score: item.score, date: item.created_at }))
+
+  // Count risk levels for donut chart
+  const riskCounts = { low: 0, moderate: 0, high: 0 }
+  riskHistory.forEach(item => {
+    const level = (item.risk_level || '').toLowerCase()
+    const normalizedLevel = level === 'medium' ? 'moderate' : level
+    if (normalizedLevel in riskCounts) riskCounts[normalizedLevel]++
+  })
+
+  // Get symptom counts
+  const symptomCounts = symptoms.reduce((acc, symptom) => {
+    const existing = acc.find(s => s.symptom === symptom.symptom_name)
+    if (existing) existing.count++
+    else acc.push({ symptom: symptom.symptom_name, count: 1 })
+    return acc
+  }, []).sort((a, b) => b.count - a.count)
+
+  // Get disease counts
+  const diseaseCounts = predictions.reduce((acc, pred) => {
+    const existing = acc.find(d => d.disease === pred.predicted_disease)
+    if (existing) existing.count++
+    else acc.push({ disease: pred.predicted_disease, count: 1 })
+    return acc
+  }, []).sort((a, b) => b.count - a.count)
 
   const monthlyPredictions = predictionHistory.reduce((months, prediction) => {
     const date = new Date(prediction.prediction_date)
@@ -56,7 +257,9 @@ export default function Analytics({ dashboardData }){
     count,
     label: new Date(`${period}-01T00:00:00`).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }),
   }))
-  const maxMonthlyCount = Math.max(...monthlyEntries.map((item) => item.count), 1)
+  const averageConfidence = confidenceHistory.length
+    ? confidenceHistory.reduce((sum, item) => sum + item.value, 0) / confidenceHistory.length
+    : null
 
   const cards = [
     { title: 'History records', value: medicalHistory.length },
@@ -81,43 +284,41 @@ export default function Analytics({ dashboardData }){
         <div className="card trend-empty-state">No health history available yet</div>
       ) : (
         <div className="patient-trends-grid">
-          <section className="card patient-trend-panel patient-prediction-history">
-            <div className="trend-panel-heading"><div><span className="panel-kicker">Disease history</span><h3>Disease predictions over time</h3></div><span className="trend-count">{predictions.length}</span></div>
-            {predictionHistory.length ? (
-              <div className="prediction-history-list">
-                {predictionHistory.map((prediction) => (
-                  <div className="prediction-history-row" key={prediction.id}>
-                    <span className="prediction-history-date">{formatDate(prediction.prediction_date)}</span>
-                    <strong>{prediction.predicted_disease || 'Unknown disease'}</strong>
-                    <span>{prediction.confidence == null ? 'N/A' : `${Math.round(prediction.confidence * 100)}% confidence`}</span>
-                  </div>
-                ))}
+          <section className="card patient-trend-panel">
+            <PieChart data={diseaseCounts.slice(0, 6)} title="Disease Prediction Counts" />
+          </section>
+
+          <section className="card patient-trend-panel">
+            <div className="risk-confidence-layout">
+              <div className="risk-distribution-section">
+                <DonutChart riskCounts={riskCounts} title="Risk Level Distribution" />
               </div>
-            ) : <div className="trend-empty">No health history available yet</div>}
-          </section>
-
-          <section className="card patient-trend-panel">
-            <div className="trend-panel-heading"><div><span className="panel-kicker">Model signal</span><h3>Prediction confidence</h3></div></div>
-            <LineChart values={confidenceHistory} color="#2563eb" label="Prediction confidence over time" />
-          </section>
-
-          <section className="card patient-trend-panel">
-            <div className="trend-panel-heading"><div><span className="panel-kicker">Risk history</span><h3>Risk assessment over time</h3></div></div>
-            <LineChart values={riskScoreHistory} color="#e07a32" label="Risk assessment score over time" />
-          </section>
-
-          <section className="card patient-trend-panel">
-            <div className="trend-panel-heading"><div><span className="panel-kicker">Monthly volume</span><h3>Predictions by month</h3></div></div>
-            {monthlyEntries.length ? (
-              <div className="patient-monthly-chart">
-                {monthlyEntries.map((item) => <div className="patient-month-column" key={item.period}><strong>{item.count}</strong><div className="patient-month-bar"><span style={{ height: `${(item.count / maxMonthlyCount) * 100}%` }} /></div><small>{item.label}</small></div>)}
+              <div className="confidence-section">
+                <ConfidenceDonut confidence={averageConfidence} />
               </div>
-            ) : <div className="trend-empty">No health history available yet</div>}
+            </div>
           </section>
 
-          <section className="card patient-trend-panel patient-activity-panel">
-            <div className="trend-panel-heading"><div><span className="panel-kicker">Timeline</span><h3>Recent health activity</h3></div></div>
-            {recentActivity.length ? <SampleTable columns={["Date", "Type", "Event"]} rows={recentActivity.map((item) => ({ Date: formatDate(item.Date), Type: item.Type, Event: item.Event }))} /> : <div className="trend-empty">No health history available yet</div>}
+          <section className="card patient-trend-panel">
+            <MonthlyPredictionBars data={monthlyEntries} />
+          </section>
+
+          {symptomCounts.length > 0 && (
+            <section className="card patient-trend-panel">
+              <SymptomChart symptoms={symptomCounts} title="Frequently Reported Symptoms" />
+            </section>
+          )}
+
+          <section className="card patient-trend-panel">
+            <RiskScoreBars assessments={riskAssessments} patientName={dashboardData?.user?.full_name || 'Patient'} />
+          </section>
+
+          <section className="card patient-activity-panel">
+            <div className="trend-card-header">
+              <span className="trend-card-title">Recent Health Activity</span>
+              <span className="trend-stat-badge">{recentActivity.length} records</span>
+            </div>
+            {recentActivity.length ? <SampleTable columns={["Date", "Type", "Event"]} rows={recentActivity.map((item) => ({ Date: formatDate(item.Date), Type: item.Type, Event: item.Event }))} /> : <div className="trend-empty">No activity available yet</div>}
           </section>
         </div>
       )}

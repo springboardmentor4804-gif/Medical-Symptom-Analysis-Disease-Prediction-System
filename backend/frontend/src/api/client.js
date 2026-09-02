@@ -32,6 +32,12 @@ export async function apiFetch(path, options = {}) {
     headers,
   })
   if (!response.ok) {
+    if (response.status === 401) {
+      removeToken()
+      if (typeof window !== 'undefined' && window.location.pathname.startsWith('/dashboard/')) {
+        window.location.assign('/login')
+      }
+    }
     const text = await response.text()
     throw new Error(text || `HTTP ${response.status}`)
   }

@@ -105,6 +105,17 @@ def normalize_approval_status(value: Optional[str], default: str = 'pending') ->
     return normalized if normalized in VALID_APPROVAL_STATUSES else default
 
 
+def get_prediction_status(prediction: DiseasePrediction) -> str:
+    """Resolve status for legacy rows where status and provider feedback differ."""
+    feedback_status = normalize_approval_status(prediction.provider_feedback, default='')
+    record_status = normalize_approval_status(prediction.status, default='')
+    if feedback_status in ('approved', 'rejected'):
+        return feedback_status
+    if record_status in ('approved', 'rejected'):
+        return record_status
+    return 'pending'
+
+
 def get_prediction_artifacts() -> Tuple[Any, Any, Any]:
     if not PREPROCESSOR_PATH.exists() or not LABEL_ENCODER_PATH.exists():
         raise FileNotFoundError("Preprocessor or label encoder not found in ml/models")
@@ -779,7 +790,7 @@ def build_provider_analytics(session) -> dict:
     prediction_counts = Counter((item.predicted_disease or 'Unknown').strip() for item in predictions)
     confidence_values = [item.confidence for item in predictions if item.confidence is not None]
     total_prediction_count = len(predictions)
-    prediction_statuses = [normalize_approval_status(item.status or item.provider_feedback) for item in predictions]
+    prediction_statuses = [get_prediction_status(item) for item in predictions]
     approved_count = prediction_statuses.count('approved')
     pending_count = prediction_statuses.count('pending')
     rejected_count = prediction_statuses.count('rejected')
