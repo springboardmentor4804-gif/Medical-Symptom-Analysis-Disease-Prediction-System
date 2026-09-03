@@ -23,6 +23,11 @@ from disease_info import disease_info, recommendation_data
 
 
 print("THIS IS MY MAIN.PY")
+def get_db():
+    return sqlite3.connect(
+        "medassist.db",
+        timeout=10
+    )
 
 
 # ============================================================
@@ -68,7 +73,8 @@ app.add_middleware(
 # LOAD MODELS
 # ============================================================
 
-model = pickle.load(open("model.pkl", "rb"))
+model_data = pickle.load(open("model.pkl", "rb"))
+model = model_data["model"]
 
 risk_model = joblib.load("risk_model.pkl")
 
@@ -292,27 +298,242 @@ def predict(request: SymptomRequest):
     # Normalize user symptoms
     # --------------------------------------------------------
 
-    user_symptoms = [
-        symptom.lower().strip().replace(" ", "_")
-        for symptom in request.symptoms
-    ]
+    user_symptoms = []
+
+    for symptom in request.symptoms:
+
+        cleaned = (
+            symptom.lower()
+            .strip()
+            .replace(",", " ")
+            .replace(".", " ")
+            .replace("!", " ")
+            .replace("?", " ")
+        )
+
+        cleaned = " ".join(cleaned.split())
+
+        user_symptoms.append(cleaned)
+
+    # --------------------------------------------------------
+    # Symptom aliases
+    # --------------------------------------------------------
 
     symptom_aliases = {
+
+        # Fever
         "fever": "high_fever",
-        "high_fever": "high_fever"
+        "high_fever": "high_fever",
+        "high_temperature": "high_fever",
+        "high_temp": "high_fever",
+        "temperature": "high_fever",
+        "very_high_temperature": "high_fever",
+        "body_temperature": "high_fever",
+
+        # Chills
+        "feeling_cold": "chills",
+        "feel_cold": "chills",
+        "feeling_very_cold": "chills",
+        "very_cold": "chills",
+        "shivering": "shivering",
+        "shivering_a_lot": "shivering",
+
+        # Fatigue
+        "tiredness": "fatigue",
+        "feeling_tired": "fatigue",
+        "feel_tired": "fatigue",
+        "very_tired": "fatigue",
+        "extremely_tired": "fatigue",
+        "extreme_tiredness": "fatigue",
+        "extreme_fatigue": "fatigue",
+        "feeling_weak": "fatigue",
+        "weakness": "fatigue",
+        "no_energy": "fatigue",
+        "low_energy": "fatigue",
+
+        # Headache
+        "head_pain": "headache",
+        "head_ache": "headache",
+        "head_hurts": "headache",
+        "my_head_hurts": "headache",
+        "pain_in_head": "headache",
+        "pain_in_my_head": "headache",
+        "severe_head_pain": "headache",
+
+        # Stomach pain
+        "stomach_ache": "stomach_pain",
+        "stomach_hurts": "stomach_pain",
+        "my_stomach_hurts": "stomach_pain",
+        "pain_in_stomach": "stomach_pain",
+        "pain_in_my_stomach": "stomach_pain",
+        "belly_pain": "stomach_pain",
+        "belly_ache": "stomach_pain",
+
+        # Breathing
+        "difficulty_breathing": "breathlessness",
+        "trouble_breathing": "breathlessness",
+        "hard_to_breathe": "breathlessness",
+        "cannot_breathe": "breathlessness",
+        "cant_breathe": "breathlessness",
+        "shortness_of_breath": "breathlessness",
+        "breathing_problem": "breathlessness",
+
+        # Vomiting
+        "throwing_up": "vomiting",
+        "threw_up": "vomiting",
+        "feeling_like_vomiting": "vomiting",
+        "vomiting": "vomiting",
+        "throwing": "vomiting",
+
+        # Cough
+        "coughing": "cough",
+        "cough": "cough",
+        "bad_cough": "cough",
+
+        # Joint pain
+        "joint_pain": "joint_pain",
+        "pain_in_joints": "joint_pain",
+        "painful_joints": "joint_pain",
+        "my_joints_hurt": "joint_pain",
+
+        # Eyes
+        "red_eyes": "redness_of_eyes",
+        "red_eye": "redness_of_eyes",
+        "eyes_are_red": "redness_of_eyes",
+        "watery_eyes": "watering_from_eyes",
+        "watering_eyes": "watering_from_eyes",
+        "eyes_are_watery": "watering_from_eyes",
+        "teary_eyes": "watering_from_eyes",
+
+        # Appetite
+        "loss_of_appetite": "loss_of_appetite",
+        "no_appetite": "loss_of_appetite",
+        "dont_feel_like_eating": "loss_of_appetite",
+        "do_not_feel_like_eating": "loss_of_appetite",
+
+        # Smell
+        "loss_of_smell": "loss_of_smell",
+        "cannot_smell": "loss_of_smell",
+        "cant_smell": "loss_of_smell",
+        "no_smell": "loss_of_smell",
+
+        # Dizziness
+        "feeling_dizzy": "dizziness",
+        "feel_dizzy": "dizziness",
+        "dizzy": "dizziness",
+
+        # Other
+        "loose_motion": "diarrhoea",
+        "loose_motions": "diarrhoea",
+        "stomach_upset": "diarrhoea",
+        "backache": "back_pain",
+        "pain_in_back": "back_pain",
+        "back_hurts": "back_pain",
     }
 
     matched_symptoms = []
+    unrecognized_symptoms = []
+
+    # --------------------------------------------------------
+    # Understand natural-language symptoms
+    # --------------------------------------------------------
 
     for symptom in user_symptoms:
 
-        symptom = symptom_aliases.get(
-            symptom,
-            symptom
-        )
+        # Convert spaces to underscores
+        normalized = symptom.replace(" ", "_")
 
-        if symptom in symptoms_list:
-            matched_symptoms.append(symptom)
+        # ----------------------------------------------------
+        # 1. Exact alias
+        # ----------------------------------------------------
+
+        if normalized in symptom_aliases:
+
+            mapped_symptom = symptom_aliases[normalized]
+
+            if mapped_symptom in symptoms_list:
+
+                if mapped_symptom not in matched_symptoms:
+                    matched_symptoms.append(mapped_symptom)
+
+            continue
+
+        # ----------------------------------------------------
+        # 2. Exact dataset symptom
+        # ----------------------------------------------------
+
+        if normalized in symptoms_list:
+
+            if normalized not in matched_symptoms:
+                matched_symptoms.append(normalized)
+
+            continue
+
+        # ----------------------------------------------------
+        # 3. Search natural-language sentence
+        # ----------------------------------------------------
+
+        words = normalized.split("_")
+
+        found_symptoms = []
+
+        # Search aliases inside the sentence
+        for alias, mapped_symptom in symptom_aliases.items():
+
+            alias_words = alias.split("_")
+
+            if all(word in words for word in alias_words):
+
+                if mapped_symptom in symptoms_list:
+
+                    if mapped_symptom not in found_symptoms:
+                        found_symptoms.append(mapped_symptom)
+
+        # Add found aliases
+        for found in found_symptoms:
+
+            if found not in matched_symptoms:
+                matched_symptoms.append(found)
+
+        # ----------------------------------------------------
+        # 4. Search dataset symptoms inside sentence
+        # ----------------------------------------------------
+
+        if not found_symptoms:
+
+            for dataset_symptom in symptoms_list:
+
+                symptom_words = dataset_symptom.split("_")
+
+                if all(word in words for word in symptom_words):
+
+                    if dataset_symptom not in matched_symptoms:
+                        matched_symptoms.append(dataset_symptom)
+
+            # If nothing was found at all
+            if not any(
+                all(
+                    word in words
+                    for word in dataset_symptom.split("_")
+                )
+                for dataset_symptom in symptoms_list
+            ):
+
+                unrecognized_symptoms.append(symptom)
+
+    # --------------------------------------------------------
+    # Stop prediction if nothing was understood
+    # --------------------------------------------------------
+
+    if not matched_symptoms:
+
+        return {
+            "message": "No recognized symptoms were provided.",
+            "Symptoms Entered": len(request.symptoms),
+            "Matched Symptoms": [],
+            "Unrecognized Symptoms": unrecognized_symptoms,
+            "Recommendation": "Please describe your symptoms using common medical terms."
+        }
 
     # --------------------------------------------------------
     # Create model input
@@ -377,22 +598,25 @@ def predict(request: SymptomRequest):
             })
 
     # --------------------------------------------------------
-    # Risk level based on number of symptoms
+    # Risk level
     # --------------------------------------------------------
 
     symptom_count = len(request.symptoms)
 
     if symptom_count <= 2:
+
         risk_level = "Low Risk"
 
     elif symptom_count <= 4:
+
         risk_level = "Moderate Risk"
 
     else:
+
         risk_level = "High Risk"
 
     # --------------------------------------------------------
-    # GET DISEASE INFORMATION
+    # Disease information
     # --------------------------------------------------------
 
     disease_details = disease_info.get(
@@ -416,7 +640,7 @@ def predict(request: SymptomRequest):
     )
 
     # --------------------------------------------------------
-    # GET MILESTONE 3 RECOMMENDATIONS
+    # Healthcare recommendations
     # --------------------------------------------------------
 
     detailed_recommendation = recommendation_data.get(
@@ -438,14 +662,16 @@ def predict(request: SymptomRequest):
         "follow_up",
         "Consult a healthcare provider if symptoms persist, worsen, or cause concern."
     )
+
     # --------------------------------------------------------
-    # SAVE PREDICTION TO DATABASE
+    # Save prediction to database
     # --------------------------------------------------------
 
     local_conn = sqlite3.connect("medassist.db")
     local_cursor = local_conn.cursor()
 
     try:
+
         local_cursor.execute(
             """
             INSERT INTO predictions
@@ -470,15 +696,16 @@ def predict(request: SymptomRequest):
         local_conn.commit()
 
     finally:
+
         local_cursor.close()
         local_conn.close()
+
     # --------------------------------------------------------
-    # FINAL RESPONSE
+    # Final response
     # --------------------------------------------------------
 
     return {
 
-        # Prediction
         "Predicted Disease":
             primary_disease,
 
@@ -488,18 +715,18 @@ def predict(request: SymptomRequest):
         "Risk Level":
             risk_level,
 
-        # Symptoms
         "Symptoms Entered":
             symptom_count,
 
         "Matched Symptoms":
             matched_symptoms,
 
-        # Other possibilities
+        "Unrecognized Symptoms":
+            unrecognized_symptoms,
+
         "Other Possible Diseases":
             other_diseases,
 
-        # Disease information
         "Disease Information": {
 
             "About":
@@ -512,7 +739,6 @@ def predict(request: SymptomRequest):
                 basic_recommendation
         },
 
-        # Milestone 3 recommendation engine
         "Healthcare Recommendations": {
 
             "Treatment":
@@ -525,7 +751,6 @@ def predict(request: SymptomRequest):
                 follow_up
         }
     }
-
 # ============================================================
 # DISEASE PREDICTION REPORT
 # ============================================================
@@ -1233,17 +1458,18 @@ app.mount(
 
 @app.post("/upload-report")
 async def upload_report(
-
     patient_name: str = Form(...),
-
     file: UploadFile = File(...)
 ):
+
+    # --------------------------------------------------------
+    # Save uploaded file
+    # --------------------------------------------------------
 
     file_path = os.path.join(
         UPLOAD_FOLDER,
         file.filename
     )
-
 
     with open(
         file_path,
@@ -1255,31 +1481,38 @@ async def upload_report(
             buffer
         )
 
+    # --------------------------------------------------------
+    # Save report information to database
+    # Use a LOCAL connection and cursor
+    # --------------------------------------------------------
 
-    cursor.execute(
+    local_conn = sqlite3.connect("medassist.db")
+    local_cursor = local_conn.cursor()
 
-        """
-        INSERT INTO reports
-        (patient_name, filename)
-        VALUES (?, ?)
-        """,
+    try:
 
-        (
-            patient_name,
-            file.filename
+        local_cursor.execute(
+            """
+            INSERT INTO reports
+            (patient_name, filename)
+            VALUES (?, ?)
+            """,
+            (
+                patient_name,
+                file.filename
+            )
         )
-    )
 
+        local_conn.commit()
 
-    conn.commit()
+    finally:
 
+        local_cursor.close()
+        local_conn.close()
 
     return {
-
-        "message":
-            "Report uploaded successfully"
+        "message": "Report uploaded successfully"
     }
-
 
 # ============================================================
 # GET REPORTS

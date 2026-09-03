@@ -1,50 +1,157 @@
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
 import pickle
 
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    classification_report,
+    confusion_matrix
+)
+
+print("=" * 50)
+print("MODEL TRAINING")
+print("=" * 50)
+
+# --------------------------------------------------------
 # Load dataset
+# --------------------------------------------------------
+
 df = pd.read_csv("data/Training.csv")
 
-# Remove extra column if present
-df = df.drop(columns=["Unnamed: 133"], errors="ignore")
+# Remove unwanted extra column if present
+df = df.drop(
+    columns=["Unnamed: 133"],
+    errors="ignore"
+)
 
-# Features (Symptoms)
+print("Total samples:", len(df))
+
+# --------------------------------------------------------
+# Features and target
+# --------------------------------------------------------
+
 X = df.drop("prognosis", axis=1)
+y = df["prognosis"].str.strip()
 
-# Target (Disease)
-y = df["prognosis"]
+print("Number of symptoms/features:", X.shape[1])
+print("Number of diseases:", y.nunique())
 
-# Split data into training and testing (unseen data)
+# --------------------------------------------------------
+# Split into training and unseen testing data
+# --------------------------------------------------------
+
 X_train, X_test, y_train, y_test = train_test_split(
     X,
     y,
-    test_size=0.2,
+    test_size=0.20,
     random_state=42,
     stratify=y
 )
 
-# Create model
+print("Training samples:", len(X_train))
+print("Testing samples (unseen):", len(X_test))
+
+# --------------------------------------------------------
+# Create Random Forest
+# --------------------------------------------------------
+
 model = RandomForestClassifier(
-    n_estimators=100,
-    random_state=42
+    n_estimators=200,
+    random_state=42,
+    n_jobs=-1
 )
 
-# Train model only on training data
+# --------------------------------------------------------
+# Train
+# --------------------------------------------------------
+
 model.fit(X_train, y_train)
 
-# Predict on unseen test data
+# --------------------------------------------------------
+# Test on unseen data
+# --------------------------------------------------------
+
 y_pred = model.predict(X_test)
 
-# Calculate accuracy
 accuracy = accuracy_score(y_test, y_pred)
 
-print(f"Training samples: {len(X_train)}")
-print(f"Testing samples (unseen data): {len(X_test)}")
-print(f"Test Accuracy: {accuracy * 100:.2f}%")
+precision = precision_score(
+    y_test,
+    y_pred,
+    average="weighted",
+    zero_division=0
+)
 
-# Save trained model
-pickle.dump(model, open("model.pkl", "wb"))
+recall = recall_score(
+    y_test,
+    y_pred,
+    average="weighted",
+    zero_division=0
+)
 
-print("Model saved successfully!")
+f1 = f1_score(
+    y_test,
+    y_pred,
+    average="weighted",
+    zero_division=0
+)
+
+print("\n" + "=" * 50)
+print("MODEL PERFORMANCE")
+print("=" * 50)
+
+print(f"Accuracy  : {accuracy * 100:.2f}%")
+print(f"Precision : {precision * 100:.2f}%")
+print(f"Recall    : {recall * 100:.2f}%")
+print(f"F1-Score  : {f1 * 100:.2f}%")
+
+# --------------------------------------------------------
+# Classification report
+# --------------------------------------------------------
+
+print("\n" + "=" * 50)
+print("CLASSIFICATION REPORT")
+print("=" * 50)
+
+print(
+    classification_report(
+        y_test,
+        y_pred,
+        zero_division=0
+    )
+)
+
+# --------------------------------------------------------
+# Confusion matrix
+# --------------------------------------------------------
+
+print("\n" + "=" * 50)
+print("CONFUSION MATRIX")
+print("=" * 50)
+
+print(
+    confusion_matrix(
+        y_test,
+        y_pred
+    )
+)
+
+# --------------------------------------------------------
+# Save model AND symptom list
+# --------------------------------------------------------
+
+model_data = {
+    "model": model,
+    "symptoms": list(X.columns)
+}
+
+with open("model.pkl", "wb") as file:
+    pickle.dump(model_data, file)
+
+print("\n" + "=" * 50)
+print("MODEL SAVED SUCCESSFULLY")
+print("=" * 50)
