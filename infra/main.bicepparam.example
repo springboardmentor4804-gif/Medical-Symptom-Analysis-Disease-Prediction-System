@@ -1,0 +1,11 @@
+using './main.bicep'
+
+param location = 'eastus'
+param registryName = 'replace-with-globally-unique-acr'
+param apiImage = 'medassist-api:latest'
+param webImage = 'medassist-web:latest'
+param postgresServerName = 'replace-with-globally-unique-postgres'
+param postgresAdminUser = 'medassistadmin'
+param postgresAdminPassword = 'set-at-deploy-time'
+param jwtSecretKey = 'set-at-deploy-time'
+param fernetKey = 'set-at-deploy-time'

@@ -1,6 +1,7 @@
 import base64
 import io
 import json
+import traceback
 from collections import Counter
 from datetime import datetime
 from pathlib import Path

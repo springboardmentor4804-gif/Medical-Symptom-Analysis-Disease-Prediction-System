@@ -1,0 +1,16 @@
+.env
+.venv
+venv
+__pycache__
+*.py[cod]
+*.log
+.pytest_cache
+.mypy_cache
+tests
+test_*.py
+debug_*.py
+scripts
+*.csv
+*.txt
+!requirements.txt
+.git
