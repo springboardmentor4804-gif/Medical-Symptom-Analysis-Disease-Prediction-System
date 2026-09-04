@@ -20,4 +20,4 @@ RUN chown -R app:app /app
 USER app
 
 EXPOSE 8000
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["sh", "-c", "python -m db.init_db && uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
