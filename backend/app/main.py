@@ -125,11 +125,8 @@ def get_prediction_artifacts() -> Tuple[Any, Any, Any]:
 
     if BEST_MODEL_PICKLE.exists():
         model = joblib.load(BEST_MODEL_PICKLE)
-    elif BEST_MODEL_KERAS.exists():
-        import tensorflow as tf
-        model = tf.keras.models.load_model(str(BEST_MODEL_KERAS))
     else:
-        raise FileNotFoundError("No trained model found in ml/models")
+        raise FileNotFoundError("RandomForest model not found in ml/models")
 
     return preprocessor, label_encoder, model
 
@@ -165,16 +162,9 @@ def predict_disease_from_model(symptoms: List[str], profile) -> Tuple[str, float
         class_index = int(np.argmax(probabilities, axis=1)[0])
         confidence = float(np.max(probabilities, axis=1)[0])
     else:
-        import tensorflow as tf
-        if not isinstance(model, tf.keras.Model):
-            prediction = model.predict(X_transformed)
-            class_index = int(prediction[0])
-            confidence = 1.0
-            disease = label_encoder.inverse_transform([class_index])[0]
-            return disease, confidence
-        probabilities = model.predict(X_transformed, verbose=0)
-        class_index = int(np.argmax(probabilities, axis=1)[0])
-        confidence = float(np.max(probabilities, axis=1)[0])
+        prediction = model.predict(X_transformed)
+        class_index = int(prediction[0])
+        confidence = 1.0
 
     disease = label_encoder.inverse_transform([class_index])[0]
     return disease, confidence
