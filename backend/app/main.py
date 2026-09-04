@@ -16,7 +16,6 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 import joblib
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.responses import PlainTextResponse
 from sqlalchemy import select
@@ -124,10 +123,11 @@ def get_prediction_artifacts() -> Tuple[Any, Any, Any]:
     preprocessor = joblib.load(PREPROCESSOR_PATH)
     label_encoder = joblib.load(LABEL_ENCODER_PATH)
 
-    if BEST_MODEL_KERAS.exists():
-        model = tf.keras.models.load_model(str(BEST_MODEL_KERAS))
-    elif BEST_MODEL_PICKLE.exists():
+    if BEST_MODEL_PICKLE.exists():
         model = joblib.load(BEST_MODEL_PICKLE)
+    elif BEST_MODEL_KERAS.exists():
+        import tensorflow as tf
+        model = tf.keras.models.load_model(str(BEST_MODEL_KERAS))
     else:
         raise FileNotFoundError("No trained model found in ml/models")
 
@@ -164,14 +164,17 @@ def predict_disease_from_model(symptoms: List[str], profile) -> Tuple[str, float
         probabilities = model.predict_proba(X_transformed)
         class_index = int(np.argmax(probabilities, axis=1)[0])
         confidence = float(np.max(probabilities, axis=1)[0])
-    elif isinstance(model, tf.keras.Model):
+    else:
+        import tensorflow as tf
+        if not isinstance(model, tf.keras.Model):
+            prediction = model.predict(X_transformed)
+            class_index = int(prediction[0])
+            confidence = 1.0
+            disease = label_encoder.inverse_transform([class_index])[0]
+            return disease, confidence
         probabilities = model.predict(X_transformed, verbose=0)
         class_index = int(np.argmax(probabilities, axis=1)[0])
         confidence = float(np.max(probabilities, axis=1)[0])
-    else:
-        prediction = model.predict(X_transformed)
-        class_index = int(prediction[0])
-        confidence = 1.0
 
     disease = label_encoder.inverse_transform([class_index])[0]
     return disease, confidence
