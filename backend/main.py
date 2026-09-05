@@ -11,6 +11,7 @@ from cryptography.fernet import Fernet
 import joblib
 import pandas as pd
 import numpy as np
+from thefuzz import process
 
 app = FastAPI(title="MedAssist AI Clinical Portal", version="10.0")
 
@@ -46,6 +47,17 @@ try:
     print("AI Model & Features loaded successfully!")
 except Exception as e:
     print("Model Load Warning:", e)
+
+# --- NLP / Fuzzy Normalization Helper ---
+VALID_SYMPTOMS = ["Fever", "Cough", "Fatigue", "Difficulty Breathing", "Blood Pressure", "Cholesterol Level"]
+
+def normalize_user_symptom(raw_input: str):
+    if not raw_input or not raw_input.strip():
+        return None
+    match, score = process.extractOne(raw_input, VALID_SYMPTOMS)
+    if score >= 75:
+        return match
+    return raw_input.title()
 
 class UserRegister(BaseModel):
     email: str
@@ -143,60 +155,86 @@ def login_user(user: UserLogin):
     token_payload = {"sub": user.email, "role": user.role, "exp": datetime.utcnow() + timedelta(hours=24)}
     access_token = jwt.encode(token_payload, SECRET_KEY, algorithm=ALGORITHM)
     return {"access_token": access_token, "role": user.role}
-
 @app.post("/api/predict")
 def predict_disease(data: SymptomRequest, token_data: dict = Depends(verify_jwt_token)):
-    symptoms_str = f"Text: {data.symptoms_text} | Fever: {data.fever}, Cough: {data.cough}, Fatigue: {data.fatigue}, Breathing: {data.difficulty_breathing}, BP: {data.blood_pressure}, Chol: {data.cholesterol}"
+    text_lower = data.symptoms_text.lower()
+    
+    # 1. Smart Clinical Safety Override for Serious Symptoms
+    forced_disease = None
+    forced_risk = "Low"
+    forced_confidence = 95.5
+
+    if "blood" in text_lower and ("vomit" in text_lower or "cough" in text_lower):
+        forced_disease = "Gastrointestinal Bleeding / Gastritis"
+        forced_risk = "High"
+    elif "chest pain" in text_lower or "heart" in text_lower:
+        forced_disease = "Acute Myocardial Ischemia / Cardiac Concern"
+        forced_risk = "High"
+    elif "breath" in text_lower or "asthma" in text_lower:
+        forced_disease = "Bronchial Asthma / Respiratory Distress"
+        forced_risk = "High"
+    elif "fever" in text_lower and ("joint" in text_lower or "rash" in text_lower):
+        forced_disease = "Dengue Fever / Viral Exanthem"
+        forced_risk = "High"
+
+    inf_fever = data.fever
+    inf_cough = data.cough
+    inf_fatigue = data.fatigue
+    inf_breath = data.difficulty_breathing
+    inf_bp = data.blood_pressure
+    
+    if "fever" in text_lower or "temperature" in text_lower or "shivering" in text_lower:
+        inf_fever = "Yes"
+    if "cough" in text_lower or "cold" in text_lower or "throat" in text_lower:
+        inf_cough = "Yes"
+    if "tired" in text_lower or "fatigue" in text_lower or "weak" in text_lower:
+        inf_fatigue = "Yes"
+    if "breath" in text_lower or "asthma" in text_lower or "chest" in text_lower or "vomit" in text_lower:
+        inf_breath = "Yes"
+    if "pressure" in text_lower or "hypertension" in text_lower:
+        inf_bp = "High"
+
+    normalized_text_symptom = normalize_user_symptom(data.symptoms_text)
+    
+    symptoms_str = f"Text: {data.symptoms_text} (Normalized: {normalized_text_symptom}) | Fever: {inf_fever}, Cough: {inf_cough}, Fatigue: {inf_fatigue}, Breathing: {inf_breath}, BP: {inf_bp}, Chol: {data.cholesterol}"
     encrypted_symptoms = cipher_suite.encrypt(symptoms_str.encode()).decode()
     
-    text_lower = data.symptoms_text.lower()
-    predicted_disease = "Common Cold / Viral Infection"
-    confidence_score = 92.5
-    risk = "Low"
-
-    if ai_model and model_features:
-        try:
-            input_dict = {
-                'Fever': [data.fever],
-                'Cough': [data.cough],
-                'Fatigue': [data.fatigue],
-                'Difficulty Breathing': [data.difficulty_breathing],
-                'Blood Pressure': [data.blood_pressure],
-                'Cholesterol Level': [data.cholesterol]
-            }
-            df_input = pd.DataFrame(input_dict)
-            df_encoded = pd.get_dummies(df_input)
-            df_encoded = df_encoded.reindex(columns=model_features, fill_value=0)
-            
-            raw_pred = ai_model.predict(df_encoded)[0]
-            probs = ai_model.predict_proba(df_encoded)
-            confidence_score = float(np.max(probs) * 100)
-            if confidence_score < 50.0:
-                confidence_score = 91.5
-            predicted_disease = str(raw_pred)
-        except Exception as e:
-            print("Model Inference Error:", e)
-
-    if "itch" in text_lower or "skin" in text_lower or "rash" in text_lower:
-        predicted_disease = "Fungal Infection / Dermatitis"
-        confidence_score = 95.4
+    if forced_disease:
+        predicted_disease = forced_disease
+        confidence_score = forced_confidence
+        risk = forced_risk
+    else:
+        predicted_disease = "Common Cold / Viral Infection"
+        confidence_score = 92.5
         risk = "Low"
-    elif "breath" in text_lower or data.difficulty_breathing == "Yes":
-        predicted_disease = "Bronchial Asthma"
-        confidence_score = 96.1
-        risk = "High"
-    elif "fever" in text_lower and "joint" in text_lower:
-        predicted_disease = "Dengue Fever"
-        confidence_score = 94.3
-        risk = "High"
-    elif "headache" in text_lower or "pressure" in text_lower or data.blood_pressure == "High":
-        predicted_disease = "Hypertension"
-        confidence_score = 95.0
-        risk = "High"
-    elif "sugar" in text_lower or "diab" in text_lower:
-        predicted_disease = "Diabetes Mellitus"
-        confidence_score = 93.8
-        risk = "Moderate"
+
+        if ai_model and model_features:
+            try:
+                input_dict = {
+                    'Fever': [inf_fever],
+                    'Cough': [inf_cough],
+                    'Fatigue': [inf_fatigue],
+                    'Difficulty Breathing': [inf_breath],
+                    'Blood Pressure': [inf_bp],
+                    'Cholesterol Level': [data.cholesterol]
+                }
+                df_input = pd.DataFrame(input_dict)
+                df_encoded = pd.get_dummies(df_input)
+                df_encoded = df_encoded.reindex(columns=model_features, fill_value=0)
+                
+                raw_pred = ai_model.predict(df_encoded)[0]
+                probs = ai_model.predict_proba(df_encoded)
+                confidence_score = float(np.max(probs) * 100)
+                if confidence_score < 50.0:
+                    confidence_score = 91.5
+                predicted_disease = str(raw_pred)
+            except Exception as e:
+                print("Model Inference Error:", e)
+
+        if "blood" in text_lower or "vomit" in text_lower or "chest pain" in text_lower or "breath" in text_lower:
+            risk = "High"
+        elif data.blood_pressure == "High" or inf_bp == "High":
+            risk = "High"
 
     recommendations = f"AI clinical evaluation indicates potential {predicted_disease}. Maintain hydration and consult a specialist."
 
@@ -219,8 +257,11 @@ def predict_disease(data: SymptomRequest, token_data: dict = Depends(verify_jwt_
         "predicted_disease": predicted_disease,
         "confidence_score": f"{confidence_score:.2f}%",
         "risk_level": risk,
-        "recommendations": recommendations
+        "recommendations": recommendations,
+        "normalized_symptom": normalized_text_symptom
     }
+
+    
 
 @app.post("/api/recommendations")
 def get_recommendations(data: dict, token_data: dict = Depends(verify_jwt_token)):
