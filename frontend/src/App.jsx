@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { jsPDF } from 'jspdf';
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
@@ -38,7 +39,6 @@ export default function App() {
   const [recommendationsData, setRecommendationsData] = useState(null);
   
   const [analyticsData, setAnalyticsData] = useState(null);
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const [recordsList, setRecordsList] = useState([]);
@@ -89,7 +89,6 @@ export default function App() {
         setToken(jwtToken);
         setRole(res.data.role);
         setUserEmail(email);
-        window.history.replaceState({}, document.title, window.location.pathname);
         setCurrentView(res.data.role === 'patient' ? 'patient_dashboard' : 'provider_dashboard');
         
         setPatientTab('checker');
@@ -163,7 +162,6 @@ export default function App() {
 
   const fetchAnalytics = async () => {
     if (!token) return;
-    setAnalyticsLoading(true);
     try {
       const res = await axios.get('http://127.0.0.1:8000/api/analytics', {
         headers: { Authorization: `Bearer ${token}` }
@@ -178,8 +176,6 @@ export default function App() {
         disease_stats: [],
         risk_distribution: {}
       });
-    } finally {
-      setAnalyticsLoading(false);
     }
   };
 
@@ -251,16 +247,88 @@ export default function App() {
     }
   };
 
-  const downloadReport = () => {
+const downloadReport = () => {
     if (!aiResult) return;
-    let recText = recommendationsData ? `\n\n--- CLINICAL RECOMMENDATIONS & ADVISORY ---\nTreatment: ${recommendationsData.treatment_suggestions}\nLifestyle Advice: ${recommendationsData.lifestyle_advice.join(', ')}\nPrecautions: ${recommendationsData.precautions.join(', ')}\nWhen to Consult: ${recommendationsData.when_to_consult}` : '';
-    const content = `MEDASSIST AI - OFFICIAL CLINICAL REPORT\n------------------------------------------\nPatient Email: ${userEmail}\nPredicted Disease: ${aiResult.predicted_disease}\nAI Confidence Score: ${aiResult.confidence_score}\nAssessed Risk Level: ${aiResult.risk_level}\nClinical Recommendations: ${aiResult.recommendations}${recText}\nTimestamp: ${new Date().toLocaleString()}`;
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Diagnostic_Report_${userEmail}.txt`;
-    a.click();
+    const doc = new jsPDF();
+    
+    // Top Brand Accent Bar
+    doc.setFillColor(40, 116, 166);
+    doc.rect(0, 0, 210, 15, "F");
+
+    // Title & Header Styling
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(40, 116, 166);
+    doc.text("MEDASSIST AI", 20, 30);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text("OFFICIAL CLINICAL DIAGNOSTIC REPORT", 20, 37);
+    doc.text(`Generated Date: ${new Date().toLocaleString()}`, 130, 37);
+    
+    doc.setDrawColor(200, 200, 200);
+    doc.line(20, 42, 190, 42);
+    
+    // Patient Details Box
+    doc.setFillColor(245, 247, 250);
+    doc.roundedRect(20, 48, 170, 32, 3, 3, "F");
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0);
+    doc.text("Patient & Diagnostic Summary", 26, 57);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(`Patient Email: ${userEmail}`, 26, 66);
+    doc.text(`Predicted Disease: ${aiResult.predicted_disease}`, 26, 73);
+
+    // AI Confidence & Risk Badge Area
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(20, 85, 170, 24, 3, 3, "F");
+    doc.setDrawColor(220, 224, 230);
+    doc.roundedRect(20, 85, 170, 24, 3, 3, "S");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text(`AI Confidence Score: ${aiResult.confidence_score}`, 28, 100);
+    doc.text(`Risk Level:`, 120, 100);
+    
+    doc.setTextColor(aiResult.risk_level === 'High' ? 200 : 40, aiResult.risk_level === 'High' ? 0 : 116, aiResult.risk_level === 'High' ? 0 : 166);
+    doc.text(`${aiResult.risk_level.toUpperCase()} RISK`, 145, 100);
+
+    // Clinical Recommendations Section
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("Clinical Recommendations & Advisory", 20, 122);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    const splitRecs = doc.splitTextToSize(aiResult.recommendations, 170);
+    doc.text(splitRecs, 20, 130);
+
+    let nextY = 130 + (splitRecs.length * 6) + 12;
+
+    if (recommendationsData) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text("Treatment Protocol & Lifestyle Advisory", 20, nextY);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      const detailsText = `• Treatment: ${recommendationsData.treatment_suggestions}\n• Lifestyle: ${recommendationsData.lifestyle_advice.join(' ')}\n• Precautions: ${recommendationsData.precautions.join(' ')}`;
+      const splitDetails = doc.splitTextToSize(detailsText, 170);
+      doc.text(splitDetails, 20, nextY + 8);
+      nextY += 8 + (splitDetails.length * 6) + 15;
+    }
+
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text("Confidential Medical Document - Generated by MedAssist AI Enterprise Platform", 20, 285);
+    
+    doc.save(`Diagnostic_Report_${userEmail}.pdf`);
   };
 
   useEffect(() => {
@@ -282,9 +350,11 @@ export default function App() {
 
       {currentView === 'landing' && (
         <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between p-8 relative overflow-hidden">
-          <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-purple-600/20 rounded-full blur-[120px] pointer-events-none"></div>
-          <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-indigo-600/20 rounded-full blur-[120px] pointer-events-none"></div>
+          {/* Background Glow Effects */}
+          <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-purple-600/20 rounded-full blur-[140px] pointer-events-none"></div>
+          <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-indigo-600/20 rounded-full blur-[140px] pointer-events-none"></div>
 
+          {/* Header */}
           <header className="flex justify-between items-center max-w-7xl mx-auto w-full z-10">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
@@ -292,32 +362,65 @@ export default function App() {
               </div>
               <h1 className="text-xl font-black tracking-wider bg-gradient-to-r from-white via-purple-200 to-indigo-300 bg-clip-text text-transparent">MEDASSIST AI</h1>
             </div>
-            <button onClick={() => setCurrentView('auth')} className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-6 py-2.5 rounded-xl font-bold transition shadow-lg shadow-purple-600/25 border border-purple-400/20">
-              Sign In / Register
-            </button>
+            <div className="flex items-center space-x-4">
+              <button onClick={() => { setAuthMode('login'); setCurrentView('auth'); }} className="text-slate-300 hover:text-white font-bold text-sm transition">Sign In</button>
+              <button onClick={() => { setAuthMode('register'); setCurrentView('auth'); }} className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-6 py-2.5 rounded-xl font-bold transition shadow-lg shadow-purple-600/25 border border-purple-400/20">
+                Get Started
+              </button>
+            </div>
           </header>
 
-          <div className="max-w-4xl mx-auto text-center space-y-8 my-auto z-10">
-            <div className="inline-flex items-center space-x-2 bg-purple-950/80 border border-purple-500/30 px-4 py-1.5 rounded-full text-purple-300 text-xs font-bold tracking-wide uppercase backdrop-blur-md">
+          {/* Hero Section */}
+          <div className="max-w-5xl mx-auto text-center space-y-6 my-12 z-10">
+            <div className="inline-flex items-center space-x-2 bg-purple-950/80 border border-purple-500/30 px-4 py-1.5 rounded-full text-purple-300 text-xs font-bold tracking-wide uppercase backdrop-blur-md shadow-inner">
               <span className="w-2 h-2 rounded-full bg-purple-400 animate-ping"></span>
-              <span>Next-Gen Healthcare Intelligence Platform</span>
+              <span>Enterprise Medical Grade Intelligence &bull; Milestone 4 Ready</span>
             </div>
-            <h2 className="text-6xl font-black tracking-tight text-white leading-[1.1]">
-              Advanced Medical Diagnosis & <span className="bg-gradient-to-r from-purple-400 via-indigo-300 to-purple-500 bg-clip-text text-transparent">AI Prediction Engine</span>
+            
+            <h2 className="text-5xl lg:text-7xl font-black tracking-tight text-white leading-[1.1]">
+              Next-Generation Healthcare & <span className="bg-gradient-to-r from-purple-400 via-indigo-300 to-purple-500 bg-clip-text text-transparent">AI Diagnostic Engine</span>
             </h2>
-            <p className="text-slate-300 text-lg max-w-2xl mx-auto font-medium leading-relaxed">
-              Empowering modern clinics and patients with real-time machine learning disease analysis, automated advisory, and secure encrypted clinical records.
+            
+            <p className="text-slate-300 text-lg lg:text-xl max-w-3xl mx-auto font-medium leading-relaxed">
+              Empowering modern clinical workflows with real-time machine learning disease analysis, automated risk assessment, secure encrypted records, and doctor appointments.
             </p>
+
             <div className="pt-4 flex justify-center space-x-5">
               <button onClick={() => { setAuthMode('register'); setCurrentView('auth'); }} className="bg-white text-slate-950 hover:bg-slate-100 px-8 py-4 rounded-2xl font-black text-base shadow-2xl shadow-white/10 transition transform hover:-translate-y-0.5">
-                Get Started Free
+                Launch Patient Portal &rarr;
               </button>
               <button onClick={() => { setAuthMode('login'); setCurrentView('auth'); }} className="bg-slate-900/80 border border-slate-700 text-white hover:bg-slate-800/80 px-8 py-4 rounded-2xl font-bold text-base backdrop-blur-md transition">
-                Portal Access
+                Doctor / Provider Access
               </button>
             </div>
           </div>
-          <footer className="text-center text-xs text-slate-500 z-10">&copy; 2026 MedAssist AI Platform. Enterprise Medical Grade.</footer>
+
+          {/* Feature Highlights Grid */}
+          <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 z-10 w-full">
+            <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-3xl backdrop-blur-md shadow-xl">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center font-black mb-4 text-lg">AI</div>
+              <h3 className="text-lg font-black text-white mb-2">Smart Disease Prediction</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">Advanced ML models trained to classify multi-class symptoms with confidence scoring and automated risk categorization.</p>
+            </div>
+
+            <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-3xl backdrop-blur-md shadow-xl">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-black mb-4 text-lg">PDF</div>
+              <h3 className="text-lg font-black text-white mb-2">Official Clinical Reports</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">Generate instant, professional PDF diagnostic summaries equipped with full treatment protocols and lifestyle advice.</p>
+            </div>
+
+            <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-3xl backdrop-blur-md shadow-xl">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-black mb-4 text-lg">SEC</div>
+              <h3 className="text-lg font-black text-white mb-2">Secure Encrypted Records</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">Enterprise-grade patient record protection with Fernet encryption, JWT authentication, and Neon database integration.</p>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <footer className="text-center text-xs text-slate-500 z-10 border-t border-slate-900 pt-6 max-w-7xl mx-auto w-full flex flex-col sm:flex-row justify-between items-center">
+            <p>&copy; 2026 MedAssist AI Platform. All rights reserved.</p>
+            <p className="text-purple-400 font-semibold mt-2 sm:mt-0">Built for Advanced Clinical & Research Excellence</p>
+          </footer>
         </div>
       )}
 
@@ -464,20 +567,20 @@ export default function App() {
           </nav>
 
           {role === 'patient' && (
-            <div className="bg-slate-950/40 border-b border-slate-800 px-8 py-3 flex space-x-8 font-bold text-sm backdrop-blur-sm">
-              <button onClick={() => setPatientTab('checker')} className={`pb-1 transition ${patientTab === 'checker' ? 'border-b-2 border-purple-500 text-purple-400' : 'text-slate-400 hover:text-slate-200'}`}>Symptom Checker & Recommendations</button>
-              <button onClick={() => setPatientTab('book_appointment')} className={`pb-1 transition ${patientTab === 'book_appointment' ? 'border-b-2 border-purple-500 text-purple-400' : 'text-slate-400 hover:text-slate-200'}`}>Book Appointment</button>
-              <button onClick={() => { setPatientTab('my_appointments'); fetchRecords(); }} className={`pb-1 transition ${patientTab === 'my_appointments' ? 'border-b-2 border-purple-500 text-purple-400' : 'text-slate-400 hover:text-slate-200'}`}>My Appointments</button>
-              <button onClick={() => { setPatientTab('history'); fetchRecords(); }} className={`pb-1 transition ${patientTab === 'history' ? 'border-b-2 border-purple-500 text-purple-400' : 'text-slate-400 hover:text-slate-200'}`}>Medical History</button>
-              <button onClick={() => setPatientTab('profile')} className={`pb-1 transition ${patientTab === 'profile' ? 'border-b-2 border-purple-500 text-purple-400' : 'text-slate-400 hover:text-slate-200'}`}>Profile Settings</button>
+            <div className="bg-slate-950/40 border-b border-slate-800 px-8 py-3 flex space-x-8 font-bold text-sm backdrop-blur-sm overflow-x-auto">
+              <button onClick={() => setPatientTab('checker')} className={`pb-1 transition whitespace-nowrap ${patientTab === 'checker' ? 'border-b-2 border-purple-500 text-purple-400' : 'text-slate-400 hover:text-slate-200'}`}>Symptom Checker & Recommendations</button>
+              <button onClick={() => setPatientTab('book_appointment')} className={`pb-1 transition whitespace-nowrap ${patientTab === 'book_appointment' ? 'border-b-2 border-purple-500 text-purple-400' : 'text-slate-400 hover:text-slate-200'}`}>Book Appointment</button>
+              <button onClick={() => { setPatientTab('my_appointments'); fetchRecords(); }} className={`pb-1 transition whitespace-nowrap ${patientTab === 'my_appointments' ? 'border-b-2 border-purple-500 text-purple-400' : 'text-slate-400 hover:text-slate-200'}`}>My Appointments</button>
+              <button onClick={() => { setPatientTab('history'); fetchRecords(); }} className={`pb-1 transition whitespace-nowrap ${patientTab === 'history' ? 'border-b-2 border-purple-500 text-purple-400' : 'text-slate-400 hover:text-slate-200'}`}>Medical History</button>
+              <button onClick={() => setPatientTab('profile')} className={`pb-1 transition whitespace-nowrap ${patientTab === 'profile' ? 'border-b-2 border-purple-500 text-purple-400' : 'text-slate-400 hover:text-slate-200'}`}>Profile Settings</button>
             </div>
           )}
 
           {role !== 'patient' && (
-            <div className="bg-slate-950/40 border-b border-slate-800 px-8 py-3 flex space-x-8 font-bold text-sm backdrop-blur-sm">
-              <button onClick={() => { setDoctorTab('analytics'); fetchAnalytics(); }} className={`pb-1 transition ${doctorTab === 'analytics' ? 'border-b-2 border-purple-500 text-purple-400' : 'text-slate-400 hover:text-slate-200'}`}>Analytics & Insights Dashboard</button>
-              <button onClick={() => setDoctorTab('patients')} className={`pb-1 transition ${doctorTab === 'patients' ? 'border-b-2 border-purple-500 text-purple-400' : 'text-slate-400 hover:text-slate-200'}`}>Assigned Patients</button>
-              <button onClick={() => { setDoctorTab('appointments'); fetchRecords(); }} className={`pb-1 transition ${doctorTab === 'appointments' ? 'border-b-2 border-purple-500 text-purple-400' : 'text-slate-400 hover:text-slate-200'}`}>Appointment Requests</button>
+            <div className="bg-slate-950/40 border-b border-slate-800 px-8 py-3 flex space-x-8 font-bold text-sm backdrop-blur-sm overflow-x-auto">
+              <button onClick={() => { setDoctorTab('analytics'); fetchAnalytics(); }} className={`pb-1 transition whitespace-nowrap ${doctorTab === 'analytics' ? 'border-b-2 border-purple-500 text-purple-400' : 'text-slate-400 hover:text-slate-200'}`}>Analytics & Insights Dashboard</button>
+              <button onClick={() => setDoctorTab('patients')} className={`pb-1 transition whitespace-nowrap ${doctorTab === 'patients' ? 'border-b-2 border-purple-500 text-purple-400' : 'text-slate-400 hover:text-slate-200'}`}>Assigned Patients</button>
+              <button onClick={() => { setDoctorTab('appointments'); fetchRecords(); }} className={`pb-1 transition whitespace-nowrap ${doctorTab === 'appointments' ? 'border-b-2 border-purple-500 text-purple-400' : 'text-slate-400 hover:text-slate-200'}`}>Appointment Requests</button>
             </div>
           )}
 
@@ -485,108 +588,176 @@ export default function App() {
             {role === 'patient' ? (
               <>
                 {patientTab === 'checker' && (
-                  <div className="space-y-8">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                      <div className="bg-slate-950/60 border border-slate-800 p-7 rounded-3xl backdrop-blur-md shadow-xl">
-                        <h2 className="text-xl font-black text-white mb-1">AI Symptom Analysis & Disease Prediction</h2>
-                        <p className="text-xs text-slate-400 mb-6">Type symptoms manually or select indicators for multi-class disease classification.</p>
-                        
-                        <form onSubmit={handlePredict} className="space-y-4">
-                          <div>
-                            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Describe Your Symptoms (Manual Input)</label>
-                            <textarea rows="3" value={symptomText} onChange={(e) => setSymptomText(e.target.value)} required className="w-full p-3.5 bg-slate-900 border border-slate-800 rounded-xl mt-1 outline-none focus:border-purple-500 text-sm font-medium transition" placeholder="e.g. High fever with severe cough and breathing difficulty..."></textarea>
-                          </div>
+                  <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
+                    {/* Welcome Banner */}
+                    <div className="relative overflow-hidden bg-gradient-to-r from-purple-900/40 via-indigo-900/40 to-slate-900/60 border border-purple-500/20 p-8 rounded-3xl backdrop-blur-xl shadow-2xl">
+                      <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                      <div className="relative z-10 max-w-2xl">
+                        <span className="px-3 py-1 bg-purple-500/20 text-purple-300 rounded-full text-xs font-black uppercase tracking-wider border border-purple-500/30">AI Clinical Assistant Active</span>
+                        <h2 className="text-3xl font-black text-white mt-3">Hello, {userProfile?.full_name || userEmail.split('@')[0]} 👋</h2>
+                        <p className="text-slate-300 text-sm mt-2 leading-relaxed font-medium">
+                          Describe your symptoms below or use clinical indicators for instant machine learning disease classification and certified report generation.
+                        </p>
+                      </div>
+                    </div>
 
-                          <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                      {/* Left: Input Form */}
+                      <div className="lg:col-span-7 bg-slate-950/70 border border-slate-800/80 p-8 rounded-3xl backdrop-blur-2xl shadow-2xl relative group hover:border-purple-500/40 transition duration-300">
+                        <div className="absolute inset-0 bg-gradient-to-b from-purple-500/5 to-transparent rounded-3xl pointer-events-none"></div>
+                        <div className="relative z-10">
+                          <div className="flex items-center space-x-3 mb-6">
+                            <div className="w-10 h-10 rounded-2xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400 font-black">🩺</div>
                             <div>
-                              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Fever</label>
-                              <select value={formData.fever} onChange={(e) => setFormData({...formData, fever: e.target.value})} className="w-full p-3.5 bg-slate-900 border border-slate-800 rounded-xl mt-1 outline-none focus:border-purple-500 font-semibold text-sm transition">
-                                <option value="Yes">Yes</option><option value="No">No</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Cough</label>
-                              <select value={formData.cough} onChange={(e) => setFormData({...formData, cough: e.target.value})} className="w-full p-3.5 bg-slate-900 border border-slate-800 rounded-xl mt-1 outline-none focus:border-purple-500 font-semibold text-sm transition">
-                                <option value="Yes">Yes</option><option value="No">No</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Difficulty Breathing</label>
-                              <select value={formData.difficulty_breathing} onChange={(e) => setFormData({...formData, difficulty_breathing: e.target.value})} className="w-full p-3.5 bg-slate-900 border border-slate-800 rounded-xl mt-1 outline-none focus:border-purple-500 font-semibold text-sm transition">
-                                <option value="Yes">Yes</option><option value="No">No</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Blood Pressure</label>
-                              <select value={formData.blood_pressure} onChange={(e) => setFormData({...formData, blood_pressure: e.target.value})} className="w-full p-3.5 bg-slate-900 border border-slate-800 rounded-xl mt-1 outline-none focus:border-purple-500 font-semibold text-sm transition">
-                                <option value="Normal">Normal</option><option value="High">High</option><option value="Low">Low</option>
-                              </select>
+                              <h3 className="text-lg font-black text-white">Symptom Analysis Matrix</h3>
+                              <p className="text-xs text-slate-400">Multi-class disease classification engine</p>
                             </div>
                           </div>
+                          
+                          <form onSubmit={handlePredict} className="space-y-5">
+                            <div>
+                              <label className="block text-[11px] font-black uppercase tracking-widest text-purple-400 mb-2">Describe Your Symptoms (Natural Language)</label>
+                              <div className="relative">
+                                <textarea 
+                                  rows="4" 
+                                  value={symptomText} 
+                                  onChange={(e) => setSymptomText(e.target.value)} 
+                                  required 
+                                  className="w-full p-4 bg-slate-900/90 border border-slate-800 rounded-2xl outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 text-sm font-medium transition text-white placeholder-slate-500 shadow-inner" 
+                                  placeholder="e.g., Persistent high fever with chills, body ache, and severe headache..."
+                                ></textarea>
+                                <div className="absolute right-4 bottom-4 text-[10px] text-slate-500 font-bold uppercase tracking-wider">AI Powered</div>
+                              </div>
+                            </div>
 
-                          <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black p-4 rounded-xl shadow-lg shadow-purple-600/30 transition mt-4 flex items-center justify-center space-x-2">
-                            {loading && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>}
-                            <span>{loading ? "Running AI Prediction..." : "Run AI Disease Prediction"}</span>
-                          </button>
-                        </form>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80">
+                                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Fever Indicator</label>
+                                <select value={formData.fever} onChange={(e) => setFormData({...formData, fever: e.target.value})} className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl outline-none focus:border-purple-500 font-bold text-xs text-purple-200">
+                                  <option value="Yes">Yes - Active Fever</option>
+                                  <option value="No">No Fever</option>
+                                </select>
+                              </div>
+
+                              <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80">
+                                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Cough State</label>
+                                <select value={formData.cough} onChange={(e) => setFormData({...formData, cough: e.target.value})} className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl outline-none focus:border-purple-500 font-bold text-xs text-purple-200">
+                                  <option value="Yes">Yes - Present</option>
+                                  <option value="No">No Cough</option>
+                                </select>
+                              </div>
+
+                              <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80">
+                                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Breathing Status</label>
+                                <select value={formData.difficulty_breathing} onChange={(e) => setFormData({...formData, difficulty_breathing: e.target.value})} className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl outline-none focus:border-purple-500 font-bold text-xs text-purple-200">
+                                  <option value="Yes">Difficulty Detected</option>
+                                  <option value="No">Normal Breathing</option>
+                                </select>
+                              </div>
+
+                              <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80">
+                                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Blood Pressure</label>
+                                <select value={formData.blood_pressure} onChange={(e) => setFormData({...formData, blood_pressure: e.target.value})} className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl outline-none focus:border-purple-500 font-bold text-xs text-purple-200">
+                                  <option value="Normal">Normal Range</option>
+                                  <option value="High">High (Hypertension)</option>
+                                  <option value="Low">Low Range</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 hover:from-purple-500 hover:to-indigo-500 text-white font-black p-4 rounded-2xl shadow-xl shadow-purple-600/30 transition transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center space-x-3 text-sm tracking-wide">
+                              {loading && <span className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin"></span>}
+                              <span>{loading ? "Analyzing Neural Pathways..." : "Run AI Disease Prediction ⚡"}</span>
+                            </button>
+                          </form>
+                        </div>
                       </div>
 
-                      <div className="bg-slate-950/60 border border-slate-800 p-7 rounded-3xl backdrop-blur-md shadow-xl flex flex-col justify-between">
-                        <div>
-                          <h2 className="text-xl font-black text-white mb-1">AI Diagnostic & Prediction Report</h2>
-                          <p className="text-xs text-slate-400 mb-6">Generated report stored securely in database.</p>
+                      {/* Right: Output Diagnostic Report Card */}
+                      <div className="lg:col-span-5 bg-slate-950/70 border border-slate-800/80 p-8 rounded-3xl backdrop-blur-2xl shadow-2xl flex flex-col justify-between relative group">
+                        <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent rounded-3xl pointer-events-none"></div>
+                        <div className="relative z-10">
+                          <div className="flex items-center space-x-3 mb-6">
+                            <div className="w-10 h-10 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-black">📄</div>
+                            <div>
+                              <h3 className="text-lg font-black text-white">Diagnostic Output</h3>
+                              <p className="text-xs text-slate-400">Encrypted clinical storage record</p>
+                            </div>
+                          </div>
 
                           {aiResult ? (
-                            <div className="space-y-4 bg-purple-950/40 border border-purple-500/30 p-6 rounded-2xl backdrop-blur-sm">
-                              <div>
-                                <p className="text-[11px] font-bold text-purple-300 uppercase tracking-wider">Predicted Disease</p>
-                                <p className="text-3xl font-black text-white mt-0.5">{aiResult.predicted_disease}</p>
+                            <div className="space-y-5 animate-in slide-in-from-right-4 duration-500">
+                              <div className="bg-gradient-to-br from-purple-950/80 to-indigo-950/50 border border-purple-500/30 p-6 rounded-2xl backdrop-blur-xl shadow-xl">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-purple-300">Predicted Primary Condition</p>
+                                <p className="text-2xl font-black text-white mt-1 tracking-tight">{aiResult.predicted_disease}</p>
                               </div>
+
                               <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <p className="text-[11px] font-bold text-purple-300 uppercase tracking-wider">Confidence Score</p>
-                                  <p className="text-lg font-black text-slate-100">{aiResult.confidence_score}</p>
+                                <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl">
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Confidence Score</p>
+                                  <p className="text-xl font-black text-purple-300 mt-1">{aiResult.confidence_score}</p>
                                 </div>
-                                <div>
-                                  <p className="text-[11px] font-bold text-purple-300 uppercase tracking-wider">Risk Level</p>
-                                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-black uppercase text-white mt-1 ${aiResult.risk_level === 'High' ? 'bg-red-500 shadow-lg shadow-red-500/30' : 'bg-blue-500 shadow-lg shadow-blue-500/30'}`}>{aiResult.risk_level} Risk</span>
+                                <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl">
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Risk Assessment</p>
+                                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-black uppercase text-white mt-1 ${aiResult.risk_level === 'High' ? 'bg-red-500 shadow-lg shadow-red-500/40 animate-pulse' : 'bg-emerald-500 shadow-lg shadow-emerald-500/30'}`}>
+                                    {aiResult.risk_level} Risk
+                                  </span>
                                 </div>
                               </div>
-                              <div>
-                                <p className="text-[11px] font-bold text-purple-300 uppercase tracking-wider">Advisory Recommendations</p>
-                                <p className="text-sm text-slate-300 mt-1 bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 font-medium">{aiResult.recommendations}</p>
+
+                              <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Advisory Summary</p>
+                                <p className="text-xs text-slate-300 font-medium leading-relaxed">{aiResult.recommendations}</p>
                               </div>
-                              <button onClick={downloadReport} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-emerald-600/20 transition">Download Diagnostic Report (.txt)</button>
+
+                              <button onClick={downloadReport} className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black py-4 rounded-2xl shadow-xl shadow-emerald-600/30 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2 text-sm">
+                                <span>Download Official PDF Report 📥</span>
+                              </button>
                             </div>
                           ) : (
-                            <div className="h-64 flex flex-col items-center justify-center text-center p-6 bg-slate-900/40 rounded-2xl border border-dashed border-slate-800">
-                              <p className="text-slate-500 font-bold text-sm">No diagnostic report generated yet.</p>
+                            <div className="h-72 flex flex-col items-center justify-center text-center p-8 bg-slate-900/40 rounded-2xl border border-dashed border-slate-800/80">
+                              <div className="w-12 h-12 rounded-full bg-slate-800/50 flex items-center justify-center text-slate-500 text-lg mb-3">🔍</div>
+                              <p className="text-slate-400 font-bold text-sm">Awaiting Symptom Analysis</p>
+                              <p className="text-xs text-slate-500 mt-1 max-w-xs">Run an AI prediction to generate your verified medical report.</p>
                             </div>
                           )}
                         </div>
                       </div>
                     </div>
 
+                    {/* Recommendations Cards Grid */}
                     {aiResult && recommendationsData && (
-                      <div className="bg-gradient-to-r from-indigo-950/60 via-purple-950/60 to-slate-950/80 border border-indigo-500/30 p-8 rounded-3xl backdrop-blur-md shadow-xl mt-8 animate-in fade-in duration-700">
-                        <h2 className="text-2xl font-black text-white mb-2">AI Clinical Recommendation & Advisory Engine</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                          <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl">
-                            <p className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider">Treatment Protocol</p>
-                            <p className="text-sm font-semibold text-slate-200 mt-2">{recommendationsData.treatment_suggestions}</p>
+                      <div className="bg-gradient-to-r from-slate-950 via-purple-950/30 to-slate-950 border border-purple-500/20 p-8 rounded-3xl backdrop-blur-2xl shadow-2xl animate-in fade-in duration-700">
+                        <div className="flex items-center space-x-3 mb-6">
+                          <div className="w-10 h-10 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-black">💊</div>
+                          <div>
+                            <h3 className="text-xl font-black text-white">Clinical Treatment & Advisory Engine</h3>
+                            <p className="text-xs text-slate-400">Personalized recovery roadmap based on condition severity</p>
                           </div>
-                          <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl">
-                            <p className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider">Lifestyle Advice</p>
-                            <ul className="text-xs text-slate-300 space-y-1.5 list-disc pl-4 mt-2">
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl shadow-xl relative overflow-hidden group hover:border-purple-500/40 transition">
+                            <div className="absolute top-0 left-0 w-1.5 h-full bg-purple-500"></div>
+                            <p className="text-[11px] font-black text-purple-400 uppercase tracking-widest mb-2">Treatment Protocol</p>
+                            <p className="text-sm font-bold text-slate-200 leading-relaxed">{recommendationsData.treatment_suggestions}</p>
+                          </div>
+
+                          <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl shadow-xl relative overflow-hidden group hover:border-indigo-500/40 transition">
+                            <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500"></div>
+                            <p className="text-[11px] font-black text-indigo-400 uppercase tracking-widest mb-2">Lifestyle Advice</p>
+                            <ul className="text-xs text-slate-300 space-y-2 list-disc pl-4 font-medium">
                               {recommendationsData.lifestyle_advice.map((item, idx) => <li key={idx}>{item}</li>)}
                             </ul>
                           </div>
-                          <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl">
-                            <p className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider">Precautions</p>
-                            <ul className="text-xs text-slate-300 space-y-1.5 list-disc pl-4 mt-2">
+
+                          <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl shadow-xl relative overflow-hidden group hover:border-red-500/40 transition">
+                            <div className="absolute top-0 left-0 w-1.5 h-full bg-red-500"></div>
+                            <p className="text-[11px] font-black text-red-400 uppercase tracking-widest mb-2">Precautions & Safety</p>
+                            <ul className="text-xs text-slate-300 space-y-2 list-disc pl-4 font-medium mb-3">
                               {recommendationsData.precautions.map((item, idx) => <li key={idx}>{item}</li>)}
                             </ul>
-                            <p className="text-[10px] text-red-400 font-bold mt-3 pt-2 border-t border-slate-700">{recommendationsData.when_to_consult}</p>
+                            <p className="text-[11px] text-red-300 font-bold bg-red-950/50 p-2.5 rounded-xl border border-red-500/20">{recommendationsData.when_to_consult}</p>
                           </div>
                         </div>
                       </div>
@@ -894,6 +1065,7 @@ export default function App() {
           </div>
         </div>
       )}
+      
     </div>
   );
 }
