@@ -10,6 +10,7 @@ const [predictions, setPredictions] = useState([]);
 const [appointments, setAppointments] = useState([]);
 const [analytics, setAnalytics] = useState(null);
 const [loadingAnalytics, setLoadingAnalytics] = useState(true);
+const [medicalHistory, setMedicalHistory] = useState(null);
 
     useEffect(() => {
     async function loadPatients() {
@@ -67,6 +68,35 @@ loadReports();
 loadAppointments();
 loadAnalytics();
 }, []);
+
+useEffect(() => {
+  async function loadMedicalHistory() {
+    if (!selectedPatient?.fullname) {
+      setMedicalHistory(null);
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/medical-history/${encodeURIComponent(
+          selectedPatient.fullname
+        )}`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setMedicalHistory(data);
+      } else {
+        setMedicalHistory(null);
+      }
+    } catch (error) {
+      console.error("Medical history error:", error);
+      setMedicalHistory(null);
+    }
+  }
+
+  loadMedicalHistory();
+}, [selectedPatient]);
 
   const handleSave = () => {
     setSavedRecommendation(recommendation);
@@ -383,10 +413,21 @@ loadAnalytics();
     Medical History
   </h3>
 
-  <p><strong>Allergies:</strong> No records available</p>
-  <p><strong>Existing Diseases:</strong> No records available</p>
-  <p><strong>Medications:</strong> No records available</p>
-  <p><strong>Previous Treatments:</strong> No records available</p>
+  <p>
+    <strong>Allergies:</strong>{" "}
+    {medicalHistory?.allergies || "No records available"}
+  </p>
+
+  <p>
+    <strong>Medications:</strong>{" "}
+    {medicalHistory?.medications || "No records available"}
+  </p>
+
+  <p>
+    <strong>Previous Treatments:</strong>{" "}
+    {medicalHistory?.previous_treatments ||
+      "No records available"}
+  </p>
 </div>
 
 

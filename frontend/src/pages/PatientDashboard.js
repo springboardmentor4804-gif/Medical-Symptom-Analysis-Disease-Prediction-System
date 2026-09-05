@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 function PatientDashboard() {
   const user = JSON.parse(localStorage.getItem("user"));
+  const userName = user?.fullname;
   const [symptoms, setSymptoms] = useState("");
   const [reportFile, setReportFile] = useState(null);
   const [doctorName, setDoctorName] = useState("Dr. Sharma");
@@ -19,104 +20,98 @@ const [medications, setMedications] = useState("");
 const [previousTreatments, setPreviousTreatments] = useState("");
 const [activePage, setActivePage] = useState("dashboard");
 
+const [notifications, setNotifications] = useState(true);
+const [reportNotifications, setReportNotifications] = useState(true);
+const [predictionNotifications, setPredictionNotifications] = useState(true);
+const [theme, setTheme] = useState("Light");
+
   useEffect(() => {
-    const loadMedicalHistory = async () => {
+  if (!userName) return;
+
+  const loadMedicalHistory = async () => {
     try {
-        const response = await fetch(
-            `http://127.0.0.1:8000/medical-history/${encodeURIComponent(user.fullname)}`
-        );
+      const response = await fetch(
+        `http://127.0.0.1:8000/medical-history/${encodeURIComponent(userName)}`
+      );
 
-        if (response.ok) {
-            const data = await response.json();
-            setAllergies(data.allergies || "");
-            setMedications(data.medications || "");
-            setPreviousTreatments(data.previous_treatments || "");
-        }
+      if (response.ok) {
+        const data = await response.json();
+
+        setAllergies(data.allergies || "");
+        setMedications(data.medications || "");
+        setPreviousTreatments(data.previous_treatments || "");
+      }
     } catch (error) {
-        console.error("Error loading medical history:", error);
+      console.error("Error loading medical history:", error);
     }
-};
+  };
 
-loadMedicalHistory();
   const loadPredictionHistory = async () => {
-    console.log("USER FROM LOCAL STORAGE:", user);
-
-    if (!user?.fullname) {
-      console.log("NO FULLNAME FOUND");
-      return;
-    }
-
     try {
       const response = await fetch(
         "http://127.0.0.1:8000/predictions"
       );
 
-      console.log("PREDICTIONS RESPONSE STATUS:", response.status);
+      if (!response.ok) return;
 
       const data = await response.json();
-
-      console.log("ALL PREDICTIONS FROM BACKEND:", data.predictions);
-      console.log("LOGGED-IN NAME:", user.fullname);
 
       const patientPredictions = data.predictions.filter(
         (item) =>
           item.patient_name?.trim().toLowerCase() ===
-          user.fullname?.trim().toLowerCase()
+          userName.trim().toLowerCase()
       );
 
-      console.log("MATCHED PATIENT PREDICTIONS:", patientPredictions);
-
       setPredictionHistory(patientPredictions);
-
     } catch (error) {
-      console.error("Prediction history error:", error);
+      console.error("Error loading prediction history:", error);
     }
   };
 
+  loadMedicalHistory();
   loadPredictionHistory();
-}, [user]);
-useEffect(() => {
-  const loadReports = async () => {
-    if (!user?.fullname) {
-      return;
-    }
+}, [userName]);
 
+useEffect(() => {
+  if (!userName) return;
+
+  const loadReports = async () => {
     try {
       const response = await fetch(
         "http://127.0.0.1:8000/reports"
       );
 
-      const data = await response.json();
+      if (!response.ok) return;
 
-      console.log("ALL REPORTS FROM BACKEND:", data.reports);
+      const data = await response.json();
 
       const patientReports = data.reports.filter(
         (item) =>
           item.patient_name?.trim().toLowerCase() ===
-          user.fullname?.trim().toLowerCase()
+          userName.trim().toLowerCase()
       );
 
-      console.log("MATCHED PATIENT REPORTS:", patientReports);
-
       setReports(patientReports);
-
     } catch (error) {
-      console.error("Reports loading error:", error);
+      console.error("Error loading reports:", error);
     }
   };
 
   loadReports();
-}, [user]);
-
-
+}, [userName]);
   const handleUpload = async () => {
   if (!reportFile) {
     alert("Please select a file");
     return;
-  }  
+  }
 
   const formData = new FormData();
-  formData.append("patient_name", user?.fullname || "Patient");
+
+  formData.append(
+    "patient_name",
+    user?.fullname || "Patient"
+  );
+
   formData.append("file", reportFile);
 
   try {
@@ -129,10 +124,21 @@ useEffect(() => {
     );
 
     const data = await response.json();
+
+    console.log("Upload status:", response.status);
+    console.log("Upload response:", data);
+
+    if (!response.ok) {
+      throw new Error(
+        data.detail || "Upload failed"
+      );
+    }
+
     alert(data.message);
+
   } catch (error) {
-    alert("Upload failed");
-    console.log(error);
+    console.error("Upload error:", error);
+    alert("Upload failed: " + error.message);
   }
 };
   const handlePredict = async () => {
@@ -834,20 +840,64 @@ const handleSaveMedicalHistory = async () => {
         Save Medical History
       </button>
 
-      <HistoryRow
-        label="Existing Diseases"
-        value={
-          predictionHistory.length > 0
-            ? [
-                ...new Set(
-                  predictionHistory.map(
-                    (item) => item.predicted_disease
-                  )
-                ),
-              ].join(", ")
-            : "No records available"
-        }
-      />
+      <div
+  style={{
+    marginTop: "25px",
+    paddingTop: "20px",
+    borderTop: "1px solid #e5e7eb",
+  }}
+>
+  <h3 style={{ marginBottom: "8px" }}>
+    Prediction History
+  </h3>
+
+  <p
+    style={{
+      color: "#6b7280",
+      fontSize: "14px",
+      marginBottom: "15px",
+    }}
+  >
+    Automatically generated from your previous symptom predictions.
+  </p>
+
+  {predictionHistory.length > 0 ? (
+    <div>
+      {predictionHistory.map((item, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "12px 15px",
+            marginBottom: "10px",
+            background: "#f8f7ff",
+            borderRadius: "10px",
+            border: "1px solid #e5e0ff",
+          }}
+        >
+          <strong>
+            {item.predicted_disease || "Unknown"}
+          </strong>
+
+          {item.confidence !== undefined && (
+            <span
+              style={{
+                marginLeft: "10px",
+                color: "#6b7280",
+                fontSize: "14px",
+              }}
+            >
+              Confidence: {item.confidence}%
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  ) : (
+    <p style={{ color: "#6b7280" }}>
+      No prediction history available.
+    </p>
+  )}
+</div>
 
     </SectionCard>
   </div>
@@ -944,14 +994,249 @@ const handleSaveMedicalHistory = async () => {
 )}
 
 
-{/* ================= SETTINGS ================= */}
 {activePage === "settings" && (
-  <div id="settings">
-    <SectionCard title="Settings">
-      <p style={{ color: "#64748b" }}>
-        Settings will be available here.
+  <div style={{ maxWidth: "900px" }}>
+
+    <h2 style={{ marginBottom: "25px" }}>
+      Settings
+    </h2>
+
+    {/* Profile Settings */}
+    <div
+      style={{
+        background: "white",
+        padding: "25px",
+        borderRadius: "18px",
+        marginBottom: "20px",
+        boxShadow: "0 4px 15px rgba(0,0,0,0.05)"
+      }}
+    >
+      <h3>👤 Profile Settings</h3>
+
+      <div style={{ marginTop: "20px", lineHeight: "2" }}>
+        <p>
+          <strong>Full Name:</strong>{" "}
+          {user?.fullname || "Not available"}
+        </p>
+
+        <p>
+          <strong>Email:</strong>{" "}
+          {user?.email || "Not available"}
+        </p>
+
+        <p>
+          <strong>Phone:</strong>{" "}
+          {user?.phone || "Not available"}
+        </p>
+
+        <p>
+          <strong>Age:</strong>{" "}
+          {user?.age || "Not available"}
+        </p>
+
+        <p>
+          <strong>Gender:</strong>{" "}
+          {user?.gender || "Not available"}
+        </p>
+      </div>
+    </div>
+
+
+    {/* Notification Settings */}
+    <div
+      style={{
+        background: "white",
+        padding: "25px",
+        borderRadius: "18px",
+        marginBottom: "20px",
+        boxShadow: "0 4px 15px rgba(0,0,0,0.05)"
+      }}
+    >
+      <h3>🔔 Notifications</h3>
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginTop: "20px"
+        }}
+      >
+        <span>Enable notifications</span>
+
+        <input
+          type="checkbox"
+          checked={notifications}
+          onChange={(e) => setNotifications(e.target.checked)}
+        />
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginTop: "15px"
+        }}
+      >
+        <span>Report notifications</span>
+
+        <input
+          type="checkbox"
+          checked={reportNotifications}
+          onChange={(e) =>
+            setReportNotifications(e.target.checked)
+          }
+        />
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginTop: "15px"
+        }}
+      >
+        <span>Prediction notifications</span>
+
+        <input
+          type="checkbox"
+          checked={predictionNotifications}
+          onChange={(e) =>
+            setPredictionNotifications(e.target.checked)
+          }
+        />
+      </div>
+    </div>
+
+
+    {/* Preferences */}
+    <div
+      style={{
+        background: "white",
+        padding: "25px",
+        borderRadius: "18px",
+        marginBottom: "20px",
+        boxShadow: "0 4px 15px rgba(0,0,0,0.05)"
+      }}
+    >
+      <h3>🎨 Preferences</h3>
+
+      <div style={{ marginTop: "20px" }}>
+        <label>
+          <strong>Theme</strong>
+        </label>
+
+        <select
+          value={theme}
+          onChange={(e) => setTheme(e.target.value)}
+          style={{
+            display: "block",
+            marginTop: "10px",
+            padding: "10px",
+            borderRadius: "8px",
+            border: "1px solid #ccc",
+            width: "200px"
+          }}
+        >
+          <option value="Light">Light</option>
+          <option value="Dark">Dark</option>
+        </select>
+      </div>
+
+      <div style={{ marginTop: "20px" }}>
+        <label>
+          <strong>Default consultation type</strong>
+        </label>
+
+        <select
+          style={{
+            display: "block",
+            marginTop: "10px",
+            padding: "10px",
+            borderRadius: "8px",
+            border: "1px solid #ccc",
+            width: "200px"
+          }}
+        >
+          <option>Online</option>
+          <option>In-person</option>
+        </select>
+      </div>
+    </div>
+
+
+    {/* Account */}
+    <div
+      style={{
+        background: "white",
+        padding: "25px",
+        borderRadius: "18px",
+        marginBottom: "20px",
+        boxShadow: "0 4px 15px rgba(0,0,0,0.05)"
+      }}
+    >
+      <h3>🔐 Account</h3>
+
+      <button
+        onClick={() => alert("Change password feature coming soon.")}
+        style={{
+          marginTop: "15px",
+          padding: "10px 18px",
+          border: "none",
+          borderRadius: "8px",
+          background: "#5b45c9",
+          color: "white",
+          cursor: "pointer"
+        }}
+      >
+        Change Password
+      </button>
+
+      <button
+        onClick={() => {
+          localStorage.removeItem("user");
+          window.location.href = "/";
+        }}
+        style={{
+          marginTop: "15px",
+          marginLeft: "10px",
+          padding: "10px 18px",
+          border: "none",
+          borderRadius: "8px",
+          background: "#dc3545",
+          color: "white",
+          cursor: "pointer"
+        }}
+      >
+        Logout
+      </button>
+    </div>
+
+
+    {/* Help */}
+    <div
+      style={{
+        background: "white",
+        padding: "25px",
+        borderRadius: "18px",
+        boxShadow: "0 4px 15px rgba(0,0,0,0.05)"
+      }}
+    >
+      <h3>❓ Help & Support</h3>
+
+      <p style={{ marginTop: "15px" }}>
+        MedAssist AI helps you analyze symptoms, view medical
+        history, upload reports and manage appointments.
       </p>
-    </SectionCard>
+
+      <p>
+        Please consult a qualified healthcare professional for
+        medical diagnosis and treatment.
+      </p>
+    </div>
+
   </div>
 )}
 
@@ -1019,32 +1304,6 @@ function SectionCard({ title, children }) {
   );
 }
 
-function HistoryRow({ label, value }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        padding: "10px 0",
-        borderBottom: "1px solid #f1f5f9",
-        gap: "15px",
-      }}
-    >
-      <strong style={{ color: "#374151" }}>
-        {label}:
-      </strong>
-
-      <span
-        style={{
-          color: "#64748b",
-          textAlign: "right",
-        }}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
 
 const navBtn = {
   background: "transparent",
@@ -1063,4 +1322,4 @@ const navBtnActive = {
   color: "white",
 };
 
-export default PatientDashboard;
+export default PatientDashboard;                                                                                                                             
