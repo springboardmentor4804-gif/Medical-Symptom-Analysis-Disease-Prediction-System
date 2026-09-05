@@ -1,5 +1,4 @@
-const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost'
-const fallbackApiBase = `http://${host}:8000`
+const fallbackApiBase = 'http://127.0.0.1:8000'
 export const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE) || fallbackApiBase
 
 export function getToken() {
