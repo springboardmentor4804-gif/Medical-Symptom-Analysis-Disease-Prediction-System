@@ -1,0 +1,16 @@
+services:
+  backend:
+    build: ./backend
+    container_name: medassist-backend
+    ports:
+      - "8000:8000"
+    restart: always
+
+  frontend:
+    build: ./frontend
+    container_name: medassist-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: always
