@@ -49,9 +49,9 @@ from db.init_db import run_schema
 
 app = FastAPI(title="MedAssist API")
 
-@app.on_event("startup")
-def initialize_database():
-    run_schema()
+# @app.on_event("startup")
+# def initialize_database():
+#     run_schema()
 
 # Enable CORS for local frontend development (development-only).
 # Use explicit local frontend origins when allow_credentials=True.
