@@ -1,0 +1,18 @@
+# The API image needs backend/ and nothing else. These are either gitignored
+# (so absent on a CI clone) or irrelevant to the image, but they make a local
+# `docker build` ship ~540 MB of context before the first layer runs.
+.venv/
+.git/
+web/
+frontend/
+training/
+docs/
+scripts/
+dev/
+node_modules/
+**/__pycache__/
+**/*.pyc
+.pytest_cache/
+backend/.env
+backend/medassist.db
+backend/generated_reports/*.pdf
