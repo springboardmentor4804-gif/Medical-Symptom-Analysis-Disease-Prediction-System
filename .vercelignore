@@ -1,0 +1,17 @@
+# Only web/ is deployed to Vercel. Everything below is either huge (the 106 MB
+# of Git-LFS model artifacts), a local-only virtualenv, or the FastAPI backend,
+# which cannot run on Vercel's serverless Python runtime - see DEPLOYMENT.md.
+.venv/
+.vscode/
+backend/
+frontend/
+training/
+scripts/
+dev/
+docs/
+docker-compose.yml
+*.bat
+*.ps1
+web/dist/
+web/.vite/
+web/node_modules/
