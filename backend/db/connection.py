@@ -65,7 +65,6 @@ def get_database_url() -> str:
 engine = create_engine(
     get_database_url(),
     pool_pre_ping=True,
-    connect_args={"options": "-c search_path=medassist"},
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
