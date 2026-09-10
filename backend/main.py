@@ -1,20 +1,71 @@
-from fastapi import FastAPI, HTTPException, Depends, Header
+import logging
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from typing import Optional, List, Dict, Any
+from bson import ObjectId
+from bson.errors import InvalidId
+
+from fastapi import FastAPI, HTTPException, Depends, status, Query
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional
-import psycopg2
-import jwt
-import re
-from datetime import datetime, timedelta
-from passlib.context import CryptContext
-from cryptography.fernet import Fernet
-import joblib
-import pandas as pd
-import numpy as np
-from thefuzz import process
+from pymongo.collection import Collection
 
-app = FastAPI(title="MedAssist AI Clinical Portal", version="10.0")
+from config import PORT, HOST
+from database import DatabaseManager
+from security import hash_password, verify_password, create_access_token, verify_jwt_token
+from ml_engine import MLEngine
+from schemas import (
+    UserRegister,
+    UserLogin,
+    TokenResponse,
+    SymptomPredictRequest,
+    PredictionResponse,
+    RecommendationRequest,
+    RecommendationResponse,
+    AppointmentCreate,
+    AppointmentUpdate,
+    AppointmentResponseItem,
+    DoctorResponseItem,
+    PatientProfileItem,
+    AnalyticsResponse,
+    ProfileUpdateRequest,
+)
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger("medassist.main")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: initialize database connection and ML model
+    logger.info("Initializing MedAssist AI Backend...")
+    try:
+        DatabaseManager.connect()
+        logger.info("MongoDB Atlas connection established.")
+    except Exception as e:
+        logger.error(f"Failed connecting to MongoDB on startup: {e}")
+
+    try:
+        MLEngine.load_model()
+        logger.info("ML Disease Model loaded successfully.")
+    except Exception as e:
+        logger.error(f"Failed loading ML model on startup: {e}")
+
+    yield
+
+    # Shutdown
+    DatabaseManager.close()
+    logger.info("MedAssist AI Backend shut down.")
+
+app = FastAPI(
+    title="MedAssist AI Clinical Portal & Backend",
+    version="2.0.0",
+    description="Production-ready FastAPI and MongoDB backend for clinical disease prediction and patient-doctor management.",
+    lifespan=lifespan
+)
+
+# CORS Configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,422 +74,583 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-SECRET_KEY = "medassist_super_secret_jwt_key_2026"
-ALGORITHM = "HS256"
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-FERNET_KEY = b'cw_0x689ShIwe9tqxgJZCQcvpzNwZdYjWZeUSh2HjB8='
-cipher_suite = Fernet(FERNET_KEY)
-
-DATABASE_URL = "postgresql://neondb_owner:npg_9qVPz6ZnYMNQ@ep-wandering-rice-za12azx0-pooler.c-2.eu-west-2.aws.neon.tech/neondb?sslmode=require"
-
-def get_db_connection():
+# ---------------------------------------------------------------------------
+# Health Check
+# ---------------------------------------------------------------------------
+@app.get("/api/health", tags=["Health"])
+def health_check():
+    db_status = "connected"
     try:
-        conn = psycopg2.connect(DATABASE_URL)
-        return conn
+        db = DatabaseManager.get_db()
+        db.command("ping")
     except Exception as e:
-        print("Database Connection Error Detail:", e)
-        return None
+        db_status = f"error: {e}"
 
-ai_model = None
-model_features = None
-try:
-    ai_model = joblib.load('medassist_disease_model.pkl')
-    model_features = joblib.load('model_features.pkl')
-    print("AI Model & Features loaded successfully!")
-except Exception as e:
-    print("Model Load Warning:", e)
+    if MLEngine.model is None:
+        MLEngine.load_model()
 
-# --- NLP / Fuzzy Normalization Helper ---
-VALID_SYMPTOMS = ["Fever", "Cough", "Fatigue", "Difficulty Breathing", "Blood Pressure", "Cholesterol Level"]
+    model_status = "loaded" if MLEngine.model is not None else "not loaded"
 
-def normalize_user_symptom(raw_input: str):
-    if not raw_input or not raw_input.strip():
-        return None
-    match, score = process.extractOne(raw_input, VALID_SYMPTOMS)
-    if score >= 75:
-        return match
-    return raw_input.title()
+    return {
+        "status": "online",
+        "service": "MedAssist AI Backend",
+        "database": db_status,
+        "ml_model": model_status,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
 
-class UserRegister(BaseModel):
-    email: str
-    password: str
-    role: str
-    full_name: str
-    phone: str
-    age: int
-    gender: str
-    location: str
-    specialization: Optional[str] = "General Physician"
+# ---------------------------------------------------------------------------
+# 1. Authentication & Role-Based Storage
+# ---------------------------------------------------------------------------
+@app.post("/api/auth/signup", status_code=status.HTTP_201_CREATED, tags=["Authentication"])
+def signup(user: UserRegister):
+    patients_col = DatabaseManager.get_patients_collection()
+    doctors_col = DatabaseManager.get_doctors_collection()
 
-class UserLogin(BaseModel):
-    email: str
-    password: str
-    role: str
+    email = user.email.lower()
 
-class SymptomRequest(BaseModel):
-    email: str
-    symptoms_text: str
-    fever: str
-    cough: str
-    fatigue: str
-    difficulty_breathing: str
-    blood_pressure: str
-    cholesterol: str
-
-class AppointmentRequest(BaseModel):
-    patient_email: str
-    doctor_email: str
-    appointment_date: str
-
-class AppointmentUpdate(BaseModel):
-    status: str
-    scheduled_time: str
-
-def verify_jwt_token(authorization: Optional[str] = Header(None)):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing or invalid token")
-    token = authorization.split(" ")[1]
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-@app.post("/api/register")
-def register_user(user: UserRegister):
-    if len(user.password) < 8 or \
-       not re.search(r"[A-Z]", user.password) or \
-       not re.search(r"[a-z]", user.password) or \
-       not re.search(r"[0-9]", user.password) or \
-       not re.search(r"[\W_]", user.password):
+        if patients_col.find_one({"email": email}) or doctors_col.find_one({"email": email}):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email is already registered in the system."
+            )
+    except HTTPException:
+        raise
+    except Exception as db_err:
+        logger.error(f"Database query error during signup: {db_err}")
         raise HTTPException(
-            status_code=400, 
-            detail="Password must be at least 8 characters long and include an uppercase letter, lowercase letter, number, and special character."
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Cannot connect to MongoDB Atlas. Please ensure IP Access List in MongoDB Atlas allows your IP (0.0.0.0/0)."
         )
 
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=500, detail="Database connection failed")
-    cursor = conn.cursor()
-    try:
-        cursor.execute("SELECT email FROM users WHERE email = %s", (user.email,))
-        if cursor.fetchone():
-            raise HTTPException(status_code=400, detail="Email already registered")
-        
-        hashed_password = pwd_context.hash(user.password)
-        cursor.execute("""
-            INSERT INTO users (email, password, role, full_name, phone, age, gender, location, specialization) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (user.email, hashed_password, user.role, user.full_name, user.phone, user.age, user.gender, user.location, user.specialization))
-        conn.commit()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        cursor.close()
-        conn.close()
-    return {"status": "success"}
+    hashed_pw = hash_password(user.password)
+    user_doc = {
+        "email": email,
+        "password_hash": hashed_pw,
+        "password": hashed_pw,  # Kept for backward compatibility
+        "role": user.role,
+        "full_name": user.full_name.strip(),
+        "phone": user.phone,
+        "age": user.age,
+        "gender": user.gender,
+        "location": user.location.strip(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
 
-@app.post("/api/login")
-def login_user(user: UserLogin):
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=500, detail="Database connection failed")
-    cursor = conn.cursor()
-    cursor.execute("SELECT password, role FROM users WHERE email = %s", (user.email,))
-    db_user = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    
-    if not db_user or db_user[1] != user.role or not pwd_context.verify(user.password, db_user[0]):
-        raise HTTPException(status_code=401, detail="Invalid credentials or role")
-        
-    token_payload = {"sub": user.email, "role": user.role, "exp": datetime.utcnow() + timedelta(hours=24)}
-    access_token = jwt.encode(token_payload, SECRET_KEY, algorithm=ALGORITHM)
-    return {"access_token": access_token, "role": user.role}
-@app.post("/api/predict")
-def predict_disease(data: SymptomRequest, token_data: dict = Depends(verify_jwt_token)):
-    text_lower = data.symptoms_text.lower()
-    
-    # 1. Smart Clinical Safety Override for Serious Symptoms
-    forced_disease = None
-    forced_risk = "Low"
-    forced_confidence = 95.5
-
-    if "blood" in text_lower and ("vomit" in text_lower or "cough" in text_lower):
-        forced_disease = "Gastrointestinal Bleeding / Gastritis"
-        forced_risk = "High"
-    elif "chest pain" in text_lower or "heart" in text_lower:
-        forced_disease = "Acute Myocardial Ischemia / Cardiac Concern"
-        forced_risk = "High"
-    elif "breath" in text_lower or "asthma" in text_lower:
-        forced_disease = "Bronchial Asthma / Respiratory Distress"
-        forced_risk = "High"
-    elif "fever" in text_lower and ("joint" in text_lower or "rash" in text_lower):
-        forced_disease = "Dengue Fever / Viral Exanthem"
-        forced_risk = "High"
-
-    inf_fever = data.fever
-    inf_cough = data.cough
-    inf_fatigue = data.fatigue
-    inf_breath = data.difficulty_breathing
-    inf_bp = data.blood_pressure
-    
-    if "fever" in text_lower or "temperature" in text_lower or "shivering" in text_lower:
-        inf_fever = "Yes"
-    if "cough" in text_lower or "cold" in text_lower or "throat" in text_lower:
-        inf_cough = "Yes"
-    if "tired" in text_lower or "fatigue" in text_lower or "weak" in text_lower:
-        inf_fatigue = "Yes"
-    if "breath" in text_lower or "asthma" in text_lower or "chest" in text_lower or "vomit" in text_lower:
-        inf_breath = "Yes"
-    if "pressure" in text_lower or "hypertension" in text_lower:
-        inf_bp = "High"
-
-    normalized_text_symptom = normalize_user_symptom(data.symptoms_text)
-    
-    symptoms_str = f"Text: {data.symptoms_text} (Normalized: {normalized_text_symptom}) | Fever: {inf_fever}, Cough: {inf_cough}, Fatigue: {inf_fatigue}, Breathing: {inf_breath}, BP: {inf_bp}, Chol: {data.cholesterol}"
-    encrypted_symptoms = cipher_suite.encrypt(symptoms_str.encode()).decode()
-    
-    if forced_disease:
-        predicted_disease = forced_disease
-        confidence_score = forced_confidence
-        risk = forced_risk
-    else:
-        predicted_disease = "Common Cold / Viral Infection"
-        confidence_score = 92.5
-        risk = "Low"
-
-        if ai_model and model_features:
-            try:
-                input_dict = {
-                    'Fever': [inf_fever],
-                    'Cough': [inf_cough],
-                    'Fatigue': [inf_fatigue],
-                    'Difficulty Breathing': [inf_breath],
-                    'Blood Pressure': [inf_bp],
-                    'Cholesterol Level': [data.cholesterol]
-                }
-                df_input = pd.DataFrame(input_dict)
-                df_encoded = pd.get_dummies(df_input)
-                df_encoded = df_encoded.reindex(columns=model_features, fill_value=0)
-                
-                raw_pred = ai_model.predict(df_encoded)[0]
-                probs = ai_model.predict_proba(df_encoded)
-                confidence_score = float(np.max(probs) * 100)
-                if confidence_score < 50.0:
-                    confidence_score = 91.5
-                predicted_disease = str(raw_pred)
-            except Exception as e:
-                print("Model Inference Error:", e)
-
-        if "blood" in text_lower or "vomit" in text_lower or "chest pain" in text_lower or "breath" in text_lower:
-            risk = "High"
-        elif data.blood_pressure == "High" or inf_bp == "High":
-            risk = "High"
-
-    recommendations = f"AI clinical evaluation indicates potential {predicted_disease}. Maintain hydration and consult a specialist."
-
-    conn = get_db_connection()
-    if conn:
+    if user.role == "doctor":
+        user_doc["specialization"] = user.specialization or "General Physician"
+        doctors_col.insert_one(user_doc)
         try:
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO symptoms_log (email, symptoms, prediction, risk_level) 
-                VALUES (%s, %s, %s, %s)
-            """, (data.email, encrypted_symptoms, predicted_disease, risk))
-            conn.commit()
-            cursor.close()
-            conn.close()
-        except Exception as e:
-            print("DB Error:", e)
+            doc_copy = {k: v for k, v in user_doc.items() if k != "_id"}
+            DatabaseManager.get_db()["doctor"].insert_one(doc_copy)
+        except Exception as err:
+            logger.debug(f"Singular doctor mirror notice: {err}")
+        logger.info(f"Doctor registered in MongoDB: {email}")
+    else:
+        patients_col.insert_one(user_doc)
+        try:
+            pat_copy = {k: v for k, v in user_doc.items() if k != "_id"}
+            DatabaseManager.get_db()["patient"].insert_one(pat_copy)
+        except Exception as err:
+            logger.debug(f"Singular patient mirror notice: {err}")
+        logger.info(f"Patient registered in MongoDB: {email}")
 
     return {
         "status": "success",
-        "predicted_disease": predicted_disease,
-        "confidence_score": f"{confidence_score:.2f}%",
-        "risk_level": risk,
-        "recommendations": recommendations,
-        "normalized_symptom": normalized_text_symptom
+        "message": f"Successfully registered as {user.role}.",
+        "role": user.role,
+        "email": email
     }
 
-    
+@app.post("/api/auth/login", response_model=TokenResponse, tags=["Authentication"])
+def login(credentials: UserLogin):
+    email = credentials.email.lower()
+    role = credentials.role.lower()
 
-@app.post("/api/recommendations")
-def get_recommendations(data: dict, token_data: dict = Depends(verify_jwt_token)):
-    disease = data.get("disease", "General Condition")
-    risk = data.get("risk_level", "Low")
-    
-    lifestyle_advice = [
-        "Maintain adequate daily water intake (2.5 to 3 liters).",
-        "Ensure 7-8 hours of quality sleep to support immune function.",
-        "Avoid strenuous physical activities until symptoms completely subside."
-    ]
-    precautions = [
-        "Monitor your temperature and blood pressure twice daily.",
-        "Wear a mask if stepping out to prevent secondary infections.",
-        "Avoid processed sugars, oily foods, and high sodium intake."
-    ]
-    when_to_consult = "If you experience severe chest discomfort, persistent high fever exceeding 102°F, or sudden breathing difficulty, seek immediate emergency medical attention."
-    
-    if risk == "High":
-        precautions.insert(0, "URGENT: Schedule an immediate priority consultation with a specialist.")
+    target_col = (
+        DatabaseManager.get_patients_collection()
+        if role == "patient"
+        else DatabaseManager.get_doctors_collection()
+    )
 
-    return {
-        "status": "success",
-        "disease": disease,
-        "risk_level": risk,
-        "treatment_suggestions": f"Targeted clinical protocol for {disease} management under physician supervision.",
-        "lifestyle_advice": lifestyle_advice,
-        "precautions": precautions,
-        "when_to_consult": when_to_consult
-    }
-
-@app.get("/api/analytics")
-def get_analytics(token_data: dict = Depends(verify_jwt_token)):
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=500, detail="Database connection failed")
-    cursor = conn.cursor()
-    
     try:
-        cursor.execute("SELECT COUNT(*) FROM symptoms_log")
-        total_predictions = cursor.fetchone()[0]
+        user_record = target_col.find_one({"email": email})
+    except Exception as db_err:
+        logger.error(f"Database query error during login: {db_err}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Cannot connect to MongoDB Atlas. Please ensure IP Access List in MongoDB Atlas allows your IP (0.0.0.0/0)."
+        )
 
-        cursor.execute("SELECT risk_level, COUNT(*) FROM symptoms_log GROUP BY risk_level")
-        risk_rows = cursor.fetchall()
-        risk_distribution = {row[0]: row[1] for row in risk_rows}
+    # If not found directly in designated role collection, check alternative collection
+    if not user_record:
+        alt_col = (
+            DatabaseManager.get_doctors_collection()
+            if role == "patient"
+            else DatabaseManager.get_patients_collection()
+        )
+        alt_user = alt_col.find_one({"email": email})
+        if alt_user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Email is registered under role '{alt_user.get('role')}', not '{role}'."
+            )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password."
+        )
 
-        cursor.execute("SELECT prediction, COUNT(*) FROM symptoms_log GROUP BY prediction ORDER BY count DESC LIMIT 5")
-        disease_rows = cursor.fetchall()
-        disease_stats = [{"disease": row[0], "count": row[1]} for row in disease_rows]
+    stored_hash = user_record.get("password_hash") or user_record.get("password")
+    if not stored_hash or not verify_password(credentials.password, stored_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password."
+        )
 
-        cursor.execute("SELECT status, COUNT(*) FROM appointments GROUP BY status")
-        appt_rows = cursor.fetchall()
-        appointment_stats = {row[0]: row[1] for row in appt_rows}
+    # Issue JWT valid for 24 hours
+    token_payload = {
+        "sub": email,
+        "role": role,
+        "full_name": user_record.get("full_name", "")
+    }
+    access_token = create_access_token(token_payload)
 
-    except Exception as e:
-        print("Analytics Error:", e)
-        total_predictions = 0
-        risk_distribution = {}
-        disease_stats = []
-        appointment_stats = {}
-    finally:
-        cursor.close()
-        conn.close()
+    return TokenResponse(
+        access_token=access_token,
+        token_type="Bearer",
+        role=role,
+        email=email,
+        full_name=user_record.get("full_name"),
+        phone=user_record.get("phone"),
+        age=user_record.get("age"),
+        gender=user_record.get("gender"),
+        location=user_record.get("location"),
+        specialization=user_record.get("specialization"),
+        bloodGroup=user_record.get("bloodGroup"),
+        allergies=user_record.get("allergies"),
+        emergencyContact=user_record.get("emergencyContact"),
+        hospital=user_record.get("hospital"),
+        licenseNumber=user_record.get("licenseNumber"),
+        experienceYears=user_record.get("experienceYears"),
+        created_at=user_record.get("created_at")
+    )
+
+@app.get("/api/auth/me", tags=["Authentication"])
+def get_current_user_profile(current_user: dict = Depends(verify_jwt_token)):
+    email = current_user.get("sub", "").lower()
+    role = current_user.get("role", "").lower()
+
+    col = (
+        DatabaseManager.get_patients_collection()
+        if role == "patient"
+        else DatabaseManager.get_doctors_collection()
+    )
+    user_record = col.find_one({"email": email})
+    if not user_record:
+        alt_col = (
+            DatabaseManager.get_doctors_collection()
+            if role == "patient"
+            else DatabaseManager.get_patients_collection()
+        )
+        user_record = alt_col.find_one({"email": email})
+
+    if not user_record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User profile record not found."
+        )
+
+    user_data = {k: v for k, v in user_record.items() if k not in ["_id", "password", "password_hash"]}
+    user_data["id"] = email
+    user_data["name"] = user_record.get("full_name", email)
+    return user_data
+
+@app.put("/api/auth/profile", tags=["Authentication"])
+def update_current_user_profile(
+    profile_data: ProfileUpdateRequest,
+    current_user: dict = Depends(verify_jwt_token)
+):
+    email = current_user.get("sub", "").lower()
+    role = current_user.get("role", "").lower()
+
+    col = (
+        DatabaseManager.get_patients_collection()
+        if role == "patient"
+        else DatabaseManager.get_doctors_collection()
+    )
+
+    update_fields = {}
+    data_dict = profile_data.model_dump(exclude_unset=True)
+    for k, v in data_dict.items():
+        if v is not None:
+            if k == "name" and "full_name" not in data_dict:
+                update_fields["full_name"] = v
+            else:
+                update_fields[k] = v
+
+    if update_fields:
+        update_fields["updated_at"] = datetime.now(timezone.utc).isoformat()
+        col.update_one({"email": email}, {"$set": update_fields})
+        try:
+            singular_col_name = "doctor" if role == "doctor" else "patient"
+            DatabaseManager.get_db()[singular_col_name].update_one({"email": email}, {"$set": update_fields})
+        except Exception:
+            pass
+
+    updated_doc = col.find_one({"email": email}) or {}
+    clean_data = {k: v for k, v in updated_doc.items() if k not in ["_id", "password", "password_hash"]}
+    clean_data["id"] = email
+    clean_data["name"] = updated_doc.get("full_name", email)
 
     return {
         "status": "success",
-        "total_predictions": total_predictions,
-        "risk_distribution": risk_distribution,
-        "disease_stats": disease_stats,
-        "appointment_stats": appointment_stats,
-        "system_health": "Optimal (99.9% Uptime)"
+        "message": "Profile updated successfully.",
+        "user": clean_data
     }
 
-@app.get("/api/doctors")
-def get_doctors(token_data: dict = Depends(verify_jwt_token)):
-    conn = get_db_connection()
-    if not conn:
-        return {"doctors": []}
-    cursor = conn.cursor()
-    cursor.execute("SELECT email, full_name, specialization, location FROM users WHERE role = 'doctor'")
-    rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    
-    doctors = [{"email": r[0], "full_name": r[1], "specialization": r[2], "location": r[3]} for r in rows]
+
+# ---------------------------------------------------------------------------
+# 2. AI Model & Prediction Engine
+# ---------------------------------------------------------------------------
+@app.post("/api/predict", response_model=PredictionResponse, tags=["AI Diagnostics"])
+def predict_disease(
+    request: SymptomPredictRequest,
+    current_user: dict = Depends(verify_jwt_token)
+):
+    try:
+        prediction_result = MLEngine.run_prediction(request.model_dump())
+    except Exception as e:
+        logger.error(f"Prediction execution failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Disease prediction engine failed: {str(e)}"
+        )
+
+    # Persist prediction in symptoms_log collection
+    symptoms_log_col = DatabaseManager.get_symptoms_log_collection()
+    log_doc = {
+        "email": request.email.lower(),
+        "symptoms_text": request.symptoms_text,
+        "indicators": prediction_result["indicators"],
+        "predicted_disease": prediction_result["predicted_disease"],
+        "prediction": prediction_result["predicted_disease"],  # Compatibility with existing schema
+        "confidence_score": prediction_result["confidence_score"],
+        "risk_level": prediction_result["risk_level"],
+        "normalized_symptom": prediction_result["normalized_symptom"],
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+
+    try:
+        symptoms_log_col.insert_one(log_doc)
+    except Exception as e:
+        logger.error(f"Failed logging prediction to MongoDB: {e}")
+
+    return PredictionResponse(
+        status="success",
+        predicted_disease=prediction_result["predicted_disease"],
+        confidence_score=prediction_result["confidence_score"],
+        risk_level=prediction_result["risk_level"],
+        recommendations=prediction_result["recommendations"],
+        normalized_symptom=prediction_result["normalized_symptom"]
+    )
+
+# ---------------------------------------------------------------------------
+# 3. Recommendations & Analytics
+# ---------------------------------------------------------------------------
+@app.post("/api/recommendations", response_model=RecommendationResponse, tags=["Clinical Recommendations"])
+def get_recommendations(
+    req: RecommendationRequest,
+    current_user: dict = Depends(verify_jwt_token)
+):
+    disease = req.disease or "General Clinical Condition"
+    risk = (req.risk_level or "Low").capitalize()
+
+    lifestyle_advice = [
+        "Maintain adequate daily hydration (2.5 to 3 liters of purified water).",
+        "Ensure 7 to 8 hours of uninterrupted restorative sleep to enhance immune response.",
+        "Avoid strenuous physical exertion and stress until clinical symptoms resolve.",
+        "Consume nutrient-dense, easily digestible meals rich in antioxidants and vitamins."
+    ]
+
+    precautions = [
+        "Monitor core body temperature and blood pressure twice daily.",
+        "Wear a protective medical mask if leaving home to avoid airborne pathogens.",
+        "Refrain from consuming excessively salty, greasy, or processed foods.",
+        "Do not self-medicate with high-dose antibiotics or non-prescribed analgesics."
+    ]
+
+    when_to_consult = (
+        "Seek immediate emergency medical care if you experience sharp chest pain, "
+        "shortness of breath, persistent fever above 102°F (38.9°C), sudden confusion, "
+        "or continuous vomiting."
+    )
+
+    if risk == "High":
+        precautions.insert(0, "CRITICAL: Book an immediate priority consultation with a medical specialist.")
+        lifestyle_advice.insert(0, "Strict bed rest and continuous clinical observation recommended.")
+    elif risk == "Medium":
+        precautions.insert(0, "Schedule an appointment with a physician within 24 to 48 hours.")
+
+    treatment_suggestions = (
+        f"Standard clinical protocol for managing {disease}: Initiate symptom-targeted "
+        f"therapy, follow prescribed rest regimens, and undergo diagnostic laboratory evaluations "
+        f"under the direct supervision of a licensed physician."
+    )
+
+    return RecommendationResponse(
+        status="success",
+        disease=disease,
+        risk_level=risk,
+        treatment_suggestions=treatment_suggestions,
+        lifestyle_advice=lifestyle_advice,
+        precautions=precautions,
+        when_to_consult=when_to_consult
+    )
+
+@app.get("/api/analytics", response_model=AnalyticsResponse, tags=["Analytics"])
+def get_analytics(current_user: dict = Depends(verify_jwt_token)):
+    symptoms_col = DatabaseManager.get_symptoms_log_collection()
+    appointments_col = DatabaseManager.get_appointments_collection()
+
+    # 1. Total predictions
+    total_predictions = symptoms_col.count_documents({})
+
+    # 2. Risk distribution aggregation
+    risk_pipeline = [
+        {"$group": {"_id": "$risk_level", "count": {"$sum": 1}}}
+    ]
+    risk_cursor = symptoms_col.aggregate(risk_pipeline)
+    risk_distribution = {doc["_id"] or "Unknown": doc["count"] for doc in risk_cursor}
+
+    # Ensure standard keys are present for UI
+    for level in ["Low", "Medium", "High"]:
+        risk_distribution.setdefault(level, 0)
+
+    # 3. Top predicted diseases aggregation
+    disease_pipeline = [
+        {
+            "$project": {
+                "disease": {
+                    "$ifNull": ["$predicted_disease", "$prediction"]
+                }
+            }
+        },
+        {"$group": {"_id": "$disease", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 5}
+    ]
+    disease_cursor = symptoms_col.aggregate(disease_pipeline)
+    disease_stats = [
+        {"disease": doc["_id"] or "Unclassified", "count": doc["count"]}
+        for doc in disease_cursor
+    ]
+
+    # 4. Appointment status aggregation
+    appt_pipeline = [
+        {"$group": {"_id": "$status", "count": {"$sum": 1}}}
+    ]
+    appt_cursor = appointments_col.aggregate(appt_pipeline)
+    appointment_stats = {doc["_id"] or "Pending": doc["count"] for doc in appt_cursor}
+    for st in ["Pending", "Accepted", "Rejected"]:
+        appointment_stats.setdefault(st, 0)
+
+    return AnalyticsResponse(
+        status="success",
+        total_predictions=total_predictions,
+        risk_distribution=risk_distribution,
+        disease_stats=disease_stats,
+        appointment_stats=appointment_stats,
+        system_health="Optimal (99.9% Uptime)"
+    )
+
+@app.get("/api/doctors", response_model=Dict[str, List[DoctorResponseItem]], tags=["Doctor Directory"])
+def get_doctors(current_user: dict = Depends(verify_jwt_token)):
+    doctors_col = DatabaseManager.get_doctors_collection()
+    doctors = []
+    cursor = doctors_col.find({}, {"password": 0, "password_hash": 0})
+    for doc in cursor:
+        doctors.append(
+            DoctorResponseItem(
+                email=doc.get("email", ""),
+                full_name=doc.get("full_name", "Dr. Specialist"),
+                specialization=doc.get("specialization", "General Physician"),
+                location=doc.get("location", "Not Specified"),
+                phone=doc.get("phone", "")
+            )
+        )
     return {"doctors": doctors}
 
-@app.post("/api/appointments")
-def book_appointment(appt: AppointmentRequest, token_data: dict = Depends(verify_jwt_token)):
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=500, detail="Database connection failed")
-    cursor = conn.cursor()
-    try:
-        cursor.execute("""
-            INSERT INTO appointments (patient_email, doctor_email, appointment_date, status, scheduled_time)
-            VALUES (%s, %s, %s, 'Pending', 'To be confirmed')
-        """, (appt.patient_email, appt.doctor_email, appt.appointment_date))
-        conn.commit()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        cursor.close()
-        conn.close()
-    return {"status": "success"}
+# ---------------------------------------------------------------------------
+# 4. Appointments & Patient Management
+# ---------------------------------------------------------------------------
+@app.post("/api/appointments", status_code=status.HTTP_201_CREATED, tags=["Appointments"])
+def book_appointment(
+    appt: AppointmentCreate,
+    current_user: dict = Depends(verify_jwt_token)
+):
+    appointments_col = DatabaseManager.get_appointments_collection()
 
-@app.get("/api/appointments/{email}")
-def get_appointments(email: str, role: str, token_data: dict = Depends(verify_jwt_token)):
-    conn = get_db_connection()
-    if not conn:
-        return {"appointments": []}
-    cursor = conn.cursor()
-    if role == 'patient':
-        cursor.execute("SELECT id, doctor_email, appointment_date, status, scheduled_time FROM appointments WHERE patient_email = %s ORDER BY id DESC", (email,))
+    appt_doc = {
+        "patient_email": appt.patient_email.lower(),
+        "doctor_email": appt.doctor_email.lower(),
+        "appointment_date": appt.appointment_date,
+        "status": "Pending",
+        "scheduled_time": "To be confirmed",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+
+    result = appointments_col.insert_one(appt_doc)
+    logger.info(f"Booked appointment {result.inserted_id} between {appt.patient_email} and {appt.doctor_email}")
+
+    return {
+        "status": "success",
+        "message": "Appointment booked successfully.",
+        "appointment_id": str(result.inserted_id)
+    }
+
+@app.get("/api/appointments/{email}", tags=["Appointments"])
+def get_appointments(
+    email: str,
+    role: str = Query(..., description="Role: 'patient' or 'doctor'"),
+    current_user: dict = Depends(verify_jwt_token)
+):
+    appointments_col = DatabaseManager.get_appointments_collection()
+    email_clean = email.strip().lower()
+    role_clean = role.strip().lower()
+
+    if role_clean == "patient":
+        query = {"patient_email": email_clean}
+    elif role_clean == "doctor":
+        query = {"doctor_email": email_clean}
     else:
-        cursor.execute("SELECT id, patient_email, appointment_date, status, scheduled_time FROM appointments WHERE doctor_email = %s ORDER BY id DESC", (email,))
-    rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    
-    appts = [{"id": r[0], "target_email": r[1], "appointment_date": r[2], "status": r[3], "scheduled_time": r[4]} for r in rows]
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Query parameter 'role' must be either 'patient' or 'doctor'"
+        )
+
+    appointments_cursor = appointments_col.find(query).sort("_id", -1)
+    appts = []
+    for doc in appointments_cursor:
+        doc_id = str(doc["_id"])
+        target_email = doc.get("doctor_email") if role_clean == "patient" else doc.get("patient_email")
+        appts.append({
+            "id": doc_id,
+            "patient_email": doc.get("patient_email"),
+            "doctor_email": doc.get("doctor_email"),
+            "target_email": target_email,
+            "appointment_date": doc.get("appointment_date"),
+            "status": doc.get("status", "Pending"),
+            "scheduled_time": doc.get("scheduled_time", "To be confirmed"),
+            "created_at": doc.get("created_at")
+        })
+
     return {"appointments": appts}
 
-@app.put("/api/appointments/{appt_id}")
-def update_appointment(appt_id: int, update: AppointmentUpdate, token_data: dict = Depends(verify_jwt_token)):
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=500, detail="Database connection failed")
-    cursor = conn.cursor()
-    try:
-        cursor.execute("""
-            UPDATE appointments SET status = %s, scheduled_time = %s WHERE id = %s
-        """, (update.status, update.scheduled_time, appt_id))
-        conn.commit()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        cursor.close()
-        conn.close()
-    return {"status": "success"}
+@app.put("/api/appointments/{appt_id}", tags=["Appointments"])
+def update_appointment(
+    appt_id: str,
+    update: AppointmentUpdate,
+    current_user: dict = Depends(verify_jwt_token)
+):
+    appointments_col = DatabaseManager.get_appointments_collection()
 
-@app.get("/api/patients")
-def get_patients(token_data: dict = Depends(verify_jwt_token)):
-    conn = get_db_connection()
-    if not conn:
-        return {"patients": []}
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT s.id, s.email, COALESCE(u.full_name, 'Patient'), COALESCE(u.phone, 'N/A'), 
-               COALESCE(u.age, 25), COALESCE(u.gender, 'N/A'), COALESCE(u.location, 'Tamil Nadu'), 
-               s.symptoms, s.prediction, s.risk_level 
-        FROM symptoms_log s 
-        LEFT JOIN users u ON s.email = u.email 
-        ORDER BY s.id DESC
-    """)
-    rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    
+    try:
+        query = {"_id": ObjectId(appt_id)}
+    except InvalidId:
+        query = {"_id": appt_id}
+
+    existing = appointments_col.find_one(query)
+    if not existing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Appointment with ID '{appt_id}' was not found."
+        )
+
+    appointments_col.update_one(
+        query,
+        {
+            "$set": {
+                "status": update.status,
+                "scheduled_time": update.scheduled_time,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+        }
+    )
+
+    logger.info(f"Updated appointment {appt_id} to status '{update.status}' at '{update.scheduled_time}'")
+
+    return {
+        "status": "success",
+        "message": f"Appointment status updated to '{update.status}' with time '{update.scheduled_time}'."
+    }
+
+@app.get("/api/patients", tags=["Patient Management"])
+def get_patients(current_user: dict = Depends(verify_jwt_token)):
+    """Return all patient diagnostic records and merged profiles for doctor dashboards."""
+    symptoms_col = DatabaseManager.get_symptoms_log_collection()
+    patients_col = DatabaseManager.get_patients_collection()
+
+    symptoms_cursor = symptoms_col.find({}).sort("_id", -1)
     patients_list = []
-    for r in rows:
-        try:
-            decrypted_symptoms = cipher_suite.decrypt(r[7].encode()).decode()
-        except Exception:
-            decrypted_symptoms = r[7]
-            
+
+    # Cache patient profiles to avoid repeated DB lookups
+    patient_cache = {}
+    seen_emails = set()
+
+    for s in symptoms_cursor:
+        email = s.get("email", "").lower()
+        seen_emails.add(email)
+        if email not in patient_cache:
+            profile = patients_col.find_one({"email": email})
+            patient_cache[email] = profile or {}
+
+        patient_profile = patient_cache[email]
+
+        # Format symptoms text
+        symptoms_display = s.get("symptoms_text") or s.get("symptoms", "Clinical Consultation")
+        prediction_val = s.get("predicted_disease") or s.get("prediction", "General Condition")
+        risk_val = s.get("risk_level", "Low")
+        conf_val = s.get("confidence_score", "90.00%")
+
         patients_list.append({
-            "id": r[0],
-            "email": r[1],
-            "full_name": r[2],
-            "phone": r[3],
-            "age": r[4],
-            "gender": r[5],
-            "location": r[6],
+            "id": str(s["_id"]),
+            "email": email,
+            "full_name": patient_profile.get("full_name", "Patient"),
+            "phone": patient_profile.get("phone", "N/A"),
+            "age": patient_profile.get("age", 30),
+            "gender": patient_profile.get("gender", "Unspecified"),
+            "location": patient_profile.get("location", "Not Specified"),
             "guardian": "Primary Contact Available",
-            "symptoms": decrypted_symptoms,
-            "prediction": r[8],
-            "risk_level": r[9]
+            "symptoms": symptoms_display,
+            "prediction": prediction_val,
+            "risk_level": risk_val,
+            "confidence_score": conf_val,
+            "created_at": s.get("created_at")
         })
+
+    # Include newly registered patients who have not submitted symptom logs yet
+    for p in patients_col.find({}):
+        p_email = p.get("email", "").lower()
+        if p_email not in seen_emails:
+            patients_list.append({
+                "id": str(p["_id"]),
+                "email": p_email,
+                "full_name": p.get("full_name", "Patient"),
+                "phone": p.get("phone", "N/A"),
+                "age": p.get("age", 30),
+                "gender": p.get("gender", "Unspecified"),
+                "location": p.get("location", "Not Specified"),
+                "guardian": "Primary Contact Available",
+                "symptoms": "Newly registered patient (Pending symptoms checklist)",
+                "prediction": "Pending Clinical Assessment",
+                "risk_level": "Low",
+                "confidence_score": "N/A",
+                "created_at": p.get("created_at")
+            })
+
     return {"patients": patients_list}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host=HOST, port=PORT, reload=True)
