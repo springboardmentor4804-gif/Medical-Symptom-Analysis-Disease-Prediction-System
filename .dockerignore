@@ -1,0 +1,33 @@
+# Exclude node modules and local build artifacts
+node_modules
+dist
+build
+.npm
+
+# Exclude Python bytecode and cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.venv
+venv/
+env/
+
+# Exclude Git and IDE files
+.git
+.gitignore
+.vscode/
+.idea/
+
+# Exclude local environment files containing secrets
+.env
+.env.local
+
+# Exclude logs and temp files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# NOTE: ML Model files (*.pkl) are intentionally NOT ignored so they remain available inside containers!
