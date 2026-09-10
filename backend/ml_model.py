@@ -9,9 +9,20 @@ from advisory_engine import generate_health_advisory
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SYMPTOM_SEVERITY_PATH = os.path.join(BASE_DIR, "symptom_severity.pkl")
-DISEASE_MODEL_PATH = os.path.join(BASE_DIR, "disease_prediction_model.pkl")
-CVD_MODEL_PATH = os.path.join(BASE_DIR, "cvd_prediction_model.pkl")
+DATASTORAGE_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "datastorage"))
+
+def resolve_model_path(filename):
+    backend_path = os.path.join(BASE_DIR, filename)
+    if os.path.exists(backend_path):
+        return backend_path
+    datastorage_path = os.path.join(DATASTORAGE_DIR, filename)
+    if os.path.exists(datastorage_path):
+        return datastorage_path
+    return backend_path
+
+SYMPTOM_SEVERITY_PATH = resolve_model_path("symptom_severity.pkl")
+DISEASE_MODEL_PATH = resolve_model_path("disease_prediction_model.pkl")
+CVD_MODEL_PATH = resolve_model_path("cvd_prediction_model.pkl")
 
 SYMPTOM_FEATURES = [
   'chest_pain', 'palpitations', 'sob_exertion', 'leg_swelling', 'dizziness', 'cold_sweats',
