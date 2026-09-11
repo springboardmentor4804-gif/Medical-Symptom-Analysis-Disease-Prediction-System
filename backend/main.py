@@ -59,9 +59,11 @@ print("Number of symptoms:", len(symptoms_list))
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://192.168.0.104:3000"
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://192.168.0.104:3000",
+    "https://frontend-beta-nine-38.vercel.app",
+    "https://frontend-95h9ah1a3-med-assist-ai2.vercel.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
