@@ -45,7 +45,7 @@ export default function PatientProfile() {
     setPhoneError('');
     try {
       await updateProfile(formData);
-      addToast('success', 'Profile and medical attributes updated in MongoDB Atlas successfully.');
+      addToast('success', 'Profile and medical attributes updated successfully.');
     } catch (err) {
       addToast('error', err.message || 'Failed saving profile updates.');
     }

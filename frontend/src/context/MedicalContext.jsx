@@ -145,8 +145,8 @@ export function MedicalProvider({ children }) {
     };
     setPatientLogs((prev) => [logEntry, ...prev]);
     setActiveDiagnosis(logEntry);
-    addToast('success', 'Diagnostic evaluation completed & clinical record saved in MongoDB Atlas!');
-    // Refetch to sync with Atlas database
+    addToast('success', 'Diagnostic evaluation completed and saved to your health record.');
+    // Refetch to sync with server
     setTimeout(() => refreshMedicalData(), 1200);
     return logEntry;
   };
@@ -189,7 +189,7 @@ export function MedicalProvider({ children }) {
       if (res.appointment_id) {
         newApt.id = res.appointment_id;
       }
-      addToast('success', `Appointment request sent to ${appointmentData.doctorName || 'Doctor'} and recorded in MongoDB.`);
+      addToast('success', `Appointment request sent to ${appointmentData.doctorName || 'Doctor'} successfully.`);
       setTimeout(() => refreshMedicalData(), 1000);
     } catch (err) {
       addToast('error', err.message || 'Failed booking appointment on server');
@@ -222,7 +222,7 @@ export function MedicalProvider({ children }) {
       });
       addToast(
         status === 'Accepted' ? 'success' : 'info',
-        `Appointment ${status.toLowerCase()} and status synced with MongoDB Atlas.`
+        `Appointment status updated to ${status.toLowerCase()} successfully.`
       );
       setTimeout(() => refreshMedicalData(), 1000);
     } catch (err) {

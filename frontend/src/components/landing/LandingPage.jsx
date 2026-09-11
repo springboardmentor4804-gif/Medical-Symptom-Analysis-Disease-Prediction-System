@@ -161,7 +161,7 @@ export default function LandingPage({ onEnterDashboard }) {
         phone: cleanPhone,
         role: activeRoleTab
       });
-      addToast('success', 'Account registered in MongoDB Atlas! Please sign in with your password.');
+      addToast('success', 'Account registered successfully! Please sign in with your password.');
       setLoginEmail(registerData.email);
       setLoginPassword('');
       setAuthMode('signin');
@@ -278,7 +278,7 @@ export default function LandingPage({ onEnterDashboard }) {
               </div>
               <div>
                 <p className="text-xl sm:text-2xl font-black text-slate-900">100%</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">Database User Persistence</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Secure Cloud Health Records</p>
               </div>
               <div>
                 <p className="text-xl sm:text-2xl font-black text-slate-900">CDC & WHO</p>
@@ -299,13 +299,13 @@ export default function LandingPage({ onEnterDashboard }) {
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full text-xs font-bold text-indigo-800 mb-2">
               <Lock className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Role-Based Portal Access & User Registration</span>
+              <span>Role-Based Portal Access</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              {authMode === 'signin' ? 'Sign In to Your Account' : 'Register New User in Database'}
+              {authMode === 'signin' ? 'Sign In to Your Account' : 'Create a Verified Account'}
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-lg mx-auto">
-              Select your role (Patient or Doctor) below to sign in with your credentials or register a new verified profile.
+              Select your role (Patient or Doctor) below to sign in with your credentials or register a new profile.
             </p>
           </div>
 
@@ -345,7 +345,7 @@ export default function LandingPage({ onEnterDashboard }) {
               <div className="flex items-center justify-between border-b border-slate-200 pb-4">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">
-                    {authMode === 'signin' ? 'Sign In with Registered Credentials' : 'Create New Account in Database'}
+                    {authMode === 'signin' ? 'Sign In with Your Credentials' : 'Create New Account'}
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
                     {activeRoleTab === 'patient'
@@ -685,10 +685,10 @@ export default function LandingPage({ onEnterDashboard }) {
                     }`}
                   >
                     {isRegistering ? (
-                      <span>Storing Account in Database...</span>
+                      <span>Creating Account...</span>
                     ) : (
                       <>
-                        <span>Register {activeRoleTab === 'doctor' ? 'Doctor' : 'Patient'} Account in Database</span>
+                        <span>Create {activeRoleTab === 'doctor' ? 'Doctor' : 'Patient'} Account</span>
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}

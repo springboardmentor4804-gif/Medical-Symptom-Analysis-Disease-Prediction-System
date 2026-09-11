@@ -43,7 +43,7 @@ export default function DoctorProfile() {
     setPhoneError('');
     try {
       await updateProfile(formData);
-      addToast('success', 'Provider profile & clinical credentials updated in MongoDB Atlas.');
+      addToast('success', 'Provider profile & clinical credentials updated successfully.');
     } catch (err) {
       addToast('error', err.message || 'Failed updating provider credentials.');
     }

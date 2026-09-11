@@ -115,7 +115,7 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }) {
         phone: cleanPhone,
         role
       });
-      addToast('success', `Account created successfully in MongoDB Atlas! Please sign in.`);
+      addToast('success', 'Account created successfully! Please sign in with your credentials.');
       onClose();
       if (onSwitchToLogin) {
         onSwitchToLogin();
