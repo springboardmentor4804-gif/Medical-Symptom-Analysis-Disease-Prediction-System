@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+const API_URL = "https://medassist-ai-production-1d3b.up.railway.app";
 function Register() {
   const navigate = useNavigate();
 
@@ -11,34 +12,41 @@ function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("Patient");
+  
 
   const handleRegister = async () => {
-    try {
-      const response = await fetch("http://127.0.0.1:8000/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fullname,
-          age: parseInt(age),
-          gender,
-          phone,
-          email,
-          password,
-          role,
-        }),
-      });
+  try {
+    const response = await fetch(`${API_URL}/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fullname,
+        age: parseInt(age),
+        gender,
+        phone,
+        email,
+        password,
+        role,
+      }),
+    });
 
-      const data = await response.json();
-      alert(data.message);
+    const data = await response.json();
 
-      navigate("/login");
-    } catch (error) {
-      alert("Registration Failed!");
-      console.log(error);
+    if (!response.ok) {
+      alert(data.detail || data.message || "Registration Failed!");
+      return;
     }
-  };
+
+    alert(data.message || "Registration Successful!");
+    navigate("/login");
+
+  } catch (error) {
+    console.log("Registration error:", error);
+    alert("Unable to connect to the backend. Please try again.");
+  }
+};
 
   return (
     <div style={{ textAlign: "center", marginTop: "50px" }}>

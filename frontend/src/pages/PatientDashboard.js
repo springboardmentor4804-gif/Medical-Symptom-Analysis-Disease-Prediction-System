@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 function PatientDashboard() {
   const user = JSON.parse(localStorage.getItem("user"));
   const userName = user?.fullname;
+  const API_URL = "https://medassist-ai-production-1d3b.up.railway.app";
   const [symptoms, setSymptoms] = useState("");
   const [reportFile, setReportFile] = useState(null);
   const [doctorName, setDoctorName] = useState("Dr. Sharma");
@@ -31,7 +32,7 @@ const [theme, setTheme] = useState("Light");
   const loadMedicalHistory = async () => {
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/medical-history/${encodeURIComponent(userName)}`
+        `${API_URL}/medical-history/${encodeURIComponent(userName)}`
       );
 
       if (response.ok) {
@@ -49,7 +50,7 @@ const [theme, setTheme] = useState("Light");
   const loadPredictionHistory = async () => {
     try {
       const response = await fetch(
-        "http://127.0.0.1:8000/predictions"
+        `${API_URL}/predictions`
       );
 
       if (!response.ok) return;
@@ -78,7 +79,7 @@ useEffect(() => {
   const loadReports = async () => {
     try {
       const response = await fetch(
-        "http://127.0.0.1:8000/reports"
+        `${API_URL}/reports`
       );
 
       if (!response.ok) return;
@@ -116,7 +117,7 @@ useEffect(() => {
 
   try {
     const response = await fetch(
-      "http://127.0.0.1:8000/upload-report",
+      `${API_URL}/upload-report`,
       {
         method: "POST",
         body: formData,
@@ -157,7 +158,7 @@ useEffect(() => {
 
   try {
     const response = await fetch(
-      "http://127.0.0.1:8000/predict",
+      `${API_URL}/predict`,
       {
         method: "POST",
         headers: {
@@ -193,7 +194,7 @@ const handleDownloadReport = async () => {
 
   try {
     const response = await fetch(
-      "http://127.0.0.1:8000/generate-report",
+      `${API_URL}/generate-report`,
       {
         method: "POST",
         headers: {
@@ -231,7 +232,7 @@ const handleDownloadReport = async () => {
 const handleAppointment = async () => {
   try {
     const response = await fetch(
-      "http://127.0.0.1:8000/book-appointment",
+      `${API_URL}/book-appointment`,
       {
         method: "POST",
         headers: {
@@ -263,7 +264,7 @@ const handleSaveMedicalHistory = async () => {
 
   try {
     const response = await fetch(
-      "http://127.0.0.1:8000/medical-history",
+      `${API_URL}/medical-history`,
       {
         method: "POST",
         headers: {
@@ -970,7 +971,7 @@ const handleSaveMedicalHistory = async () => {
                 <span>📄 {report.filename}</span>
 
                 <a
-                  href={`http://127.0.0.1:8000/uploads/${encodeURIComponent(
+                  href={`${API_URL}/uploads/${encodeURIComponent(
                     report.filename
                   )}`}
                   target="_blank"

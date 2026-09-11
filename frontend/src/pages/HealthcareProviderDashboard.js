@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
 import {BarChart,Bar,XAxis,YAxis,CartesianGrid,Tooltip, ResponsiveContainer,} from "recharts";
+
+
+const API_URL = "https://medassist-ai-production-1d3b.up.railway.app";
+
 function HealthcareProviderDashboard() {
   const [patients, setPatients] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -15,7 +19,7 @@ const [medicalHistory, setMedicalHistory] = useState(null);
     useEffect(() => {
     async function loadPatients() {
       try {
-        const response = await fetch("http://127.0.0.1:8000/patients");
+        const response = await fetch(`${API_URL}/patients`);
         const data = await response.json();
         setPatients(data);
       } catch (error) {
@@ -25,7 +29,7 @@ const [medicalHistory, setMedicalHistory] = useState(null);
 
     async function loadPredictions() {
       try {
-        const response = await fetch("http://127.0.0.1:8000/predictions");
+        const response = await fetch(`${API_URL}/predictions`);
         const data = await response.json();
         setPredictions(data.predictions || []);
       } catch (error) {
@@ -34,7 +38,7 @@ const [medicalHistory, setMedicalHistory] = useState(null);
     }
     async function loadAnalytics() {
   try {
-    const response = await fetch("http://127.0.0.1:8000/analytics");
+    const response = await fetch(`${API_URL}/analytics`);
     const data = await response.json();
 
     setAnalytics(data);
@@ -46,7 +50,7 @@ const [medicalHistory, setMedicalHistory] = useState(null);
 }
     async function loadReports() {
   try {
-    const response = await fetch("http://127.0.0.1:8000/reports");
+    const response = await fetch(`${API_URL}/reports`);
     const data = await response.json();
     setReports(data.reports || []);
   } catch (error) {
@@ -55,7 +59,7 @@ const [medicalHistory, setMedicalHistory] = useState(null);
 }
 async function loadAppointments() {
   try {
-    const response = await fetch("http://127.0.0.1:8000/appointments");
+    const response = await fetch(`${API_URL}/appointments`);
     const data = await response.json();
     setAppointments(data.appointments || []);
   } catch (error) {
@@ -78,7 +82,7 @@ useEffect(() => {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/medical-history/${encodeURIComponent(
+        `${API_URL}/medical-history/${encodeURIComponent(
           selectedPatient.fullname
         )}`
       );
@@ -454,7 +458,7 @@ useEffect(() => {
   .map((report, index) => (
     <li key={index}>
       <a
-        href={`http://127.0.0.1:8000/uploads/${report.filename}`}
+        href={`${API_URL}/uploads/${encodeURIComponent(report.filename)}`}
         target="_blank"
         rel="noreferrer"
         style={{
