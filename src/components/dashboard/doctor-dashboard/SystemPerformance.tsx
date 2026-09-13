@@ -29,7 +29,8 @@ const modelAccuracyHistory = [
   { epoch: "v1.0", accuracy: 68 },
   { epoch: "v1.1", accuracy: 74 },
   { epoch: "v1.2", accuracy: 79 },
-  { epoch: "v2.0 (Latest)", accuracy: 84.58 },
+  { epoch: "v2.0", accuracy: 84.58 },
+  { epoch: "v3.0 (Latest)", accuracy: 99.70 },
 ];
 
 export default function SystemPerformance() {
@@ -40,10 +41,10 @@ export default function SystemPerformance() {
       icon: Brain,
       color: "text-indigo-500 bg-indigo-500/10",
       metrics: [
-        { label: "Prediction Accuracy", value: "84.58%", target: "80.0%", progress: 84.58 },
-        { label: "Precision", value: "81.20%", target: "80.0%", progress: 81.2 },
-        { label: "Recall", value: "79.50%", target: "75.0%", progress: 79.5 },
-        { label: "F1-Score", value: "80.30%", target: "78.0%", progress: 80.3 },
+        { label: "Prediction Accuracy", value: "99.70%", target: "95.0%", progress: 99.70 },
+        { label: "Precision", value: "99.71%", target: "95.0%", progress: 99.71 },
+        { label: "Recall", value: "99.71%", target: "95.0%", progress: 99.71 },
+        { label: "F1-Score", value: "99.70%", target: "95.0%", progress: 99.70 },
       ],
     },
     {
@@ -54,12 +55,12 @@ export default function SystemPerformance() {
       metrics: [
         {
           label: "Disease Prediction Confidence",
-          value: "78.40%",
-          target: "70.0%",
-          progress: 78.4,
+          value: "99.57%",
+          target: "90.0%",
+          progress: 99.57,
         },
-        { label: "Risk Assessment Accuracy", value: "99.17%", target: "95.0%", progress: 99.17 },
-        { label: "Recommendation Relevance", value: "94.80%", target: "90.0%", progress: 94.8 },
+        { label: "Risk Assessment Accuracy", value: "99.41%", target: "95.0%", progress: 99.41 },
+        { label: "Recommendation Relevance", value: "98.90%", target: "95.0%", progress: 98.90 },
       ],
     },
     {
