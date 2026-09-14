@@ -1,4 +1,4 @@
-# MedAssist AI — Medical Symptom Analysis & Disease Prediction System
+# MedAssist AI — Comprehensive Project Guide
 
 MedAssist AI is an intelligent medical symptom-checker, AI risk assessment, and clinical patient-profile management platform. Designed for modern healthcare decision support, it provides dedicated, role-tailored dashboards for **Patients**, **Doctors**, **Clinics**, and **System Administrators**.
 
