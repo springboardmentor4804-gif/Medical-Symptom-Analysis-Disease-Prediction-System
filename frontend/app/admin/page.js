@@ -374,7 +374,6 @@ function DoctorsTab({ onStatsRefresh }) {
   const [formLoading, setFormLoading] = useState(false);
 
   const fetchDoctors = useCallback(() => {
-    setLoading(true);
     api.get('/admin/doctors')
       .then(setDoctors)
       .catch(() => setFeedback({ type: 'error', message: 'Failed to load doctors.' }))
@@ -566,7 +565,6 @@ function ClinicsTab({ onStatsRefresh }) {
   const [assignLoading, setAssignLoading] = useState(false);
 
   const fetchData = useCallback(() => {
-    setLoading(true);
     Promise.all([api.get('/admin/clinics'), api.get('/admin/doctors')])
       .then(([c, d]) => { setClinics(c); setDoctors(d); })
       .catch(() => setFeedback({ type: 'error', message: 'Failed to load data.' }))
@@ -800,11 +798,12 @@ export default function AdminDashboard() {
   const refreshStats = useCallback(() => setStatsKey(k => k + 1), []);
 
   useEffect(() => {
-    setStatsLoading(true);
+    let ignore = false;
     api.get('/admin/stats')
-      .then(setStats)
+      .then(data => { if (!ignore) setStats(data); })
       .catch(() => {})
-      .finally(() => setStatsLoading(false));
+      .finally(() => { if (!ignore) setStatsLoading(false); });
+    return () => { ignore = true; };
   }, [statsKey]);
 
   const TABS = [

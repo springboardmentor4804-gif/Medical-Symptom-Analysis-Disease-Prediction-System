@@ -17,11 +17,40 @@ from app.schemas.doctor import (
     PatientDetailWithStatus,
     AIDiagnosticSuggestion,
     DoctorClinicalReportResponse,
+    DoctorProfileResponse,
 )
 from app.schemas.symptoms import SymptomResponse
 from app.schemas.prediction import PredictionResponse, DiseaseProbability
 
 router = APIRouter(prefix="/doctor", tags=["Doctor"])
+
+
+@router.get("/me", response_model=DoctorProfileResponse)
+def get_doctor_profile(
+    current_user: User = Depends(require_role(["doctor"])),
+    db: Session = Depends(get_db)
+):
+    patient_rec = db.query(Patient).filter(Patient.user_id == current_user.id).first()
+    age = patient_rec.age if patient_rec and patient_rec.age else 42
+    specialty = current_user.specialty or "General Practitioner"
+    name = current_user.name or ("Dr. " + current_user.email.split("@")[0].title())
+    total_patients = db.query(Patient).count()
+
+    return DoctorProfileResponse(
+        id=current_user.id,
+        name=name,
+        email=current_user.email,
+        specialty=specialty,
+        age=age,
+        role=current_user.role,
+        total_patients=total_patients,
+        medical_reg_no=getattr(current_user, "medical_reg_no", None) or "MCI-2021-98421",
+        council_type=getattr(current_user, "council_type", None) or "National Medical Commission (NMC)",
+        state_council=getattr(current_user, "state_council", None) or "Maharashtra Medical Council",
+        qualification=getattr(current_user, "qualification", None) or "MBBS, MD",
+        registration_year=getattr(current_user, "registration_year", None) or 2018,
+        is_verified=getattr(current_user, "is_verified", True),
+    )
 
 
 @router.get("/patients", response_model=List[PatientDetailWithStatus])

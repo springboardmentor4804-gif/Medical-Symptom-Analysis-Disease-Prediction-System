@@ -13,21 +13,10 @@ export const getRoleHomePath = (role) => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [token, setToken] = useState(null);
-  const [role, setRole] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem('token') : null));
+  const [role, setRole] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem('role') : null));
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
-
-  useEffect(() => {
-    // Sync with localStorage on client-side mount
-    const storedToken = localStorage.getItem('token');
-    const storedRole = localStorage.getItem('role');
-    if (storedToken && storedRole) {
-      setToken(storedToken);
-      setRole(storedRole);
-    }
-    setLoading(false);
-  }, []);
 
   const loginUser = (accessToken, userRole) => {
     setToken(accessToken);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import { api } from '../../../lib/api';
 import { useRouter } from 'next/navigation';
@@ -21,9 +21,7 @@ export default function EditProfilePage() {
     medical_history: '',
   });
 
-  const fetchProfile = async () => {
-    setLoading(true);
-    setFetchError('');
+  const fetchProfile = useCallback(async () => {
     try {
       const data = await api.get('/patients/me');
       setFormData({
@@ -37,11 +35,18 @@ export default function EditProfilePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchProfile();
-  }, []);
+    let ignore = false;
+    const load = async () => {
+      if (!ignore) {
+        await fetchProfile();
+      }
+    };
+    load();
+    return () => { ignore = true; };
+  }, [fetchProfile]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

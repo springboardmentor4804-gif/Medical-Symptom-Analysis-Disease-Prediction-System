@@ -26,7 +26,15 @@ export const request = async (endpoint, options = {}) => {
     let errorMsg = 'Something went wrong';
     try {
       const errorData = await response.json();
-      errorMsg = errorData.detail || errorMsg;
+      if (typeof errorData.detail === 'string') {
+        errorMsg = errorData.detail;
+      } else if (Array.isArray(errorData.detail)) {
+        errorMsg = errorData.detail.map((d) => (typeof d === 'string' ? d : d.msg || JSON.stringify(d))).join('; ');
+      } else if (errorData.detail && typeof errorData.detail === 'object') {
+        errorMsg = JSON.stringify(errorData.detail);
+      } else if (errorData.message) {
+        errorMsg = errorData.message;
+      }
     } catch (e) {
       // response might not be json
     }

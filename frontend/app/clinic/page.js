@@ -90,7 +90,14 @@ export default function ClinicDashboard() {
   }, []);
 
   useEffect(() => {
-    loadClinicData();
+    let ignore = false;
+    const fetchData = async () => {
+      if (!ignore) {
+        await loadClinicData();
+      }
+    };
+    fetchData();
+    return () => { ignore = true; };
   }, [loadClinicData]);
 
   // Handle Edit Clinic Profile

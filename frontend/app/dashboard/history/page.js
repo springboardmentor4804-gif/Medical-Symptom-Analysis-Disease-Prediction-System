@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import { api } from '../../../lib/api';
 import Link from 'next/link';
@@ -16,9 +16,7 @@ export default function HistoryPage() {
   const [editingText, setEditingText] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
-  const fetchHistory = async () => {
-    setLoading(true);
-    setError('');
+  const fetchHistory = useCallback(async () => {
     try {
       const data = await api.get('/symptoms/me');
       setSymptoms(Array.isArray(data) ? data : []);
@@ -27,11 +25,18 @@ export default function HistoryPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchHistory();
-  }, []);
+    let ignore = false;
+    const load = async () => {
+      if (!ignore) {
+        await fetchHistory();
+      }
+    };
+    load();
+    return () => { ignore = true; };
+  }, [fetchHistory]);
 
   const handleStartEdit = (sym) => {
     setEditingId(sym.id);

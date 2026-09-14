@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import { api } from '../../../lib/api';
 import Link from 'next/link';
@@ -30,9 +30,8 @@ export default function SymptomsSubmission() {
   const [editingDuration, setEditingDuration] = useState('Just today');
   const [actionLoading, setActionLoading] = useState(false);
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     try {
-      setLoadingHistory(true);
       const [resHistory, resStats] = await Promise.all([
         api.get('/symptoms/me').catch(() => []),
         api.get('/symptoms/frequency-stats').catch(() => null),
@@ -44,11 +43,18 @@ export default function SymptomsSubmission() {
     } finally {
       setLoadingHistory(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchHistory();
-  }, []);
+    let ignore = false;
+    const load = async () => {
+      if (!ignore) {
+        await fetchHistory();
+      }
+    };
+    load();
+    return () => { ignore = true; };
+  }, [fetchHistory]);
 
   const handleToggleCommon = (symptom) => {
     setSelectedSymptoms((prev) =>

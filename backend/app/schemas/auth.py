@@ -10,6 +10,12 @@ class UserRegister(BaseModel):
     gender: Optional[str] = None
     medical_history: Optional[str] = None
     specialty: Optional[str] = None  # For doctor role
+    medical_reg_no: Optional[str] = None  # Doctor Medical Registration Number
+    council_type: Optional[str] = None   # National Medical Commission (NMC) or State Medical Council
+    state_council: Optional[str] = None  # State Medical Council name
+    qualification: Optional[str] = None  # MBBS, MD, MS, etc.
+    registration_year: Optional[int] = None  # Year of Registration
+    is_verified: Optional[bool] = False  # Verification status
 
 class UserLogin(BaseModel):
     email: EmailStr

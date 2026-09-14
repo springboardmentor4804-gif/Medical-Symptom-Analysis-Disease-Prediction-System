@@ -69,8 +69,8 @@ def user_inputs_collection():
 
 async def connect_mongo():
     """Verify the MongoDB connection is alive at app startup."""
-    client = get_mongo_client()
     try:
+        client = get_mongo_client()
         # The `ping` command is lightweight and does not require auth
         await asyncio.wait_for(client.admin.command("ping"), timeout=3.0)
         print(f"[MongoDB] [OK] Connected to '{MONGO_DB_NAME}' at {MONGO_URL}")

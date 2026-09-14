@@ -83,7 +83,7 @@ def compute_ai_prediction_for_patient(age: int, gender: str, symptoms: list):
         ])
         gender_val = 1 if (gender or "").lower() == "male" else 0
 
-        feature_df = pd.DataFrame([{
+        raw_dict = {
             'fever_num': fever_val,
             'cough_num': cough_val,
             'fatigue_num': fatigue_val,
@@ -92,7 +92,23 @@ def compute_ai_prediction_for_patient(age: int, gender: str, symptoms: list):
             'bp_num': 1,
             'cholesterol_num': 1,
             'age_num': int(age or 30)
-        }])[feature_cols]
+        }
+        try:
+            from train_model import build_feature_pipeline
+            df_pipe = build_feature_pipeline(pd.DataFrame([raw_dict]))
+        except Exception:
+            df_pipe = pd.DataFrame([raw_dict])
+            df_pipe['symptom_sum'] = df_pipe['fever_num'] + df_pipe['cough_num'] + df_pipe['fatigue_num'] + df_pipe['breathing_num']
+            df_pipe['bp_high'] = (df_pipe['bp_num'] == 2).astype(int)
+            df_pipe['chol_high'] = (df_pipe['cholesterol_num'] == 2).astype(int)
+            df_pipe['high_bp_or_chol'] = ((df_pipe['bp_num'] == 2) | (df_pipe['cholesterol_num'] == 2)).astype(int)
+            df_pipe['high_risk_index'] = df_pipe['symptom_sum'] * (1 + df_pipe['high_bp_or_chol'])
+            df_pipe['age_risk_index'] = (df_pipe['age_num'] / 10.0) * (1 + df_pipe['symptom_sum'])
+            df_pipe['fever_cough'] = df_pipe['fever_num'] * df_pipe['cough_num']
+            df_pipe['fever_breathing'] = df_pipe['fever_num'] * df_pipe['breathing_num']
+            df_pipe['fatigue_breathing'] = df_pipe['fatigue_num'] * df_pipe['breathing_num']
+
+        feature_df = df_pipe[[col for col in feature_cols if col in df_pipe.columns]]
 
         outcome_model = artifact["outcome_model"]
         outcome_pred = outcome_model.predict(feature_df)[0]

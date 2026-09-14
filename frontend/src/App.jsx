@@ -161,7 +161,7 @@ export default function App() {
     }
   };
 
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     if (!token) return;
     setAnalyticsLoading(true);
     try {
@@ -181,9 +181,9 @@ export default function App() {
     } finally {
       setAnalyticsLoading(false);
     }
-  };
+  }, [token]);
 
-  const fetchRecords = async () => {
+  const fetchRecords = useCallback(async () => {
     if (!token) return;
     try {
       const res = await axios.get('http://127.0.0.1:8000/api/patients', {
@@ -212,7 +212,7 @@ export default function App() {
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [token, role, userEmail, email]);
 
   const bookAppointment = async (e) => {
     e.preventDefault();
@@ -270,7 +270,7 @@ export default function App() {
         fetchAnalytics();
       }
     }
-  }, [token, role]);
+  }, [token, role, fetchRecords, fetchAnalytics]);
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col text-slate-100 selection:bg-purple-500 selection:text-white">
@@ -431,7 +431,7 @@ export default function App() {
               {authMode === 'login' && (
                 <>
                   <button onClick={() => setAuthMode('forgot')} className="text-xs text-purple-400 font-semibold hover:underline block mx-auto">Forgot Password?</button>
-                  <button onClick={() => setAuthMode('register')} className="text-xs font-bold text-slate-400 hover:text-white">Don't have an account? <span className="text-purple-400 underline">Register</span></button>
+                  <button onClick={() => setAuthMode('register')} className="text-xs font-bold text-slate-400 hover:text-white">Don&apos;t have an account? <span className="text-purple-400 underline">Register</span></button>
                 </>
               )}
               {authMode !== 'login' && (

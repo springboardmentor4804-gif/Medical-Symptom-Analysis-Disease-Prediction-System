@@ -18,9 +18,21 @@ def ensure_user_name_column():
 
     inspector = inspect(engine)
     user_columns = [column["name"] for column in inspector.get_columns("users")]
-    if "name" not in user_columns:
-        with engine.begin() as connection:
+    with engine.begin() as connection:
+        if "name" not in user_columns:
             connection.exec_driver_sql("ALTER TABLE users ADD COLUMN name VARCHAR")
+        if "medical_reg_no" not in user_columns:
+            connection.exec_driver_sql("ALTER TABLE users ADD COLUMN medical_reg_no VARCHAR")
+        if "council_type" not in user_columns:
+            connection.exec_driver_sql("ALTER TABLE users ADD COLUMN council_type VARCHAR")
+        if "state_council" not in user_columns:
+            connection.exec_driver_sql("ALTER TABLE users ADD COLUMN state_council VARCHAR")
+        if "qualification" not in user_columns:
+            connection.exec_driver_sql("ALTER TABLE users ADD COLUMN qualification VARCHAR")
+        if "registration_year" not in user_columns:
+            connection.exec_driver_sql("ALTER TABLE users ADD COLUMN registration_year INTEGER")
+        if "is_verified" not in user_columns:
+            connection.exec_driver_sql("ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT 0")
 
     if inspector.has_table("symptoms"):
         symptom_columns = [column["name"] for column in inspector.get_columns("symptoms")]

@@ -175,7 +175,7 @@ def make_prediction(
         'gender_num', 'bp_num', 'cholesterol_num', 'age_num'
     ])
 
-    feature_df = pd.DataFrame([{
+    raw_dict = {
         'fever_num': fever_val,
         'cough_num': cough_val,
         'fatigue_num': fatigue_val,
@@ -184,9 +184,27 @@ def make_prediction(
         'bp_num': bp_val,
         'cholesterol_num': cholesterol_val,
         'age_num': int(age)
-    }])[feature_cols]
+    }
 
-    # 1. Predict Outcome Risk (RandomForest Outcome Classifier)
+    try:
+        from train_model import build_feature_pipeline
+        df_pipe = build_feature_pipeline(pd.DataFrame([raw_dict]))
+    except Exception:
+        df_pipe = pd.DataFrame([raw_dict])
+        df_pipe['symptom_sum'] = df_pipe['fever_num'] + df_pipe['cough_num'] + df_pipe['fatigue_num'] + df_pipe['breathing_num']
+        df_pipe['bp_high'] = (df_pipe['bp_num'] == 2).astype(int)
+        df_pipe['chol_high'] = (df_pipe['cholesterol_num'] == 2).astype(int)
+        df_pipe['high_bp_or_chol'] = ((df_pipe['bp_num'] == 2) | (df_pipe['cholesterol_num'] == 2)).astype(int)
+        df_pipe['high_risk_index'] = df_pipe['symptom_sum'] * (1 + df_pipe['high_bp_or_chol'])
+        df_pipe['age_risk_index'] = (df_pipe['age_num'] / 10.0) * (1 + df_pipe['symptom_sum'])
+        df_pipe['fever_cough'] = df_pipe['fever_num'] * df_pipe['cough_num']
+        df_pipe['fever_breathing'] = df_pipe['fever_num'] * df_pipe['breathing_num']
+        df_pipe['fatigue_breathing'] = df_pipe['fatigue_num'] * df_pipe['breathing_num']
+
+    # Filter to exact trained feature set
+    feature_df = df_pipe[[col for col in feature_cols if col in df_pipe.columns]]
+
+    # 1. Predict Outcome Risk (Soft Voting Ensemble / Outcome Classifier)
     outcome_model = artifact["outcome_model"]
     outcome_pred = outcome_model.predict(feature_df)[0]
     outcome_proba = outcome_model.predict_proba(feature_df)[0]

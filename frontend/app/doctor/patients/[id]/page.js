@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ProtectedRoute from '../../../../components/ProtectedRoute';
 import DoctorReportModal from '../../../../components/DoctorReportModal';
@@ -35,10 +35,8 @@ export default function DoctorPatientHistoryPage() {
   const [reportData, setReportData] = useState(null);
   const [reportLoading, setReportLoading] = useState(false);
 
-  const fetchPatientData = async () => {
+  const fetchPatientData = useCallback(async () => {
     if (!patientId) return;
-    setLoading(true);
-    setError('');
 
     try {
       const [patientList, history, recList, aiList, predData] = await Promise.all([
@@ -60,11 +58,18 @@ export default function DoctorPatientHistoryPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [patientId]);
 
   useEffect(() => {
-    fetchPatientData();
-  }, [patientId]);
+    let ignore = false;
+    const load = async () => {
+      if (!ignore) {
+        await fetchPatientData();
+      }
+    };
+    load();
+    return () => { ignore = true; };
+  }, [fetchPatientData]);
 
   const handleRecChange = (e) => {
     setRecFormData({ ...recFormData, [e.target.name]: e.target.value });

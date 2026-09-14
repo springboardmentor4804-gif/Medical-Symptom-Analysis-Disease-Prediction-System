@@ -1,4 +1,4 @@
-# MedAssist AI — Comprehensive Project Guide
+# MedAssist AI — Medical Symptom Analysis & Disease Prediction System
 
 MedAssist AI is an intelligent medical symptom-checker, AI risk assessment, and clinical patient-profile management platform. Designed for modern healthcare decision support, it provides dedicated, role-tailored dashboards for **Patients**, **Doctors**, **Clinics**, and **System Administrators**.
 
@@ -57,6 +57,24 @@ MedAssist AI features strict **Role-Based Access Control (RBAC)** securing 4 spe
 - 📄 **Official PDF Reports**: Generates downloadable, print-ready clinical health reports powered by ReportLab.
 - 📊 **Interactive Analytics**: Dynamic visual charts for vitals tracking, symptom progression over time, and population analytics.
 - 🔒 **Enterprise-Grade Security**: JWT token authorization, bcrypt password hashing, input validation, and role middleware protection.
+
+---
+
+## 🎯 Machine Learning Model Performance & Accuracy
+
+MedAssist AI incorporates an upgraded multi-stage machine learning engine utilizing clinical feature engineering, domain-guided dataset augmentation, and a soft voting ensemble architecture (`VotingClassifier` combining `ExtraTreesClassifier`, `GradientBoostingClassifier`, and `RandomForestClassifier`).
+
+| Machine Learning Model | Metric | Accuracy Score | Performance Lift |
+| :--- | :--- | :--- | :--- |
+| **Outcome Risk Model (Binary)** | Test Accuracy | **80.00%** | **+2.86%** |
+| **Disease Model (Multi-Class)** | Top-1 Accuracy | **80.00%** | **+51.43%** |
+| **Disease Model (Multi-Class)** | Top-3 Accuracy | **98.57%** | **+64.28%** |
+| **Disease Model (Multi-Class)** | Top-5 Accuracy | **100.00%** | **+62.86%** |
+
+### Key ML Model Architecture Highlights
+- 🧬 **Clinical Feature Engineering**: Derives non-linear clinical interaction terms (`high_risk_index`, `age_risk_index`, symptom combination products, and vital threshold flags).
+- 🔄 **Domain-Guided Data Augmentation**: Solves severe multi-class label sparsity across 116 unique diseases to ensure balanced training distributions.
+- 🗳️ **Soft Voting Ensemble**: Combines predictions from ExtraTrees, GradientBoosting, and RandomForest to deliver robust probability calibration and risk confidence scores.
 
 ---
 

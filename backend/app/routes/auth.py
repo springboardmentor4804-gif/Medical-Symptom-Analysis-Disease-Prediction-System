@@ -58,6 +58,12 @@ async def _mirror_registration_to_mongo(
             "gender": user_in.gender,
             "specialty": user_in.specialty,
             "medical_history": user_in.medical_history,
+            "medical_reg_no": user_in.medical_reg_no,
+            "council_type": user_in.council_type,
+            "state_council": user_in.state_council,
+            "qualification": user_in.qualification,
+            "registration_year": user_in.registration_year,
+            "is_verified": user_in.is_verified,
         }
         mongo_input = MongoUserInput(
             input_type="registration",
@@ -70,7 +76,7 @@ async def _mirror_registration_to_mongo(
         print(f"[MongoDB] ⚠️  Registration mirror failed: {exc}")
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-def register(user_in: UserRegister, db: Session = Depends(get_db)):
+async def register(user_in: UserRegister, db: Session = Depends(get_db)):
     # Check if user already exists
     existing_user = db.query(User).filter(User.email == user_in.email).first()
     if existing_user:
@@ -85,13 +91,30 @@ def register(user_in: UserRegister, db: Session = Depends(get_db)):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Patient registration requires age and gender."
             )
+    elif user_in.role == "doctor":
+        if not user_in.medical_reg_no or not user_in.medical_reg_no.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Doctor registration requires a valid Medical Registration Number."
+            )
+        if not user_in.qualification:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Doctor registration requires medical qualification details."
+            )
 
     new_user = User(
         email=user_in.email,
         password_hash=get_password_hash(user_in.password),
         name=user_in.name,
         role=user_in.role,
-        specialty=user_in.specialty if user_in.role == "doctor" else None
+        specialty=user_in.specialty if user_in.role == "doctor" else None,
+        medical_reg_no=user_in.medical_reg_no if user_in.role == "doctor" else None,
+        council_type=user_in.council_type if user_in.role == "doctor" else None,
+        state_council=user_in.state_council if user_in.role == "doctor" else None,
+        qualification=user_in.qualification if user_in.role == "doctor" else None,
+        registration_year=user_in.registration_year if user_in.role == "doctor" else None,
+        is_verified=user_in.is_verified if user_in.role == "doctor" else False,
     )
     db.add(new_user)
     db.commit()
@@ -122,9 +145,12 @@ def register(user_in: UserRegister, db: Session = Depends(get_db)):
     token = create_access_token(data={"sub": new_user.email, "user_id": new_user.id, "role": new_user.role})
 
     # Mirror registration data to MongoDB (non-blocking, fire-and-forget)
-    asyncio.create_task(
-        _mirror_registration_to_mongo(user_in, new_user.password_hash)
-    )
+    try:
+        asyncio.create_task(
+            _mirror_registration_to_mongo(user_in, new_user.password_hash)
+        )
+    except Exception as exc:
+        print(f"[MongoDB] ⚠️ Could not schedule mongo registration mirror: {exc}")
 
     return TokenResponse(
         access_token=token,

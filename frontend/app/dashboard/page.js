@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import PatientReportModal from '../../components/PatientReportModal';
 import { api } from '../../lib/api';
@@ -40,9 +40,7 @@ export default function Dashboard() {
   };
 
 
-  const loadDashboardData = async () => {
-    setLoadingData(true);
-    setFetchError('');
+  const loadDashboardData = useCallback(async () => {
     try {
       const [profileData, symptomsData] = await Promise.all([
         api.get('/patients/me'),
@@ -55,11 +53,18 @@ export default function Dashboard() {
     } finally {
       setLoadingData(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadDashboardData();
-  }, []);
+    let ignore = false;
+    const load = async () => {
+      if (!ignore) {
+        await loadDashboardData();
+      }
+    };
+    load();
+    return () => { ignore = true; };
+  }, [loadDashboardData]);
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
@@ -276,8 +281,8 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     <StaggerContainer className="space-y-3">
-                      {recentSymptoms.map((sym) => (
-                        <StaggerItem key={sym.id || sym._id || Math.random()}>
+                      {recentSymptoms.map((sym, idx) => (
+                        <StaggerItem key={sym.id || sym._id || `sym-${idx}`}>
                           <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 flex items-center justify-between gap-4 hover:border-emerald-500/30 transition-colors">
                             <div>
                               <div className="flex items-center gap-2">

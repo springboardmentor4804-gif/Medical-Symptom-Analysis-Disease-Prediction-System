@@ -1,4 +1,5 @@
 import "./globals.css";
+import Script from "next/script";
 import { AuthProvider } from "../context/AuthContext";
 import { ThemeProvider } from "../context/ThemeContext";
 import BackgroundUI from "../components/BackgroundUI";
@@ -12,8 +13,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <script
+      <body className="min-h-full flex flex-col antialiased font-sans relative selection:bg-emerald-500/20 selection:text-emerald-700 dark:selection:text-emerald-300">
+        <Script
+          id="theme-init"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
@@ -38,8 +41,6 @@ export default function RootLayout({ children }) {
             `,
           }}
         />
-      </head>
-      <body className="min-h-full flex flex-col antialiased font-sans relative selection:bg-emerald-500/20 selection:text-emerald-700 dark:selection:text-emerald-300">
         <ThemeProvider>
           <AuthProvider>
             <BackgroundUI />

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Dict
 
 class PredictionRequest(BaseModel):
@@ -38,6 +38,8 @@ class RecommendationDetails(BaseModel):
     follow_up_advice: str
 
 class PredictionResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     prediction: str = Field(..., description="Positive or Negative Outcome Risk")
     confidence: float = Field(..., description="Confidence score between 0 and 100")
     outcome_probability: float = Field(..., description="Positive risk probability (0-100%)")
@@ -59,6 +61,8 @@ class PredictionResponse(BaseModel):
     model_name: str = Field("RandomForestClassifier", description="Algorithm used for prediction")
 
 class ModelInfoResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     model_name: str
     outcome_accuracy: float
     disease_accuracy: float

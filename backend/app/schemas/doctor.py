@@ -42,6 +42,21 @@ class AIDiagnosticSuggestion(BaseModel):
     matched_symptoms: List[str]
     suggested_action: str
 
+class DoctorProfileResponse(BaseModel):
+    id: int
+    name: str
+    email: str
+    specialty: str
+    age: int
+    role: str
+    total_patients: int
+    medical_reg_no: Optional[str] = None
+    council_type: Optional[str] = None
+    state_council: Optional[str] = None
+    qualification: Optional[str] = None
+    registration_year: Optional[int] = None
+    is_verified: Optional[bool] = False
+
 class DoctorClinicalReportResponse(BaseModel):
     report_id: str
     generated_at: str
