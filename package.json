@@ -4,10 +4,10 @@
   "description": "Vitals AI medical symptom-checker and patient-profile management system.",
   "main": "frontend/app/page.js",
   "scripts": {
-    "dev": "npm --prefix frontend run dev",
-    "build": "npm --prefix frontend run build",
-    "start": "npm --prefix frontend run start",
-    "lint": "npm --prefix frontend run lint"
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm install && npm run build",
+    "start": "cd frontend && npm run start",
+    "lint": "cd frontend && npm run lint"
   },
   "author": "",
   "license": "ISC"
