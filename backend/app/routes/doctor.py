@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
+import io
+import csv
 
 from app.database import get_db
 from app.dependencies import require_role
@@ -349,6 +351,197 @@ def generate_doctor_clinical_report(
         latest_recommendation=latest_rec,
         ai_suggestions=ai_suggestions,
         ai_prediction=ai_pred
+    )
+
+
+def generate_doctor_pdf_bytes(report_data: dict) -> bytes:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=36,
+        leftMargin=36,
+        topMargin=36,
+        bottomMargin=36
+    )
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        'DocTitle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=18, leading=22, textColor=colors.HexColor('#0F172A')
+    )
+    subtitle_style = ParagraphStyle(
+        'DocSubTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=10, leading=14, textColor=colors.HexColor('#0D9488')
+    )
+    section_style = ParagraphStyle(
+        'SectionHeader', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=11, leading=15, textColor=colors.HexColor('#1E293B'), spaceBefore=8, spaceAfter=4
+    )
+    body_style = ParagraphStyle(
+        'BodyDark', parent=styles['Normal'], fontName='Helvetica', fontSize=9, leading=12, textColor=colors.HexColor('#334155')
+    )
+    body_bold = ParagraphStyle(
+        'BodyDarkBold', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=9, leading=12, textColor=colors.HexColor('#0F172A')
+    )
+
+    story = []
+    story.append(Paragraph("MEDASSIST AI — CLINICAL CONSULTATION RECORD", subtitle_style))
+    story.append(Spacer(1, 4))
+    story.append(Paragraph("Clinical Evaluation & Medical Diagnosis Report", title_style))
+    story.append(Spacer(1, 4))
+    story.append(Paragraph(f"Report Ref ID: <b>{report_data['report_id']}</b> | Generated: {report_data['generated_at']}", body_style))
+    story.append(Spacer(1, 8))
+    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#0D9488'), spaceBefore=2, spaceAfter=8))
+
+    # Doctor & Patient Info Table
+    story.append(Paragraph("Consulting Physician & Patient Demographics", section_style))
+    doc_info = report_data.get('doctor', {})
+    pat_info = report_data.get('patient', {})
+    info_table_data = [
+        [
+            Paragraph("<b>Doctor:</b>", body_style), Paragraph(str(doc_info.get('name', 'N/A')), body_bold),
+            Paragraph("<b>Patient Name:</b>", body_style), Paragraph(str(pat_info.get('name', 'N/A')), body_bold)
+        ],
+        [
+            Paragraph("<b>Specialty:</b>", body_style), Paragraph(str(doc_info.get('specialty', 'N/A')), body_bold),
+            Paragraph("<b>Age / Gender:</b>", body_style), Paragraph(f"{pat_info.get('age', 'N/A')} yrs • {pat_info.get('gender', 'N/A')}", body_bold)
+        ],
+        [
+            Paragraph("<b>Doctor Email:</b>", body_style), Paragraph(str(doc_info.get('email', 'N/A')), body_style),
+            Paragraph("<b>Medical History:</b>", body_style), Paragraph(str(pat_info.get('medical_history') or 'None reported'), body_style)
+        ]
+    ]
+    t = Table(info_table_data, colWidths=[80, 190, 90, 180])
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+        ('PADDING', (0,0), (-1,-1), 5),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+    ]))
+    story.append(t)
+    story.append(Spacer(1, 10))
+
+    # Symptoms
+    story.append(Paragraph("Logged Symptoms History", section_style))
+    symptoms = report_data.get('symptoms', [])
+    if symptoms:
+        symp_rows = [[Paragraph("<b>Symptom Description</b>", body_bold), Paragraph("<b>Logged Date</b>", body_bold)]]
+        for s in symptoms[:8]:
+            symp_rows.append([
+                Paragraph(str(s.get('symptom_name', '')), body_style),
+                Paragraph(str(s.get('submitted_at', '')), body_style)
+            ])
+        st_table = Table(symp_rows, colWidths=[360, 180])
+        st_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#F1F5F9')),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+            ('TOPPADDING', (0,0), (-1,-1), 4),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+        ]))
+        story.append(st_table)
+    else:
+        story.append(Paragraph("<i>No specific symptoms logged by patient.</i>", body_style))
+    story.append(Spacer(1, 10))
+
+    # AI Prediction
+    ai_pred = report_data.get('ai_prediction')
+    if ai_pred and ai_pred.get('top_diseases'):
+        story.append(Paragraph("AI Diagnostic Assessment", section_style))
+        top_d = ai_pred['top_diseases'][0]
+        story.append(Paragraph(f"Primary Risk Assessment: <b>{top_d['disease']}</b> (Confidence: <b>{top_d['probability']:.1f}%</b>)", body_bold))
+        story.append(Spacer(1, 6))
+
+    # Doctor Recommendation / Diagnosis
+    latest_rec = report_data.get('latest_recommendation')
+    if latest_rec:
+        story.append(Paragraph("Physician Clinical Evaluation & Prescription", section_style))
+        rec_dict = latest_rec.model_dump() if hasattr(latest_rec, 'model_dump') else (latest_rec.dict() if hasattr(latest_rec, 'dict') else (latest_rec if isinstance(latest_rec, dict) else {}))
+        rec_data = [
+            [Paragraph("<b>Clinical Diagnosis:</b>", body_style), Paragraph(str(rec_dict.get('diagnosis') or 'Under Evaluation'), body_bold)],
+            [Paragraph("<b>Prescription & Treatment:</b>", body_style), Paragraph(str(rec_dict.get('prescription') or 'N/A'), body_style)],
+            [Paragraph("<b>Doctor Recommendations:</b>", body_style), Paragraph(str(rec_dict.get('recommendations') or 'N/A'), body_style)],
+            [Paragraph("<b>Case Status:</b>", body_style), Paragraph(f"<b>{rec_dict.get('status', 'Pending')}</b>", body_bold)],
+        ]
+        rec_table = Table(rec_data, colWidths=[150, 390])
+        rec_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F0FDF4')),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#BBF7D0')),
+            ('PADDING', (0,0), (-1,-1), 5),
+        ]))
+        story.append(rec_table)
+
+    story.append(Spacer(1, 15))
+    story.append(Paragraph("Official Confidential Doctor Clinical Report • MedAssist Medical System", ParagraphStyle('Footer', parent=styles['Normal'], fontName='Helvetica-Oblique', fontSize=8, textColor=colors.HexColor('#64748B'), alignment=1)))
+
+    doc.build(story)
+    return buffer.getvalue()
+
+
+@router.get("/patients/{patient_id}/report/pdf")
+def get_doctor_report_pdf(
+    patient_id: int,
+    current_user: User = Depends(require_role(["doctor"])),
+    db: Session = Depends(get_db)
+):
+    report_res = generate_doctor_clinical_report(patient_id=patient_id, current_user=current_user, db=db)
+    report_dict = report_res.model_dump() if hasattr(report_res, 'model_dump') else report_res.dict()
+    pdf_bytes = generate_doctor_pdf_bytes(report_dict)
+    patient_name = report_dict.get('patient', {}).get('name', f'PAT-{patient_id}').replace(' ', '_')
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="Doctor_Clinical_Report_{patient_name}.pdf"'
+        }
+    )
+
+
+@router.get("/patients/{patient_id}/report/csv")
+def get_doctor_report_csv(
+    patient_id: int,
+    current_user: User = Depends(require_role(["doctor"])),
+    db: Session = Depends(get_db)
+):
+    report_res = generate_doctor_clinical_report(patient_id=patient_id, current_user=current_user, db=db)
+    report_dict = report_res.model_dump() if hasattr(report_res, 'model_dump') else report_res.dict()
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Report ID", "Generated At", "Doctor Name", "Specialty", "Patient ID", "Patient Name", "Age", "Gender", "Medical History", "Diagnosis", "Prescription", "Case Status"])
+    
+    pat = report_dict.get("patient", {})
+    doc = report_dict.get("doctor", {})
+    rec = report_dict.get("latest_recommendation") or {}
+    if hasattr(rec, 'model_dump'):
+        rec = rec.model_dump()
+    elif hasattr(rec, 'dict'):
+        rec = rec.dict()
+        
+    writer.writerow([
+        report_dict.get("report_id"),
+        report_dict.get("generated_at"),
+        doc.get("name"),
+        doc.get("specialty"),
+        pat.get("id"),
+        pat.get("name"),
+        pat.get("age"),
+        pat.get("gender"),
+        pat.get("medical_history"),
+        rec.get("diagnosis", ""),
+        rec.get("prescription", ""),
+        rec.get("status", "Pending")
+    ])
+    
+    patient_name = pat.get('name', f'PAT-{patient_id}').replace(' ', '_')
+    return Response(
+        content=output.getvalue().encode('utf-8'),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="Doctor_Clinical_Report_{patient_name}.csv"'
+        }
     )
 
 @router.get("/patients/{patient_id}/prediction", response_model=PredictionResponse)

@@ -1,8 +1,9 @@
 from app.models.symptom import Symptom
-from typing import List
-
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
+from datetime import datetime
+import io
+import csv
 
 from app.database import get_db
 from app.dependencies import require_role
@@ -417,3 +418,174 @@ def get_clinic_analytics(
         "most_common_diagnoses": most_common_diagnoses,
         "doctor_caseload": doctor_caseload
     }
+
+
+@router.get("/report/pdf")
+def get_clinic_report_pdf(
+    current_user: User = Depends(require_role(["clinic"])),
+    db: Session = Depends(get_db),
+):
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+    clinic = get_current_clinic(current_user, db)
+    doctors = db.query(User).filter(User.role == "doctor").all()
+    patients = db.query(Patient, User.email).join(User, Patient.user_id == User.id).all()
+    stats = get_clinic_stats(current_user, db)
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=36,
+        leftMargin=36,
+        topMargin=36,
+        bottomMargin=36
+    )
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        'DocTitle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=18, leading=22, textColor=colors.HexColor('#0F172A')
+    )
+    subtitle_style = ParagraphStyle(
+        'DocSubTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=10, leading=14, textColor=colors.HexColor('#0D9488')
+    )
+    section_style = ParagraphStyle(
+        'SectionHeader', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=11, leading=15, textColor=colors.HexColor('#1E293B'), spaceBefore=8, spaceAfter=4
+    )
+    body_style = ParagraphStyle(
+        'BodyDark', parent=styles['Normal'], fontName='Helvetica', fontSize=9, leading=12, textColor=colors.HexColor('#334155')
+    )
+    body_bold = ParagraphStyle(
+        'BodyDarkBold', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=9, leading=12, textColor=colors.HexColor('#0F172A')
+    )
+
+    story = []
+    story.append(Paragraph("MEDASSIST HEALTH SYSTEM — CLINIC MANAGEMENT", subtitle_style))
+    story.append(Spacer(1, 4))
+    story.append(Paragraph(f"Clinical Operations & Performance Report", title_style))
+    story.append(Spacer(1, 4))
+    story.append(Paragraph(f"Facility Name: <b>{clinic.clinic_name}</b> | Address: {clinic.address or 'Main Center'} | Date: {datetime.utcnow().strftime('%B %d, %Y')}", body_style))
+    story.append(Spacer(1, 8))
+    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#0D9488'), spaceBefore=2, spaceAfter=8))
+
+    # Metrics overview
+    story.append(Paragraph("Key Performance Metrics", section_style))
+    metrics_data = [
+        [
+            Paragraph("<b>Total Affiliated Doctors:</b>", body_style), Paragraph(str(stats.total_doctors), body_bold),
+            Paragraph("<b>Registered Patients:</b>", body_style), Paragraph(str(stats.total_patients), body_bold),
+        ],
+        [
+            Paragraph("<b>Solved Consultations:</b>", body_style), Paragraph(str(stats.solved_cases), body_bold),
+            Paragraph("<b>Clinic ID / Ref:</b>", body_style), Paragraph(f"CLN-{clinic.id:04d}", body_bold),
+        ]
+    ]
+    t = Table(metrics_data, colWidths=[140, 130, 140, 130])
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+        ('PADDING', (0,0), (-1,-1), 6),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+    ]))
+    story.append(t)
+    story.append(Spacer(1, 12))
+
+    # Doctors list
+    story.append(Paragraph("Medical Staff & Doctor Roster", section_style))
+    if doctors:
+        doc_table_data = [[Paragraph("<b>Doctor Name</b>", body_bold), Paragraph("<b>Specialty</b>", body_bold), Paragraph("<b>Email Address</b>", body_bold)]]
+        for d in doctors:
+            doc_table_data.append([
+                Paragraph(d.name or ("Dr. " + d.email.split("@")[0].title()), body_style),
+                Paragraph(d.specialty or "General Practitioner", body_style),
+                Paragraph(d.email, body_style)
+            ])
+        dt = Table(doc_table_data, colWidths=[180, 180, 180])
+        dt.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#F1F5F9')),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+            ('PADDING', (0,0), (-1,-1), 5),
+        ]))
+        story.append(dt)
+    else:
+        story.append(Paragraph("<i>No doctors currently assigned to clinic.</i>", body_style))
+    story.append(Spacer(1, 12))
+
+    # Patient list
+    story.append(Paragraph("Patient Registry Overview", section_style))
+    if patients:
+        pat_table_data = [[Paragraph("<b>Patient Name</b>", body_bold), Paragraph("<b>Age / Gender</b>", body_bold), Paragraph("<b>Email</b>", body_bold), Paragraph("<b>Medical History</b>", body_bold)]]
+        for p, email in patients[:15]:
+            pat_table_data.append([
+                Paragraph(p.name or "N/A", body_style),
+                Paragraph(f"{p.age or 'N/A'} yrs • {p.gender or 'N/A'}", body_style),
+                Paragraph(email or "N/A", body_style),
+                Paragraph(p.medical_history or "None", body_style)
+            ])
+        pt = Table(pat_table_data, colWidths=[140, 100, 150, 150])
+        pt.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#F1F5F9')),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+            ('PADDING', (0,0), (-1,-1), 5),
+        ]))
+        story.append(pt)
+    else:
+        story.append(Paragraph("<i>No active patients registered.</i>", body_style))
+
+    story.append(Spacer(1, 15))
+    story.append(Paragraph("Official Clinic Performance Report • MedAssist Medical Platform", ParagraphStyle('Footer', parent=styles['Normal'], fontName='Helvetica-Oblique', fontSize=8, textColor=colors.HexColor('#64748B'), alignment=1)))
+
+    doc.build(story)
+    clinic_filename = (clinic.clinic_name or 'Clinic').replace(' ', '_')
+    return Response(
+        content=buffer.getvalue(),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="Clinic_Operations_Report_{clinic_filename}.pdf"'
+        }
+    )
+
+
+@router.get("/report/csv")
+def get_clinic_report_csv(
+    current_user: User = Depends(require_role(["clinic"])),
+    db: Session = Depends(get_db),
+):
+    clinic = get_current_clinic(current_user, db)
+    doctors = db.query(User).filter(User.role == "doctor").all()
+    patients = db.query(Patient, User.email).join(User, Patient.user_id == User.id).all()
+    stats = get_clinic_stats(current_user, db)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    writer.writerow(["=== CLINIC OPERATIONS REPORT ==="])
+    writer.writerow(["Clinic Name", clinic.clinic_name])
+    writer.writerow(["Address", clinic.address or "Main Center"])
+    writer.writerow(["Generated At", datetime.utcnow().strftime('%B %d, %Y - %H:%M UTC')])
+    writer.writerow(["Total Doctors", stats.total_doctors])
+    writer.writerow(["Total Patients", stats.total_patients])
+    writer.writerow(["Solved Cases", stats.solved_cases])
+    writer.writerow([])
+    
+    writer.writerow(["--- DOCTOR ROSTER ---"])
+    writer.writerow(["ID", "Name", "Specialty", "Email"])
+    for d in doctors:
+        writer.writerow([d.id, d.name or ("Dr. " + d.email.split("@")[0].title()), d.specialty or "General Practitioner", d.email])
+    writer.writerow([])
+
+    writer.writerow(["--- PATIENT ROSTER ---"])
+    writer.writerow(["Patient ID", "Name", "Age", "Gender", "Email", "Medical History"])
+    for p, email in patients:
+        writer.writerow([p.id, p.name, p.age, p.gender, email, p.medical_history])
+
+    clinic_filename = (clinic.clinic_name or 'Clinic').replace(' ', '_')
+    return Response(
+        content=output.getvalue().encode('utf-8'),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="Clinic_Summary_{clinic_filename}.csv"'
+        }
+    )
