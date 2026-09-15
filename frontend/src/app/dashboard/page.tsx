@@ -28,22 +28,28 @@ export default function PatientDashboardPage() {
   }, []);
 
   const loadDashboard = async () => {
-    try {
-      const [profileData, predictionData] =
-        await Promise.all([
-          getPatientProfile(),
-          getLatestPrediction(),
-        ]);
+  try {
+    const profileData = await getPatientProfile();
+    setProfile(profileData);
 
-      setProfile(profileData);
+    try {
+      const predictionData = await getLatestPrediction();
       setPrediction(predictionData);
-    } catch (err) {
-      console.error(err);
-      setError("Unable to load dashboard.");
-    } finally {
-      setLoading(false);
+    } catch (err: any) {
+      // No prediction yet is a normal condition for a new patient
+      if (err?.response?.status === 404) {
+        setPrediction(null);
+      } else {
+        throw err;
+      }
     }
-  };
+  } catch (err) {
+    console.error(err);
+    setError("Unable to load dashboard.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   if (loading) {
     return (

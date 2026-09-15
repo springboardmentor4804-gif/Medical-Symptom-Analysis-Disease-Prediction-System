@@ -683,35 +683,186 @@ const handleDownload = () => {
           </div>
 
 
-          {/* =================================================
-              RECOMMENDATION
-          ================================================= */}
+         {/* =================================================
+    HEALTH RECOMMENDATIONS
+================================================= */}
 
-          <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-6">
+{report.recommendations && (
+  <div className="space-y-5">
 
-            <div className="flex gap-4">
+    {/* Treatment Suggestions */}
 
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-xl">
-                💡
-              </div>
+    {report.recommendations
+      .treatment_suggestions?.length > 0 && (
 
-              <div>
+      <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6">
 
-                <h3 className="font-bold text-indigo-900">
-                  Recommendation
-                </h3>
+        <h3 className="text-lg font-bold text-blue-900">
+          💊 Treatment Suggestions
+        </h3>
 
-                <p className="mt-2 leading-7 text-indigo-800">
-                  {report.recommendation}
-                </p>
+        <ul className="mt-3 space-y-2">
 
-              </div>
+          {report.recommendations
+            .treatment_suggestions.map(
+              (item: string, index: number) => (
 
-            </div>
+                <li
+                  key={index}
+                  className="flex gap-2 text-sm leading-6 text-blue-800"
+                >
+                  <span>•</span>
+                  <span>{item}</span>
+                </li>
+
+              )
+            )}
+
+        </ul>
+
+      </div>
+
+    )}
+
+
+    {/* Preventive Advice */}
+
+    {report.recommendations
+      .preventive_advice?.length > 0 && (
+
+      <div className="rounded-2xl border border-green-200 bg-green-50 p-6">
+
+        <h3 className="text-lg font-bold text-green-900">
+          🛡️ Preventive Advice
+        </h3>
+
+        <ul className="mt-3 space-y-2">
+
+          {report.recommendations
+            .preventive_advice.map(
+              (item: string, index: number) => (
+
+                <li
+                  key={index}
+                  className="flex gap-2 text-sm leading-6 text-green-800"
+                >
+                  <span>•</span>
+                  <span>{item}</span>
+                </li>
+
+              )
+            )}
+
+        </ul>
+
+      </div>
+
+    )}
+
+
+    {/* Lifestyle Advice */}
+
+    {report.recommendations
+      .lifestyle_advice?.length > 0 && (
+
+      <div className="rounded-2xl border border-purple-200 bg-purple-50 p-6">
+
+        <h3 className="text-lg font-bold text-purple-900">
+          🏃 Lifestyle Advice
+        </h3>
+
+        <ul className="mt-3 space-y-2">
+
+          {report.recommendations
+            .lifestyle_advice.map(
+              (item: string, index: number) => (
+
+                <li
+                  key={index}
+                  className="flex gap-2 text-sm leading-6 text-purple-800"
+                >
+                  <span>•</span>
+                  <span>{item}</span>
+                </li>
+
+              )
+            )}
+
+        </ul>
+
+      </div>
+
+    )}
+
+
+    {/* Warning Signs */}
+
+    {report.recommendations
+      .warning_signs?.length > 0 && (
+
+      <div className="rounded-2xl border border-red-300 bg-red-50 p-6">
+
+        <h3 className="text-lg font-bold text-red-900">
+          ⚠️ Warning Signs
+        </h3>
+
+        <ul className="mt-3 space-y-2">
+
+          {report.recommendations
+            .warning_signs.map(
+              (item: string, index: number) => (
+
+                <li
+                  key={index}
+                  className="flex gap-2 text-sm leading-6 text-red-800"
+                >
+                  <span>•</span>
+                  <span>{item}</span>
+                </li>
+
+              )
+            )}
+
+        </ul>
+
+      </div>
+
+    )}
+
+
+    {/* Medical Advisory */}
+
+    {report.recommendations
+      .advisory && (
+
+      <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-6">
+
+        <div className="flex gap-4">
+
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-xl">
+            💡
+          </div>
+
+          <div>
+
+            <h3 className="font-bold text-indigo-900">
+              Medical Advisory
+            </h3>
+
+            <p className="mt-2 leading-7 text-indigo-800">
+              {report.recommendations.advisory}
+            </p>
 
           </div>
 
+        </div>
 
+      </div>
+
+    )}
+
+  </div>
+)}
           {/* =================================================
               DISCLAIMER
           ================================================= */}

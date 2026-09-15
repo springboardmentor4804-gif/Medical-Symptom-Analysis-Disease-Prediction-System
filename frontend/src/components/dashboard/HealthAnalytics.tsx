@@ -14,11 +14,23 @@ import { getPredictionHistory } from "@/services/prediction";
 
 interface Prediction {
   id: number;
+  patient_id: number;
+  symptom_id: number;
+
   predicted_disease: string;
+
   confidence: string | number;
+
+  risk_score: number;
   risk_level: string;
+
+  severity_score: number;
+  severity_level: string;
+
   recommendation: string;
+
   symptoms: string[];
+
   created_at: string;
 }
 

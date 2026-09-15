@@ -29,11 +29,11 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 
     # Create new user
     new_user = User(
-        full_name=user.full_name,
-        email=user.email,
-        password=hash_password(user.password),   # We'll hash this next
-        role=user.role
-    )
+    full_name=user.full_name,
+    email=user.email,
+    password=hash_password(user.password),
+    role="patient"
+)
 
     db.add(new_user)
     db.commit()

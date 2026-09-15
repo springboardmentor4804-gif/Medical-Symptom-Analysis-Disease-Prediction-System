@@ -216,3 +216,30 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# =========================================================
+# MedAssist AI Project
+# =========================================================
+
+# Frontend - Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# Frontend environment variables
+frontend/.env*
+!frontend/.env.example
+
+# Backend environment
+backend/.env
+
+# Python virtual environment
+backend/venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

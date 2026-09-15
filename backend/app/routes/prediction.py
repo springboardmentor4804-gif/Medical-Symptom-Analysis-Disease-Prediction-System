@@ -10,6 +10,7 @@ from app.models import (
     User,
     Prediction,
     Symptom,
+    DoctorPatientAssignment,
 )
 
 from app.schemas import (
@@ -38,7 +39,7 @@ router = APIRouter(
 
 
 # =========================================================
-# Get Stored ML Symptoms
+# Get Stored Symptoms
 # =========================================================
 
 def get_stored_symptoms(
@@ -52,7 +53,6 @@ def get_stored_symptoms(
         return []
 
     try:
-
         data = json.loads(
             symptom.notes
         )
@@ -96,7 +96,6 @@ def get_user_from_token(
     )
 
     if not user:
-
         raise HTTPException(
             status_code=404,
             detail="User not found",
@@ -104,9 +103,35 @@ def get_user_from_token(
 
     return user
 
+# =========================================================
+# Verify Doctor Has Access To Patient
+# =========================================================
+
+def verify_doctor_patient_access(
+    doctor_id: int,
+    patient_id: int,
+    db: Session,
+):
+    assignment = (
+        db.query(DoctorPatientAssignment)
+        .filter(
+            DoctorPatientAssignment.doctor_id == doctor_id,
+            DoctorPatientAssignment.patient_id == patient_id,
+        )
+        .first()
+    )
+
+    if not assignment:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not assigned to this patient.",
+        )
+
+    return True
+
 
 # =========================================================
-# Create Prediction - Manual
+# Create Manual Prediction
 # =========================================================
 
 @router.post(
@@ -181,7 +206,6 @@ def get_latest_prediction(
     )
 
     if not prediction:
-
         raise HTTPException(
             status_code=404,
             detail="No prediction found",
@@ -227,8 +251,20 @@ def prediction_history(
 
     for prediction in predictions:
 
+        symptom = (
+            db.query(Symptom)
+            .filter(
+                Symptom.id
+                == prediction.symptom_id,
+
+                Symptom.patient_id
+                == user.id,
+            )
+            .first()
+        )
+
         symptoms = get_stored_symptoms(
-            prediction.symptom
+            symptom
         )
 
         result.append({
@@ -248,8 +284,17 @@ def prediction_history(
             "confidence":
                 prediction.confidence,
 
+            "risk_score":
+                prediction.risk_score,
+
             "risk_level":
                 prediction.risk_level,
+
+            "severity_score":
+                prediction.severity_score,
+
+            "severity_level":
+                prediction.severity_level,
 
             "recommendation":
                 prediction.recommendation,
@@ -282,9 +327,7 @@ def update_ai_prediction(
     ),
 ):
 
-    # -----------------------------------------------------
-    # Clean Symptoms
-    # -----------------------------------------------------
+    # Clean symptoms
 
     cleaned_symptoms = [
         symptom.strip().lower()
@@ -297,24 +340,17 @@ def update_ai_prediction(
 
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Please provide at least "
-                "one symptom."
-            ),
+            detail="Please provide at least one symptom.",
         )
 
-    # -----------------------------------------------------
-    # Logged-In User
-    # -----------------------------------------------------
+    # Get user
 
     user = get_user_from_token(
         current_user,
         db,
     )
 
-    # -----------------------------------------------------
-    # Find Prediction
-    # -----------------------------------------------------
+    # Find prediction
 
     prediction = (
         db.query(Prediction)
@@ -335,9 +371,7 @@ def update_ai_prediction(
             detail="Prediction not found",
         )
 
-    # -----------------------------------------------------
-    # Find Linked Symptom Record
-    # -----------------------------------------------------
+    # Find symptom
 
     symptom = (
         db.query(Symptom)
@@ -351,9 +385,7 @@ def update_ai_prediction(
         .first()
     )
 
-    # -----------------------------------------------------
-    # Create Symptom Record If Missing
-    # -----------------------------------------------------
+    # Create symptom if missing
 
     if not symptom:
 
@@ -367,42 +399,30 @@ def update_ai_prediction(
 
         db.flush()
 
-        prediction.symptom_id = (
-            symptom.id
-        )
+        prediction.symptom_id = symptom.id
 
-    # -----------------------------------------------------
-    # Store ML Symptoms
-    # -----------------------------------------------------
+    # Store symptoms
 
     symptom.notes = json.dumps({
         "symptoms":
             cleaned_symptoms
     })
 
-    # -----------------------------------------------------
-    # Run Disease Prediction Again
-    # -----------------------------------------------------
+    # AI prediction
 
     ai_result = predict_disease(
         cleaned_symptoms
     )
 
-    disease = ai_result[
-        "disease"
-    ]
+    disease = ai_result["disease"]
 
-    confidence = ai_result[
-        "confidence"
-    ]
+    confidence = ai_result["confidence"]
 
     top_predictions = ai_result[
         "top_predictions"
     ]
 
-    # -----------------------------------------------------
-    # ML Confidence Level
-    # -----------------------------------------------------
+    # Confidence level
 
     if confidence >= 90:
 
@@ -416,9 +436,7 @@ def update_ai_prediction(
 
         confidence_level = "Low"
 
-    # -----------------------------------------------------
-    # Risk Scoring
-    # -----------------------------------------------------
+    # Risk
 
     risk_result = calculate_risk(
         symptoms=cleaned_symptoms,
@@ -437,70 +455,70 @@ def update_ai_prediction(
         "risk_factors"
     ]
 
-    # -----------------------------------------------------
-    # Severity Analysis
-    # -----------------------------------------------------
+    # Severity
 
     severity_result = calculate_severity(
         symptoms=cleaned_symptoms
     )
 
-    severity_score = (
-        severity_result["severity_score"]
+    severity_score = severity_result[
+        "severity_score"
+    ]
+
+    severity_level = severity_result[
+        "severity_level"
+    ]
+
+    severity_factors = severity_result[
+        "severity_factors"
+    ]
+
+    # Recommendations
+
+    recommendation_result = (
+        generate_recommendations(
+            disease=disease,
+            symptoms=cleaned_symptoms,
+            risk_level=risk_level,
+            severity_level=severity_level,
+        )
     )
 
-    severity_level = (
-        severity_result["severity_level"]
-    )
+    # Update prediction
 
-    severity_factors = (
-        severity_result["severity_factors"]
-    )
-
-    # -----------------------------------------------------
-    # Healthcare Recommendation Engine
-    # -----------------------------------------------------
-
-    recommendation_result = generate_recommendations(
-        disease=disease,
-        symptoms=cleaned_symptoms,
-        risk_level=risk_level,
-        severity_level=severity_level,
-    )
-
-    # -----------------------------------------------------
-    # Update Database
-    # -----------------------------------------------------
-
-    prediction.predicted_disease = (
-        disease
-    )
+    prediction.predicted_disease = disease
 
     prediction.confidence = (
         f"{confidence:.2f}"
+    )
+
+    prediction.risk_score = int(
+        risk_score
     )
 
     prediction.risk_level = (
         risk_level
     )
 
-    prediction.recommendation = (
-        recommendation_result["advisory"]
+    prediction.severity_score = int(
+        severity_score
     )
 
-    # -----------------------------------------------------
-    # Commit
-    # -----------------------------------------------------
+    prediction.severity_level = (
+        severity_level
+    )
+
+    prediction.recommendation = (
+        recommendation_result[
+            "advisory"
+        ]
+    )
 
     db.commit()
 
     db.refresh(
         prediction
     )
-
-    # -----------------------------------------------------
-    # Response
-    # -----------------------------------------------------
 
     return {
 
@@ -516,7 +534,7 @@ def update_ai_prediction(
         "confidence":
             round(
                 confidence,
-                2,
+                2
             ),
 
         "confidence_level":
@@ -541,7 +559,9 @@ def update_ai_prediction(
             severity_factors,
 
         "recommendation":
-            recommendation_result["advisory"],
+            recommendation_result[
+                "advisory"
+            ],
 
         "recommendations": {
 
@@ -631,14 +651,12 @@ def update_prediction(
         )
     )
 
-    for key, value in (
-        update_data.items()
-    ):
+    for key, value in update_data.items():
 
         setattr(
             prediction,
             key,
-            value,
+            value
         )
 
     db.commit()
@@ -720,18 +738,12 @@ def ai_prediction(
     ),
 ):
 
-    # -----------------------------------------------------
-    # Logged-In User
-    # -----------------------------------------------------
-
     user = get_user_from_token(
         current_user,
         db,
     )
 
-    # -----------------------------------------------------
-    # Clean Symptoms
-    # -----------------------------------------------------
+    # Clean symptoms
 
     cleaned_symptoms = [
         symptom.strip().lower()
@@ -744,21 +756,17 @@ def ai_prediction(
 
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Please provide at least "
-                "one symptom."
-            ),
+            detail="Please provide at least one symptom.",
         )
 
-    # -----------------------------------------------------
-    # Store Symptoms
-    # -----------------------------------------------------
+    # Store symptoms
 
     symptom_record = Symptom(
         patient_id=user.id,
 
         notes=json.dumps({
-            "symptoms": cleaned_symptoms
+            "symptoms":
+                cleaned_symptoms
         }),
     )
 
@@ -768,29 +776,21 @@ def ai_prediction(
 
     db.flush()
 
-    # -----------------------------------------------------
-    # AI Disease Prediction
-    # -----------------------------------------------------
+    # Disease prediction
 
     ai_result = predict_disease(
         cleaned_symptoms
     )
 
-    disease = ai_result[
-        "disease"
-    ]
+    disease = ai_result["disease"]
 
-    confidence = ai_result[
-        "confidence"
-    ]
+    confidence = ai_result["confidence"]
 
     top_predictions = ai_result[
         "top_predictions"
     ]
 
-    # -----------------------------------------------------
-    # ML Confidence Level
-    # -----------------------------------------------------
+    # Confidence
 
     if confidence >= 90:
 
@@ -804,9 +804,7 @@ def ai_prediction(
 
         confidence_level = "Low"
 
-    # -----------------------------------------------------
-    # Risk Scoring Engine
-    # -----------------------------------------------------
+    # Risk
 
     risk_result = calculate_risk(
         symptoms=cleaned_symptoms,
@@ -825,9 +823,7 @@ def ai_prediction(
         "risk_factors"
     ]
 
-    # -----------------------------------------------------
-    # Severity Analysis Engine
-    # -----------------------------------------------------
+    # Severity
 
     severity_result = calculate_severity(
         symptoms=cleaned_symptoms
@@ -845,40 +841,43 @@ def ai_prediction(
         "severity_factors"
     ]
 
-    # -----------------------------------------------------
-    # Healthcare Recommendation Engine
-    # -----------------------------------------------------
+    # Recommendation
 
-    recommendation_result = generate_recommendations(
-        disease=disease,
-        symptoms=cleaned_symptoms,
-        risk_level=risk_level,
-        severity_level=severity_level,
+    recommendation_result = (
+        generate_recommendations(
+            disease=disease,
+            symptoms=cleaned_symptoms,
+            risk_level=risk_level,
+            severity_level=severity_level,
+        )
     )
 
-    # -----------------------------------------------------
-    # Save Prediction
-    # -----------------------------------------------------
+    # Save prediction
 
     prediction = Prediction(
 
         patient_id=user.id,
 
-        symptom_id=
-            symptom_record.id,
+        symptom_id=symptom_record.id,
 
-        predicted_disease=
-            disease,
+        predicted_disease=disease,
 
-        confidence=
-            f"{confidence:.2f}",
+        confidence=f"{confidence:.2f}",
 
-        risk_level=
-            risk_level,
+        risk_score=int(risk_score),
 
-        recommendation=(
-            recommendation_result["advisory"]
+        risk_level=risk_level,
+
+        severity_score=int(
+            severity_score
         ),
+
+        severity_level=severity_level,
+
+        recommendation=
+            recommendation_result[
+                "advisory"
+            ],
     )
 
     db.add(
@@ -890,10 +889,6 @@ def ai_prediction(
     db.refresh(
         prediction
     )
-
-    # -----------------------------------------------------
-    # Response
-    # -----------------------------------------------------
 
     return {
 
@@ -909,7 +904,7 @@ def ai_prediction(
         "confidence":
             round(
                 confidence,
-                2,
+                2
             ),
 
         "confidence_level":
@@ -934,7 +929,9 @@ def ai_prediction(
             severity_factors,
 
         "recommendation":
-            recommendation_result["advisory"],
+            recommendation_result[
+                "advisory"
+            ],
 
         "recommendations": {
 
@@ -996,8 +993,7 @@ def diabetes_prediction(
     return {
 
         "message":
-            "Diabetes risk prediction "
-            "generated successfully",
+            "Diabetes risk prediction generated successfully",
 
         **result,
 
@@ -1021,10 +1017,6 @@ def get_health_risk_report(
     ),
 ):
 
-    # -----------------------------------------------------
-    # Logged-In User
-    # -----------------------------------------------------
-
     user = get_user_from_token(
         current_user,
         db,
@@ -1037,76 +1029,112 @@ def get_health_risk_report(
     prediction = (
         db.query(Prediction)
         .filter(
-            Prediction.id == prediction_id,
-            Prediction.patient_id == user.id,
+            Prediction.id == prediction_id
         )
         .first()
     )
 
     if not prediction:
-
         raise HTTPException(
             status_code=404,
             detail="Prediction not found",
         )
 
     # -----------------------------------------------------
-    # Find Linked Symptoms
+    # Access Control
+    # -----------------------------------------------------
+
+    # Patient can access their own prediction
+    if user.role.lower() == "patient":
+
+        if prediction.patient_id != user.id:
+            raise HTTPException(
+                status_code=403,
+                detail="You do not have access to this prediction.",
+            )
+
+    # Doctor can access only assigned patients
+    elif user.role.lower() == "doctor":
+
+        verify_doctor_patient_access(
+            doctor_id=user.id,
+            patient_id=prediction.patient_id,
+            db=db,
+        )
+
+    # Everyone else is denied
+    else:
+
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied",
+        )
+
+    # -----------------------------------------------------
+    # Get Patient
+    # -----------------------------------------------------
+
+    patient = (
+        db.query(User)
+        .filter(
+            User.id == prediction.patient_id
+        )
+        .first()
+    )
+
+    if not patient:
+        raise HTTPException(
+            status_code=404,
+            detail="Patient not found",
+        )
+
+    # -----------------------------------------------------
+    # Get Symptoms
     # -----------------------------------------------------
 
     symptom = (
         db.query(Symptom)
         .filter(
             Symptom.id == prediction.symptom_id,
-            Symptom.patient_id == user.id,
+            Symptom.patient_id == prediction.patient_id,
         )
         .first()
     )
 
     if not symptom:
-
         raise HTTPException(
             status_code=404,
             detail="Symptoms not found for this prediction",
         )
-
-    # -----------------------------------------------------
-    # Get Stored Symptoms
-    # -----------------------------------------------------
 
     cleaned_symptoms = get_stored_symptoms(
         symptom
     )
 
     if not cleaned_symptoms:
-
         raise HTTPException(
             status_code=404,
             detail="No symptoms found for this prediction",
         )
 
     # -----------------------------------------------------
-    # Run Disease Prediction
+    # AI Prediction
     # -----------------------------------------------------
 
     ai_result = predict_disease(
         cleaned_symptoms
     )
 
-    disease = ai_result[
-        "disease"
-    ]
+    disease = ai_result["disease"]
 
-    confidence = ai_result[
-        "confidence"
-    ]
+    confidence = ai_result["confidence"]
 
     top_predictions = ai_result[
         "top_predictions"
     ]
 
     # -----------------------------------------------------
-    # Confidence Level
+    # Confidence
     # -----------------------------------------------------
 
     if confidence >= 90:
@@ -1122,7 +1150,7 @@ def get_health_risk_report(
         confidence_level = "Low"
 
     # -----------------------------------------------------
-    # Risk Assessment
+    # Risk
     # -----------------------------------------------------
 
     risk_result = calculate_risk(
@@ -1143,7 +1171,7 @@ def get_health_risk_report(
     ]
 
     # -----------------------------------------------------
-    # Severity Analysis
+    # Severity
     # -----------------------------------------------------
 
     severity_result = calculate_severity(
@@ -1163,18 +1191,20 @@ def get_health_risk_report(
     ]
 
     # -----------------------------------------------------
-    # Recommendation
+    # Recommendations
     # -----------------------------------------------------
 
-    recommendation_result = generate_recommendations(
-        disease=disease,
-        symptoms=cleaned_symptoms,
-        risk_level=risk_level,
-        severity_level=severity_level,
+    recommendation_result = (
+        generate_recommendations(
+            disease=disease,
+            symptoms=cleaned_symptoms,
+            risk_level=risk_level,
+            severity_level=severity_level,
+        )
     )
 
     # -----------------------------------------------------
-    # Medical Disclaimer
+    # Disclaimer
     # -----------------------------------------------------
 
     disclaimer = (
@@ -1187,7 +1217,7 @@ def get_health_risk_report(
     )
 
     # -----------------------------------------------------
-    # Health Risk Report
+    # Return Report
     # -----------------------------------------------------
 
     return {
@@ -1196,7 +1226,7 @@ def get_health_risk_report(
             prediction.id,
 
         "patient_id":
-            user.id,
+            prediction.patient_id,
 
         "generated_at":
             prediction.created_at,
@@ -1204,9 +1234,18 @@ def get_health_risk_report(
         "symptoms":
             cleaned_symptoms,
 
-        # -------------------------------------------------
-        # Disease Prediction
-        # -------------------------------------------------
+        "patient": {
+
+            "id":
+                patient.id,
+
+            "full_name":
+                patient.full_name,
+
+            "email":
+                patient.email,
+
+        },
 
         "prediction": {
 
@@ -1216,23 +1255,16 @@ def get_health_risk_report(
             "confidence":
                 round(
                     confidence,
-                    2,
+                    2
                 ),
 
             "confidence_level":
                 confidence_level,
-        },
 
-        # -------------------------------------------------
-        # Top Predictions
-        # -------------------------------------------------
+        },
 
         "top_predictions":
             top_predictions,
-
-        # -------------------------------------------------
-        # Risk Assessment
-        # -------------------------------------------------
 
         "risk_assessment": {
 
@@ -1244,11 +1276,8 @@ def get_health_risk_report(
 
             "factors":
                 risk_factors,
-        },
 
-        # -------------------------------------------------
-        # Severity Analysis
-        # -------------------------------------------------
+        },
 
         "severity_analysis": {
 
@@ -1260,14 +1289,13 @@ def get_health_risk_report(
 
             "factors":
                 severity_factors,
+
         },
 
-        # -------------------------------------------------
-        # Recommendation
-        # -------------------------------------------------
-
         "recommendation":
-            recommendation_result["advisory"],
+            recommendation_result[
+                "advisory"
+            ],
 
         "recommendations": {
 
@@ -1295,11 +1323,8 @@ def get_health_risk_report(
                 recommendation_result[
                     "advisory"
                 ],
-        },
 
-        # -------------------------------------------------
-        # Disclaimer
-        # -------------------------------------------------
+        },
 
         "disclaimer":
             disclaimer,

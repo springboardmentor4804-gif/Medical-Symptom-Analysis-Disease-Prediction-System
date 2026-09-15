@@ -44,3 +44,23 @@ export const getDoctorProfile = async () => {
   const response = await api.get("/doctor/profile");
   return response.data;
 };
+
+
+/* =====================================================
+   Patient Health Risk Report
+===================================================== */
+
+export const getPatientHealthRiskReport = async (
+  predictionId: number
+) => {
+  const response = await api.get(
+    `/prediction/${predictionId}/health-report`
+  );
+
+  return response.data;
+};
+
+export const getDoctorReports = async () => {
+  const response = await api.get("/reports/doctor");
+  return response.data;
+};

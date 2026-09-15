@@ -19,12 +19,32 @@ from app.database import Base
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
 
-    full_name = Column(String, nullable=False)
-    email = Column(String, unique=True, nullable=False)
-    password = Column(String, nullable=False)
-    role = Column(String, nullable=False)
+    full_name = Column(
+        String,
+        nullable=False
+    )
+
+    email = Column(
+        String,
+        unique=True,
+        nullable=False
+    )
+
+    password = Column(
+        String,
+        nullable=False
+    )
+
+    role = Column(
+        String,
+        nullable=False
+    )
 
     created_at = Column(
         DateTime(timezone=True),
@@ -59,7 +79,11 @@ class User(Base):
 class PatientProfile(Base):
     __tablename__ = "patient_profiles"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
 
     user_id = Column(
         Integer,
@@ -69,11 +93,15 @@ class PatientProfile(Base):
     )
 
     phone = Column(String(20))
+
     date_of_birth = Column(String(20))
+
     gender = Column(String(20))
+
     blood_group = Column(String(10))
 
     height = Column(String(10))
+
     weight = Column(String(10))
 
     address = Column(Text)
@@ -108,7 +136,11 @@ class PatientProfile(Base):
 class Symptom(Base):
     __tablename__ = "symptoms"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
 
     patient_id = Column(
         Integer,
@@ -117,15 +149,23 @@ class Symptom(Base):
     )
 
     fever = Column(String(20))
+
     cough = Column(String(20))
+
     headache = Column(String(20))
+
     fatigue = Column(String(20))
+
     chest_pain = Column(String(20))
+
     shortness_of_breath = Column(String(20))
 
     blood_pressure = Column(String(20))
+
     heart_rate = Column(String(20))
+
     blood_sugar = Column(String(20))
+
     temperature = Column(String(20))
 
     notes = Column(Text)
@@ -154,7 +194,11 @@ class Symptom(Base):
 class Prediction(Base):
     __tablename__ = "predictions"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
 
     patient_id = Column(
         Integer,
@@ -168,10 +212,36 @@ class Prediction(Base):
         nullable=False,
     )
 
-    predicted_disease = Column(String(100))
-    confidence = Column(String(20))
-    risk_level = Column(String(20))
-    recommendation = Column(Text)
+    predicted_disease = Column(
+        String(100)
+    )
+
+    confidence = Column(
+        String(20)
+    )
+
+    # NEW
+    risk_score = Column(
+        Integer
+    )
+
+    risk_level = Column(
+        String(20)
+    )
+
+    # NEW
+    severity_score = Column(
+        Integer
+    )
+
+    # NEW
+    severity_level = Column(
+        String(20)
+    )
+
+    recommendation = Column(
+        Text
+    )
 
     created_at = Column(
         DateTime(timezone=True),
@@ -187,6 +257,8 @@ class Prediction(Base):
         "Symptom",
         back_populates="predictions",
     )
+
+
 # =====================================
 # Doctor Patient Assignment
 # =====================================

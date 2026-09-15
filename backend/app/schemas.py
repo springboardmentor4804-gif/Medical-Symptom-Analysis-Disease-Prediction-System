@@ -3,9 +3,9 @@ from typing import Optional
 from pydantic import BaseModel, EmailStr
 
 
-# -------------------------
+# =========================================================
 # Authentication Schemas
-# -------------------------
+# =========================================================
 
 class UserCreate(BaseModel):
     full_name: str
@@ -35,9 +35,9 @@ class Token(BaseModel):
     role: str
 
 
-# -------------------------
+# =========================================================
 # Patient Profile Schemas
-# -------------------------
+# =========================================================
 
 class PatientProfileBase(BaseModel):
     phone: Optional[str] = None
@@ -69,7 +69,12 @@ class PatientProfileResponse(PatientProfileBase):
 
     class Config:
         from_attributes = True
-        
+
+
+# =========================================================
+# Symptom Schemas
+# =========================================================
+
 class SymptomBase(BaseModel):
     fever: str | None = None
     cough: str | None = None
@@ -99,16 +104,27 @@ class SymptomResponse(SymptomBase):
     class Config:
         from_attributes = True
 
-# -------------------------
+
+# =========================================================
 # Prediction Schemas
-# -------------------------
+# =========================================================
 
 class PredictionBase(BaseModel):
     symptom_id: int
+
     predicted_disease: str
     confidence: str
-    risk_level: str
-    recommendation: str
+
+    # Risk Assessment
+    risk_score: Optional[int] = None
+    risk_level: Optional[str] = None
+
+    # Severity Assessment
+    severity_score: Optional[int] = None
+    severity_level: Optional[str] = None
+
+    # Recommendation
+    recommendation: Optional[str] = None
 
 
 class PredictionCreate(PredictionBase):
@@ -118,20 +134,32 @@ class PredictionCreate(PredictionBase):
 class PredictionUpdate(BaseModel):
     predicted_disease: Optional[str] = None
     confidence: Optional[str] = None
+
+    # Risk Assessment
+    risk_score: Optional[int] = None
     risk_level: Optional[str] = None
+
+    # Severity Assessment
+    severity_score: Optional[int] = None
+    severity_level: Optional[str] = None
+
+    # Recommendation
     recommendation: Optional[str] = None
 
 
 class PredictionResponse(PredictionBase):
     id: int
     patient_id: int
+
     symptoms: list[str] = []
 
     class Config:
         from_attributes = True
-# -------------------------
+
+
+# =========================================================
 # Doctor Patient Assignment
-# -------------------------
+# =========================================================
 
 class AssignmentCreate(BaseModel):
     doctor_id: int
@@ -146,23 +174,32 @@ class AssignmentResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+# =========================================================
+# Admin Dashboard
+# =========================================================
+
 class AdminDashboardResponse(BaseModel):
     total_doctors: int
     total_patients: int
     total_predictions: int
-    total_assignments: int# ======================================================
+    total_assignments: int
+
+
+# =========================================================
 # AI Prediction Request / Response
-# ======================================================
+# =========================================================
 
 class AIPredictionRequest(BaseModel):
     symptoms: list[str]
 
+
 class AIPredictionUpdateRequest(BaseModel):
     symptoms: list[str]
+
 
 class AIPredictionResponse(BaseModel):
     disease: str
     confidence: float
     description: str
     precautions: list[str]
-

@@ -145,32 +145,174 @@ def doctor_summary(
         User.email == current_user["sub"]
     ).first()
 
-    assigned_patient_ids = [
+    if not doctor:
+        raise HTTPException(
+            status_code=404,
+            detail="Doctor not found"
+        )
+
+    # Get patients assigned to this doctor
+    assignments = db.query(
+        DoctorPatientAssignment
+    ).filter(
+        DoctorPatientAssignment.doctor_id == doctor.id
+    ).all()
+
+    patient_ids = [
         assignment.patient_id
-        for assignment in db.query(
-            DoctorPatientAssignment
-        ).filter(
-            DoctorPatientAssignment.doctor_id == doctor.id
-        ).all()
-]
+        for assignment in assignments
+    ]
 
-    total_patients = len(assigned_patient_ids)
+    # No assigned patients
+    if not patient_ids:
+        return {
+            "total_patients": 0,
+            "total_predictions": 0,
+            "total_reports": 0,
+            "high_risk_patients": 0,
+            "critical_risk_patients": 0,
+            "average_risk_score": 0,
+            "average_severity_score": 0,
+            "disease_distribution": [],
+            "risk_distribution": [],
+            "health_trends": []
+        }
 
-    total_predictions = db.query(Prediction).count()
+    # Get predictions only for assigned patients
+    predictions = db.query(Prediction).filter(
+        Prediction.patient_id.in_(patient_ids)
+    ).order_by(
+        Prediction.created_at.asc()
+    ).all()
 
-    total_reports = db.query(PatientProfile).count()
+    # Basic statistics
+    total_patients = len(patient_ids)
+    total_predictions = len(predictions)
 
-    high_risk = db.query(Prediction).filter(
-        Prediction.patient_id.in_(assigned_patient_ids),
-        Prediction.risk_level == "High"
+    total_reports = db.query(PatientProfile).filter(
+        PatientProfile.user_id.in_(patient_ids)
     ).count()
+
+    high_risk_patients = len({
+        prediction.patient_id
+        for prediction in predictions
+        if prediction.risk_level == "High"
+    })
+
+    critical_risk_patients = len({
+        prediction.patient_id
+        for prediction in predictions
+        if prediction.risk_level == "Critical"
+    })
+
+    # Disease distribution
+    disease_counts = {}
+
+    for prediction in predictions:
+        disease = prediction.predicted_disease
+
+        if disease:
+            disease_counts[disease] = (
+                disease_counts.get(disease, 0) + 1
+            )
+
+    disease_distribution = [
+        {
+            "disease": disease,
+            "count": count
+        }
+        for disease, count in disease_counts.items()
+    ]
+
+    # Risk distribution
+    risk_counts = {}
+
+    for prediction in predictions:
+        risk = prediction.risk_level or "Unknown"
+
+        risk_counts[risk] = (
+            risk_counts.get(risk, 0) + 1
+        )
+
+    risk_distribution = [
+        {
+            "level": level,
+            "count": count
+        }
+        for level, count in risk_counts.items()
+    ]
+
+    # Average scores
+    risk_scores = []
+    severity_scores = []
+
+    for prediction in predictions:
+
+        
+        if prediction.risk_score is not None:
+            risk_scores.append(
+                float(prediction.risk_score)
+            )
+
+        
+        if prediction.severity_score is not None:
+            severity_scores.append(
+                float(prediction.severity_score)
+            )
+
+    average_risk_score = (
+        round(
+            sum(risk_scores) / len(risk_scores),
+            2
+        )
+        if risk_scores
+        else 0
+    )
+
+    average_severity_score = (
+        round(
+            sum(severity_scores) / len(severity_scores),
+            2
+        )
+        if severity_scores
+        else 0
+    )
+
+    # Health trends
+    health_trends = []
+
+    for prediction in predictions:
+
+        health_trends.append({
+        "date": prediction.created_at,
+        "disease": prediction.predicted_disease,
+        "risk_score": float(
+            prediction.risk_score
+        )
+        if prediction.risk_score is not None
+        else 0,
+
+        "severity_score": float(
+            prediction.severity_score
+        )
+        if prediction.severity_score is not None
+        else 0,
+        })
+
+       
+
     return {
         "total_patients": total_patients,
         "total_predictions": total_predictions,
         "total_reports": total_reports,
-        "high_risk_patients": high_risk
+        "high_risk_patients": high_risk_patients,
+        "critical_risk_patients": critical_risk_patients,
+        "average_risk_score": average_risk_score,
+        "average_severity_score": average_severity_score,
+        "disease_distribution": disease_distribution,
+        "risk_distribution": risk_distribution,
+        "health_trends": health_trends
     }
-
 @router.get("/profile")
 def doctor_profile(
     current_user=Depends(get_current_user),

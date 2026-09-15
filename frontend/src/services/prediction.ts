@@ -1,5 +1,6 @@
 import api from "./api";
 
+
 /* =====================================================
    Manual Prediction
 ===================================================== */
@@ -32,19 +33,6 @@ export interface TopPrediction {
 
 
 /* =====================================================
-   Recommendation
-===================================================== */
-
-export interface RecommendationData {
-  treatment_suggestions: string[];
-  preventive_advice: string[];
-  lifestyle_advice: string[];
-  warning_signs: string[];
-  advisory: string;
-}
-
-
-/* =====================================================
    AI Prediction Response
 ===================================================== */
 
@@ -73,11 +61,17 @@ export interface AIPredictionResponse {
 
   recommendation: string;
 
-  recommendations: RecommendationData;
+recommendations: {
+  treatment_suggestions: string[];
+  preventive_advice: string[];
+  lifestyle_advice: string[];
+  warning_signs: string[];
+  advisory: string;
+};
 
-  top_predictions: TopPrediction[];
+top_predictions: TopPrediction[];
 
-  symptoms: string[];
+symptoms: string[];
 
   created_at: string;
 }
@@ -107,6 +101,13 @@ export interface HealthRiskPrediction {
   confidence_level: string;
 }
 
+export interface HealthRecommendations {
+  treatment_suggestions: string[];
+  preventive_advice: string[];
+  lifestyle_advice: string[];
+  warning_signs: string[];
+  advisory: string;
+}
 
 export interface HealthRiskReport {
   report_id: number;
@@ -126,6 +127,8 @@ export interface HealthRiskReport {
   severity_analysis: SeverityAnalysis;
 
   recommendation: string;
+
+  recommendations: HealthRecommendations;
 
   disclaimer: string;
 }

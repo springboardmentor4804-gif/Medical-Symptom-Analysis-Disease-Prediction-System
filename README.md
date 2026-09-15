@@ -1,1 +1,3 @@
-# Medical-Symptom-Analysis-Disease-Prediction-System
+# MedAssist AI
+
+AI-powered Medical Symptom Analysis and Disease Prediction Syst

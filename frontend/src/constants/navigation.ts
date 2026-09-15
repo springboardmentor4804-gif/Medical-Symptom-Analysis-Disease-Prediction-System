@@ -45,16 +45,25 @@ export const doctorNavigation = [
     href: "/doctor/dashboard",
     icon: LayoutDashboard,
   },
+
   {
     name: "Patients",
     href: "/doctor/patients",
     icon: Users,
   },
+
   {
     name: "Reports",
-    href: "/summary",
+    href: "/doctor/reports",
     icon: FileText,
   },
+
+  {
+    name: "Analytics",
+    href: "/doctor/analytics",
+    icon: BarChart3,
+  },
+
   {
     name: "Profile",
     href: "/doctor/profile",
