@@ -82,6 +82,10 @@ app.include_router(clinic.router)
 app.include_router(prediction.router)
 app.include_router(mongo_routes.router)  # MongoDB read-only admin routes
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def read_root():
     return {"message": "Welcome to MedAssist AI API!"}
+
+@app.api_route("/health", methods=["GET", "HEAD"])
+def health_check():
+    return {"status": "healthy"}
