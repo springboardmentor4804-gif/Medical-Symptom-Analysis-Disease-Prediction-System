@@ -180,3 +180,5 @@ Med/
 - `GET /patients/me/report` — Download official PDF clinical summary report
 - `GET /doctor/patients` — Doctor access to patient history logs
 - `GET /admin/users` — Admin user management endpoint
+#   M e d _ A s s i s t  
+ 
