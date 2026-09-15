@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import ProtectedRoute from '../../../components/ProtectedRoute';
-import PatientReportModal from '../../../components/PatientReportModal';
-import { api } from '../../../lib/api';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import PatientReportModal from '@/components/PatientReportModal';
+import { api } from '@/lib/api';
 import Link from 'next/link';
 import {
   FeverGaugeChart,

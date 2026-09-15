@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import ProtectedRoute from '../../components/ProtectedRoute';
-import PatientReportModal from '../../components/PatientReportModal';
-import { api } from '../../lib/api';
-import { useAuth } from '../../context/AuthContext';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import PatientReportModal from '@/components/PatientReportModal';
+import { api } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { FadeIn, StaggerContainer, StaggerItem, HoverCard } from '@/components/motion/MotionWrapper';

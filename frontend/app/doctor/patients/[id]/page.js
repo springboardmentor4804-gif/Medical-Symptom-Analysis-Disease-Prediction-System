@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import ProtectedRoute from '../../../../components/ProtectedRoute';
-import DoctorReportModal from '../../../../components/DoctorReportModal';
-import { api } from '../../../../lib/api';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import DoctorReportModal from '@/components/DoctorReportModal';
+import { api } from '@/lib/api';
 
 export default function DoctorPatientHistoryPage() {
   const params = useParams();

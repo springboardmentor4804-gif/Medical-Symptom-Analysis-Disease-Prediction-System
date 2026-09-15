@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import ProtectedRoute from '../../../components/ProtectedRoute';
-import { api } from '../../../lib/api';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import { api } from '@/lib/api';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FadeIn, ScaleIn } from '../../../components/motion/MotionWrapper';
+import { FadeIn, ScaleIn } from '@/components/motion/MotionWrapper';
 
 const COMMON_SYMPTOMS = ['Fever', 'Cough', 'Fatigue', 'Difficulty Breathing', 'Headache', 'Nausea'];
 const INTENSE_SYMPTOMS = ['Chest Pain', 'Severe Dizziness', 'Confusion / Disorientation', 'Coughing Blood', 'Numbness / Weakness'];

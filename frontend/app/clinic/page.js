@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import ProtectedRoute from '../../components/ProtectedRoute';
-import { api } from '../../lib/api';
-import { ClinicAnalyticsView } from '../../components/RoleAnalyticsCharts';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import { api } from '@/lib/api';
+import { ClinicAnalyticsView } from '@/components/RoleAnalyticsCharts';
 
 export default function ClinicDashboard() {
   const [clinicProfile, setClinicProfile] = useState(null);

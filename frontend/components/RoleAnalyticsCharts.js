@@ -15,7 +15,7 @@ import {
   Filler,
 } from 'chart.js';
 import { Bar, Pie, Doughnut, Line } from 'react-chartjs-2';
-import { api } from '../lib/api';
+import { api } from '@/lib/api';
 
 ChartJS.register(
   CategoryScale,

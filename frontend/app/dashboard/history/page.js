@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import ProtectedRoute from '../../../components/ProtectedRoute';
-import { api } from '../../../lib/api';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import { api } from '@/lib/api';
 import Link from 'next/link';
 
 export default function HistoryPage() {

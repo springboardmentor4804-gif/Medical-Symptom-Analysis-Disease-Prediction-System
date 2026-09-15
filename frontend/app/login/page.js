@@ -1,10 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { getRoleHomePath } from '../../context/AuthContext';
+import { useAuth, getRoleHomePath } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { api } from '../../lib/api';
+import { api } from '@/lib/api';
 import Link from 'next/link';
 
 export default function Login() {

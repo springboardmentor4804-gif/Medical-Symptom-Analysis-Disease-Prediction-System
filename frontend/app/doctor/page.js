@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import ProtectedRoute from '../../components/ProtectedRoute';
-import { api } from '../../lib/api';
-import { DoctorAnalyticsView } from '../../components/RoleAnalyticsCharts';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import { api } from '@/lib/api';
+import { DoctorAnalyticsView } from '@/components/RoleAnalyticsCharts';
 
 // Helper to determine if a patient's symptoms or predicted conditions match doctor's specialty
 function matchesSpecialty(patient, specialty = '') {

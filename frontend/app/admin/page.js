@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import ProtectedRoute from '../../components/ProtectedRoute';
-import { api } from '../../lib/api';
-import { AdminAnalyticsView } from '../../components/RoleAnalyticsCharts';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import { api } from '@/lib/api';
+import { AdminAnalyticsView } from '@/components/RoleAnalyticsCharts';
 
 
 // ─── Icon helpers ────────────────────────────────────────────────────────────
