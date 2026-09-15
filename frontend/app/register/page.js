@@ -90,6 +90,33 @@ export default function Register() {
     e.preventDefault();
     setError('');
 
+    if (!formData.name.trim()) {
+      setError('Please enter your full name.');
+      return;
+    }
+
+    if (!formData.email.trim() || !formData.email.includes('@')) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
+    if (!formData.password || formData.password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (formData.role === 'patient') {
+      const parsedAge = parseInt(formData.age, 10);
+      if (!formData.age || isNaN(parsedAge) || parsedAge <= 0 || parsedAge > 150) {
+        setError('Patient registration requires a valid age (1-150).');
+        return;
+      }
+      if (!formData.gender) {
+        setError('Patient registration requires gender selection.');
+        return;
+      }
+    }
+
     if (formData.role === 'doctor' && !isVerified) {
       setError('Mandatory Action Required: Please click "Verify Registration Credentials" on the form below to validate your Medical Registration Number before creating account.');
       return;

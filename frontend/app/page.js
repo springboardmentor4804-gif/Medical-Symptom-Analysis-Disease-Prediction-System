@@ -1,8 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { FadeIn, ScaleIn, StaggerContainer, StaggerItem, HoverCard } from '@/components/motion/MotionWrapper';
 
 const howItWorks = [
@@ -137,6 +138,188 @@ const features = [
   },
 ];
 
+const guideData = {
+  patient: {
+    roleTitle: 'Patient Navigation Guide',
+    colorTheme: 'emerald',
+    steps: [
+      {
+        stepNum: '01',
+        title: 'Create Account & Role Selection',
+        description: 'Click "Register" on the top navigation bar. Select the "Patient" role card, enter your email, password, full name, age, gender, and optional medical history. Click "Register Account" to sign in automatically.',
+        proTip: 'Ensure age and gender are entered accurately as they refine AI disease probability models.',
+        icon: '👤',
+      },
+      {
+        stepNum: '02',
+        title: 'Submit Symptoms & Duration',
+        description: 'Navigate to "Submit Symptoms" on your dashboard. Use the interactive search bar to select your reported symptoms (e.g. fever, headache, cough). Adjust severity scores and indicate symptom onset duration.',
+        proTip: 'Adding at least 3 distinct symptoms increases AI analysis accuracy significantly.',
+        icon: '📋',
+      },
+      {
+        stepNum: '03',
+        title: 'Run AI Assessment & View Risk Level',
+        description: 'Click "Get AI Assessment". The system evaluates your inputs against 40+ disease patterns and displays top condition matches with confidence percentage bars and risk urgency (Low, Moderate, High).',
+        proTip: 'Review recommended preliminary precautions directly underneath your assessment results.',
+        icon: '⚡',
+      },
+      {
+        stepNum: '04',
+        title: 'Download PDF Report & History Log',
+        description: 'Click "Download PDF Report" to save an official summary. Visit "History Log" anytime to trace historical symptom trends or present records during your next clinical appointment.',
+        proTip: 'PDF reports are formatted specifically for easy review by attending doctors.',
+        icon: '📄',
+      },
+    ],
+  },
+  doctor: {
+    roleTitle: 'Doctor Navigation Guide',
+    colorTheme: 'teal',
+    steps: [
+      {
+        stepNum: '01',
+        title: 'Medical Registration & License Verification',
+        description: 'Click "Register" and select the "Doctor" role card. Fill in your details and Medical Registration Number. Select your Council (NMC or State Council) and click "Verify Registration Credentials" before submitting.',
+        proTip: 'Verification validates your registration format with official council registers.',
+        icon: '🩺',
+      },
+      {
+        stepNum: '02',
+        title: 'Access Doctor Portal & Patient Intake',
+        description: 'Log into the Doctor Portal to view your clinical dashboard. Review patient list, filter by urgency status, and inspect patient symptom logs and reported onset history.',
+        proTip: 'High-risk patient intake cards are highlighted automatically at the top of your queue.',
+        icon: '🏥',
+      },
+      {
+        stepNum: '03',
+        title: 'Add Clinical Notes & Recommendations',
+        description: 'Select a patient case to view reported AI disease probabilities. Add official doctor recommendations, confirm diagnosis parameters, and prescribe follow-up instructions.',
+        proTip: 'Clinical notes attached by doctors sync directly to the patient\'s timeline view.',
+        icon: '✍️',
+      },
+      {
+        stepNum: '04',
+        title: 'Appointment Management & Analytics',
+        description: 'Review upcoming patient appointments, accept consultation requests, and track role analytics metrics (patient recovery rate, triage volume, and specialization breakdown).',
+        proTip: 'Use the analytics chart tab to monitor monthly intake volume.',
+        icon: '📊',
+      },
+    ],
+  },
+  clinic: {
+    roleTitle: 'Clinic Navigation Guide',
+    colorTheme: 'cyan',
+    steps: [
+      {
+        stepNum: '01',
+        title: 'Register Clinic Entity',
+        description: 'Click "Register" and select "Clinic". Input your healthcare facility name, address, contact information, and administrator account details.',
+        proTip: 'Clinic accounts serve as central operational hubs for multi-physician practices.',
+        icon: '🏬',
+      },
+      {
+        stepNum: '02',
+        title: 'Manage Staff & Doctor Affiliations',
+        description: 'Access the Clinic Portal to add affiliated doctors, manage duty schedules, and assign incoming patient walk-ins to available medical specialists.',
+        proTip: 'Doctor availability toggles update patient appointment booking slots in real time.',
+        icon: '👨‍⚕️',
+      },
+      {
+        stepNum: '03',
+        title: 'Monitor Patient Intake Volume',
+        description: 'Track overall clinic intake metrics, top reported symptoms across your facility, and triage distribution ratios.',
+        proTip: 'Use intake trends to optimize staff scheduling during high-volume periods.',
+        icon: '📈',
+      },
+      {
+        stepNum: '04',
+        title: 'Export Operational Reports',
+        description: 'Generate operational summary logs, inspect clinic consultation totals, and streamline patient records management.',
+        proTip: 'Export monthly summary reports for administrative compliance.',
+        icon: '📁',
+      },
+    ],
+  },
+  admin: {
+    roleTitle: 'System Admin Navigation Guide',
+    colorTheme: 'indigo',
+    steps: [
+      {
+        stepNum: '01',
+        title: 'System Sign In & Access Overview',
+        description: 'Log into the Admin Dashboard using registered administrator credentials. Access system-wide metrics, user user counts, and active database status.',
+        proTip: 'Admin accounts possess full system inspection and user management privileges.',
+        icon: '🔐',
+      },
+      {
+        stepNum: '02',
+        title: 'Inspect MongoDB Audit Logs',
+        description: 'Navigate to the MongoDB Audit tab to inspect real-time mirrored registration events, raw symptom payloads, and background log events.',
+        proTip: 'Audit logs ensure non-repudiation and complete traceability for clinical data.',
+        icon: '🍃',
+      },
+      {
+        stepNum: '03',
+        title: 'Manage Users & Role Permissions',
+        description: 'Search, filter, or update registered Patient, Doctor, and Clinic accounts. Deactivate unauthorized entries or reset credentials when required.',
+        proTip: 'Use the search bar to locate users instantly by email or registration number.',
+        icon: '👥',
+      },
+      {
+        stepNum: '04',
+        title: 'Dataset & AI Model Maintenance',
+        description: 'Inspect model feature weights, review disease symptom dataset mappings (130+ markers), and verify prediction model API response health.',
+        proTip: 'Run periodic model health checks to verify diagnostic response times.',
+        icon: '⚙️',
+      },
+    ],
+  },
+};
+
+const faqItems = [
+  {
+    category: 'General',
+    question: 'How does the MedAssist AI Symptom Prediction System work?',
+    answer: 'MedAssist AI evaluates user-submitted symptoms, severity scores, and onset duration against a clinical dataset covering over 40+ medical conditions and 130+ symptom markers. Using machine learning prediction models, it calculates statistical disease match probabilities and categorizes findings into clear risk levels.',
+  },
+  {
+    category: 'General',
+    question: 'Is MedAssist AI a replacement for seeing a professional doctor?',
+    answer: 'No. MedAssist AI is strictly an informational and clinical decision-support tool. It provides preliminary guidance and risk assessment to help users understand symptoms, but it does not provide binding medical diagnoses. For severe or life-threatening symptoms, seek immediate emergency medical care.',
+  },
+  {
+    category: 'Patients',
+    question: 'How do I log my symptoms and get an AI assessment?',
+    answer: 'After registering a Patient account, navigate to "Submit Symptoms". Search and select your symptoms, adjust severity indicators, specify duration, and click "Get AI Assessment". Your results will display potential condition matches, probability percentages, and actionable precautions.',
+  },
+  {
+    category: 'Patients',
+    question: 'Can I download a PDF health report for my doctor consultation?',
+    answer: 'Yes! On your assessment result page or history log, click the "Download PDF Report" button. This generates a structured digital document containing your personal details, reported symptoms, severity scores, and AI analysis summary.',
+  },
+  {
+    category: 'Doctors',
+    question: 'How do doctors register and verify their medical council license?',
+    answer: 'When registering as a Doctor, choose your council type (National Medical Commission or State Medical Council), enter your Medical Registration Number and qualification details (e.g. MBBS, MD), then click "Verify Registration Credentials". Once validated, complete your account creation.',
+  },
+  {
+    category: 'Security',
+    question: 'Is my personal health data private and secure?',
+    answer: 'Yes. MedAssist AI implements strict Role-Based Access Control (RBAC), password hashing, and encrypted data transmission. Your personal health information is accessible only to you and authorized clinical professionals assigned to your care.',
+  },
+  {
+    category: 'Clinics',
+    question: 'What features does MedAssist AI offer for Clinics and Facilities?',
+    answer: 'Clinic accounts can manage affiliated medical staff, monitor incoming patient intake volume, assign patient triage queues to available doctors, and analyze facility-wide health trends.',
+  },
+  {
+    category: 'Security',
+    question: 'What should I do if I get a "Failed to fetch" connection error during registration?',
+    answer: 'A "Failed to fetch" message indicates that your browser could not establish a network connection to the backend server. Ensure the backend FastAPI service is running on http://127.0.0.1:8000. Our system automatically retries connection fallbacks.',
+  },
+];
+
 function SectionHeading({ eyebrow, title, description }) {
   return (
     <FadeIn direction="up" distance={15} className="max-w-3xl">
@@ -155,6 +338,21 @@ function SectionHeading({ eyebrow, title, description }) {
 }
 
 export default function Home() {
+  const [activeGuideRole, setActiveGuideRole] = useState('patient');
+  const [openFaqIndex, setOpenFaqIndex] = useState(0);
+  const [faqCategory, setFaqCategory] = useState('All');
+  const [faqSearch, setFaqSearch] = useState('');
+
+  const currentGuide = guideData[activeGuideRole];
+
+  const filteredFaqs = faqItems.filter((item) => {
+    const matchesCategory = faqCategory === 'All' || item.category === faqCategory;
+    const matchesSearch =
+      item.question.toLowerCase().includes(faqSearch.toLowerCase()) ||
+      item.answer.toLowerCase().includes(faqSearch.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
   return (
     <div className="relative overflow-hidden">
       {/* Minimal subtle background ambient highlights */}
@@ -197,12 +395,12 @@ export default function Home() {
                 </Link>
               </motion.div>
               <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.96 }}>
-                <Link
-                  href="/login"
+                <a
+                  href="#user-guide"
                   className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-300/90 bg-white/90 px-8 py-4 text-base font-bold text-slate-800 shadow-sm backdrop-blur-md transition-all duration-200 hover:bg-slate-100 hover:border-slate-400 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:bg-slate-800"
                 >
-                  <span>Sign In</span>
-                </Link>
+                  <span>View User Guide</span>
+                </a>
               </motion.div>
             </div>
 
@@ -228,13 +426,9 @@ export default function Home() {
 
           {/* Hero Right Visual Container featuring pic 2.jpg */}
           <ScaleIn delay={0.15} className="relative lg:col-span-6">
-            {/* Ambient Backlight Glow */}
             <div className="absolute -inset-4 rounded-[2.5rem] bg-gradient-to-br from-emerald-500/20 via-teal-400/15 to-cyan-500/20 blur-2xl animate-soft-pulse" />
 
-            {/* Main Image Showcase Card */}
             <div className="relative overflow-hidden rounded-[2.25rem] border border-slate-200/90 bg-white/80 p-4 sm:p-5 shadow-[0_25px_60px_-15px_rgba(16,185,129,0.2)] backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/80">
-
-              {/* Image Container */}
               <div className="relative h-[340px] sm:h-[420px] w-full overflow-hidden rounded-2xl border border-slate-200/60 dark:border-slate-800 group">
                 <Image
                   src="/pic-2.jpg"
@@ -246,7 +440,6 @@ export default function Home() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/20 to-transparent opacity-80" />
 
-                {/* Floating Top-Left Badge */}
                 <div className="absolute left-4 top-4 flex items-center gap-2.5 rounded-full border border-white/20 bg-slate-950/70 px-4 py-2 text-xs font-bold text-white shadow-lg backdrop-blur-md">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -255,7 +448,6 @@ export default function Home() {
                   <span>AI Symptom Engine Active</span>
                 </div>
 
-                {/* Floating Bottom Overlay Card */}
                 <div className="absolute bottom-4 left-4 right-4 rounded-xl border border-white/20 bg-slate-950/75 p-4 shadow-xl backdrop-blur-md">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
@@ -277,7 +469,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Mini Stats Banner under Image */}
               <div className="mt-4 grid grid-cols-3 gap-3">
                 <div className="rounded-xl border border-emerald-300 bg-white p-3 text-center shadow-sm dark:border-slate-800 dark:bg-slate-950/40 hover:-translate-y-0.5 transition-transform">
                   <div className="text-xl font-black text-emerald-700 dark:text-emerald-400">40+</div>
@@ -324,6 +515,104 @@ export default function Home() {
             </StaggerItem>
           ))}
         </StaggerContainer>
+      </section>
+
+      {/* NEW SECTION: STEP-BY-STEP USER GUIDE SECTION */}
+      <section id="user-guide" className="relative mx-auto w-full max-w-7xl px-6 py-12 sm:px-8 lg:px-10 lg:py-16 scroll-mt-24">
+        <div className="rounded-[2.5rem] border border-slate-200/90 bg-slate-50/80 p-6 sm:p-10 shadow-xl backdrop-blur-2xl dark:border-slate-800 dark:bg-slate-900/70">
+          <SectionHeading
+            eyebrow="User Guide"
+            title="Step-by-Step Navigation & User Guide"
+            description="Explore how to take full advantage of MedAssist AI based on your assigned account role."
+          />
+
+          {/* Role Switcher Tabs */}
+          <div className="mt-8 flex flex-wrap gap-2 sm:gap-3 border-b border-slate-200 dark:border-slate-800 pb-4">
+            {[
+              { id: 'patient', label: 'Patient Guide', badge: 'Step 1 - 4', color: 'emerald' },
+              { id: 'doctor', label: 'Doctor Guide', badge: 'Clinical Flow', color: 'teal' },
+              { id: 'clinic', label: 'Clinic Guide', badge: 'Facility Hub', color: 'cyan' },
+              { id: 'admin', label: 'Admin Guide', badge: 'System Controls', color: 'indigo' },
+            ].map((tab) => {
+              const isActive = activeGuideRole === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveGuideRole(tab.id)}
+                  className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl font-bold text-sm transition-all duration-200 ${
+                    isActive
+                      ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-600/25 scale-[1.02]'
+                      : 'bg-white dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span
+                    className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                      isActive ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                    }`}
+                  >
+                    {tab.badge}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Guide Steps Cards */}
+          <div className="mt-8">
+            <h3 className="text-xl font-black text-slate-900 dark:text-slate-100 mb-6 flex items-center gap-2">
+              <span className="text-2xl">{currentGuide.steps[0].icon}</span>
+              <span>{currentGuide.roleTitle}</span>
+            </h3>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              {currentGuide.steps.map((stepItem, idx) => (
+                <motion.div
+                  key={stepItem.stepNum}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: idx * 0.08 }}
+                  className="relative rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-950/60 p-6 shadow-sm hover:shadow-md transition-all group overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-bl-full pointer-events-none group-hover:bg-emerald-500/10 transition-colors" />
+
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 font-black text-sm border border-emerald-300/60 dark:border-emerald-800">
+                      {stepItem.stepNum}
+                    </span>
+                    <span className="text-2xl">{stepItem.icon}</span>
+                  </div>
+
+                  <h4 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">
+                    {stepItem.title}
+                  </h4>
+                  <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+                    {stepItem.description}
+                  </p>
+
+                  <div className="flex items-start gap-2 bg-emerald-50/80 dark:bg-emerald-950/40 p-3 rounded-xl border border-emerald-200/80 dark:border-emerald-800/60 text-xs text-emerald-900 dark:text-emerald-300 font-medium">
+                    <span className="font-bold shrink-0 text-emerald-600 dark:text-emerald-400">💡 Pro Tip:</span>
+                    <span>{stepItem.proTip}</span>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick Action Footer in Guide */}
+          <div className="mt-10 flex flex-col sm:flex-row items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg">
+            <div>
+              <h4 className="text-lg font-bold">Ready to get started with MedAssist AI?</h4>
+              <p className="text-xs text-emerald-100">Create your account in under 60 seconds to access AI healthcare features.</p>
+            </div>
+            <Link
+              href="/register"
+              className="shrink-0 bg-white text-emerald-900 hover:bg-emerald-50 font-black px-6 py-3 rounded-xl text-sm transition shadow-md"
+            >
+              Create Account Now →
+            </Link>
+          </div>
+        </div>
       </section>
 
       {/* SECTION 3: ROLE-BASED ACCESS */}
@@ -378,6 +667,107 @@ export default function Home() {
         </StaggerContainer>
       </section>
 
+      {/* NEW SECTION: FAQ SECTION */}
+      <section id="faq" className="relative mx-auto w-full max-w-7xl px-6 py-12 sm:px-8 lg:px-10 lg:py-16 scroll-mt-24">
+        <SectionHeading
+          eyebrow="Support & FAQ"
+          title="Frequently Asked Questions (FAQ)"
+          description="Find quick answers to common questions about symptom assessment, medical privacy, doctor verification, and system usage."
+        />
+
+        {/* Filter Controls & Search */}
+        <div className="mt-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-wrap gap-2">
+            {['All', 'General', 'Patients', 'Doctors', 'Security'].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setFaqCategory(cat)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                  faqCategory === cat
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative w-full md:w-72">
+            <input
+              type="text"
+              placeholder="Search questions..."
+              value={faqSearch}
+              onChange={(e) => setFaqSearch(e.target.value)}
+              className="w-full px-4 py-2 pl-10 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <svg
+              className="w-4 h-4 text-slate-400 absolute left-3 top-2.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Accordion List */}
+        <div className="mt-8 space-y-4">
+          {filteredFaqs.length === 0 ? (
+            <div className="text-center py-12 border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl">
+              <p className="text-sm font-semibold text-slate-500">No questions match your filter.</p>
+            </div>
+          ) : (
+            filteredFaqs.map((faq, idx) => {
+              const isOpen = openFaqIndex === idx;
+              return (
+                <div
+                  key={faq.question}
+                  className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white/90 dark:bg-slate-900/80 backdrop-blur-md overflow-hidden transition-all shadow-sm"
+                >
+                  <button
+                    onClick={() => setOpenFaqIndex(isOpen ? -1 : idx)}
+                    className="w-full flex items-center justify-between p-5 text-left font-bold text-slate-900 dark:text-slate-100 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                  >
+                    <span className="text-base sm:text-lg flex items-center gap-3">
+                      <span className="text-xs font-extrabold uppercase px-2.5 py-1 rounded-md bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 border border-emerald-300/50 dark:border-emerald-800/50">
+                        {faq.category}
+                      </span>
+                      {faq.question}
+                    </span>
+                    <motion.span
+                      animate={{ rotate: isOpen ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="shrink-0 text-emerald-600 dark:text-emerald-400 ml-4"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </motion.span>
+                  </button>
+
+                  <AnimatePresence>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.25 }}
+                        className="px-5 pb-5 pt-1 text-sm leading-relaxed text-slate-600 dark:text-slate-300 border-t border-slate-100 dark:border-slate-800/60"
+                      >
+                        {faq.answer}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </section>
+
       {/* SECTION 5: MEDICAL DISCLAIMER BANNER */}
       <section className="relative mx-auto w-full max-w-7xl px-6 py-8 sm:px-8 lg:px-10 lg:py-12">
         <ScaleIn className="overflow-hidden rounded-[2.25rem] border border-amber-300/80 bg-gradient-to-r from-amber-500/10 via-amber-400/5 to-amber-500/10 p-6 sm:p-10 shadow-lg backdrop-blur-xl dark:border-amber-500/30 dark:from-amber-500/15 dark:to-amber-500/10">
@@ -416,10 +806,10 @@ export default function Home() {
           </div>
 
           <nav className="flex flex-wrap gap-x-8 gap-y-3 text-sm font-semibold text-slate-600 dark:text-slate-300">
+            <a href="#user-guide" className="transition-colors hover:text-emerald-600 dark:hover:text-emerald-400">User Guide</a>
+            <a href="#faq" className="transition-colors hover:text-emerald-600 dark:hover:text-emerald-400">FAQ</a>
             <Link href="/register" className="transition-colors hover:text-emerald-600 dark:hover:text-emerald-400">Get Started</Link>
             <Link href="/login" className="transition-colors hover:text-emerald-600 dark:hover:text-emerald-400">Sign In</Link>
-            <a href="#" className="transition-colors hover:text-emerald-600 dark:hover:text-emerald-400">Privacy Policy</a>
-            <a href="#" className="transition-colors hover:text-emerald-600 dark:hover:text-emerald-400">Terms of Service</a>
           </nav>
         </div>
 
