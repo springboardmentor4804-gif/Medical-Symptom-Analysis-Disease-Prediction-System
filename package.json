@@ -1,8 +1,8 @@
 {
   "name": "vitals-ai",
   "version": "1.0.0",
-  "description": "Vitals AI medical symptom-checker and patient-profile management system.",
-  "main": "frontend/app/page.js",
+  "private": true,
+  "type": "module",
   "scripts": {
     "dev": "cd frontend && npm run dev",
     "build": "cd frontend && npm run build",
