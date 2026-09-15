@@ -1,3 +1,4 @@
+from typing import List
 from app.models.symptom import Symptom
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
