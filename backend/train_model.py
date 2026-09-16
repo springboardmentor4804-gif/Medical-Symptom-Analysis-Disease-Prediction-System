@@ -196,7 +196,7 @@ def train_and_save():
     os.makedirs(output_dir, exist_ok=True)
     artifact_path = os.path.join(output_dir, "rf_model.joblib")
 
-    joblib.dump(artifact, artifact_path)
+    joblib.dump(artifact, artifact_path, compress=3)
     print(f"Successfully saved upgraded ML model artifact to: {artifact_path}")
     return artifact_path
 
