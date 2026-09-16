@@ -135,6 +135,12 @@ export default function Navbar() {
               >
                 FAQ
               </Link>
+              <Link
+                href="/#feedback-queries"
+                className="text-sm font-semibold text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 px-3 py-2 transition-colors"
+              >
+                Feedback & Queries
+              </Link>
               <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.96 }}>
                 <Link
                   href="/login"
@@ -258,6 +264,9 @@ export default function Navbar() {
                 </Link>
                 <Link href="/#faq" onClick={() => setMobileMenuOpen(false)} className="text-center text-sm font-semibold px-4 py-2 rounded-full border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
                   FAQ
+                </Link>
+                <Link href="/#feedback-queries" onClick={() => setMobileMenuOpen(false)} className="text-center text-sm font-semibold px-4 py-2 rounded-full border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
+                  Feedback & Queries
                 </Link>
                 <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="text-center text-sm font-semibold px-4 py-2.5 rounded-full border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200">
                   Sign In

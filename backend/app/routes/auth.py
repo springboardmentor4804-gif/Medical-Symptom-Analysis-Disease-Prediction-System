@@ -1,3 +1,4 @@
+import os
 import asyncio
 import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -10,6 +11,10 @@ from app.schemas.auth import UserRegister, UserLogin, TokenResponse
 from app.security import get_password_hash, verify_password, create_access_token
 from app.mongo_database import users_collection, patients_collection, user_inputs_collection
 from app.mongo_models import MongoUser, MongoPatient, MongoUserInput
+
+# Security access codes for Admin and Clinic account registration
+VALID_ADMIN_CODES = set(os.getenv("VALID_ADMIN_CODES", "ADMIN2026,ADMIN123,SUPERADMIN").split(","))
+VALID_CLINIC_CODES = set(os.getenv("VALID_CLINIC_CODES", "CLINIC2026,CLINIC123,MEDCLINIC").split(","))
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 

@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
-from app.routes import auth, patients, symptoms, admin, doctor, clinic, prediction
+from app.routes import auth, patients, symptoms, admin, doctor, clinic, prediction, feedback
 from app.routes import mongo_routes
 from app.mongo_database import connect_mongo, close_mongo
 from sqlalchemy import inspect
@@ -80,6 +80,7 @@ app.include_router(admin.router)
 app.include_router(doctor.router)
 app.include_router(clinic.router)
 app.include_router(prediction.router)
+app.include_router(feedback.router)
 app.include_router(mongo_routes.router)  # MongoDB read-only admin routes
 
 @app.api_route("/", methods=["GET", "HEAD"])

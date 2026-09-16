@@ -396,6 +396,42 @@ def generate_doctor_pdf_bytes(report_data: dict) -> bytes:
     story.append(Spacer(1, 8))
     story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#0D9488'), spaceBefore=2, spaceAfter=8))
 
+    # Prominent Official Clinical Advisory & Medical Disclaimer Box
+    disclaimer_title_style = ParagraphStyle(
+        'DisclaimerTitle',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=9,
+        leading=12,
+        textColor=colors.HexColor('#78350F')
+    )
+    disclaimer_body_style = ParagraphStyle(
+        'DisclaimerBody',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=8.5,
+        leading=11.5,
+        textColor=colors.HexColor('#92400E')
+    )
+
+    disclaimer_content = [
+        Paragraph("<b>⚠️ CLINICAL ADVISORY & MEDICAL DISCLAIMER</b>", disclaimer_title_style),
+        Spacer(1, 3),
+        Paragraph(
+            "<b>IMPORTANT NOTICE FOR CLINICIANS & PATIENTS:</b> This clinical report incorporates automated AI risk estimations and disease likelihood scores generated solely for physician decision support. <b>This algorithmic evaluation DOES NOT replace certified clinical laboratory diagnostics or independent physical examination.</b> Attending physicians must apply licensed medical judgment for all diagnosis, prescription, and treatment decisions.",
+            disclaimer_body_style
+        )
+    ]
+    t_disclaimer = Table([[disclaimer_content]], colWidths=[540])
+    t_disclaimer.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#FEF3C7')),
+        ('PADDING', (0, 0), (-1, -1), 8),
+        ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#D97706')),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ]))
+    story.append(t_disclaimer)
+    story.append(Spacer(1, 10))
+
     # Doctor & Patient Info Table
     story.append(Paragraph("Consulting Physician & Patient Demographics", section_style))
     doc_info = report_data.get('doctor', {})
@@ -474,7 +510,7 @@ def generate_doctor_pdf_bytes(report_data: dict) -> bytes:
         story.append(rec_table)
 
     story.append(Spacer(1, 15))
-    story.append(Paragraph("Official Confidential Doctor Clinical Report • MedAssist Medical System", ParagraphStyle('Footer', parent=styles['Normal'], fontName='Helvetica-Oblique', fontSize=8, textColor=colors.HexColor('#64748B'), alignment=1)))
+    story.append(Paragraph("<b>CONFIDENTIAL MEDICAL RECORD & CLINICAL ADVISORY DISCLAIMER</b><br/>Official Clinical Consultation Record • MedAssist Medical System • Algorithmic outputs are for clinical decision support only.", ParagraphStyle('Footer', parent=styles['Normal'], fontName='Helvetica-Oblique', fontSize=7.5, leading=10, textColor=colors.HexColor('#64748B'), alignment=1)))
 
     doc.build(story)
     return buffer.getvalue()
