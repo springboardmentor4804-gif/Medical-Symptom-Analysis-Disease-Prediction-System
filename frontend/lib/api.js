@@ -1,4 +1,5 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = rawApiUrl.replace(/\/+$/, '');
 
 export const request = async (endpoint, options = {}) => {
   let token = null;
@@ -20,9 +21,11 @@ export const request = async (endpoint, options = {}) => {
     headers,
   };
 
+  const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
   let response;
   try {
-    response = await fetch(`${API_URL}${endpoint}`, config);
+    response = await fetch(`${API_URL}${formattedEndpoint}`, config);
   } catch (fetchErr) {
     // If primary host fetch fails, try fallback between localhost and 127.0.0.1
     let fallbackUrl = null;
