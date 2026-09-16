@@ -236,3 +236,33 @@ Administrators can:
                                                     │ Disease + Risk  │
                                                     │   Prediction    │
                                                     └─────────────────┘
+
+---
+
+# 📊 Model Accuracy Overview
+
+MedAssist AI uses machine learning models to perform **disease prediction** and **health-risk assessment**.
+
+| Model | Prediction Type | Accuracy |
+| :--- | :--- | :---: |
+| 🩺 **Outcome Risk Model** | Binary Risk Classification | **80.00%** |
+| 🦠 **Disease Prediction Model** | Top-1 Prediction | **80.00%** |
+| 🧠 **Disease Prediction Model** | Top-3 Prediction | **98.57%** |
+| 🎯 **Disease Prediction Model** | Top-5 Prediction | **100.00%** |
+
+### 🏆 Accuracy Highlights
+
+```text
+┌─────────────────────────────────────────────┐
+│          MEDASSIST AI MODEL ACCURACY        │
+├─────────────────────────────────────────────┤
+│                                             │
+│  Health Risk Prediction      →   80.00%     │
+│                                             │
+│  Disease Top-1 Accuracy      →   80.00%     │
+│                                             │
+│  Disease Top-3 Accuracy      →   98.57%     │
+│                                             │
+│  Disease Top-5 Accuracy      →  100.00%     │
+│                                             │
+└─────────────────────────────────────────────┘
