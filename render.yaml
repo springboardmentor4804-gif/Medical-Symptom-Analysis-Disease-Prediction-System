@@ -1,22 +1,37 @@
 services:
+  # ----------------------------------------------------------------------------
+  # 1. FastAPI Backend Web Service
+  # ----------------------------------------------------------------------------
   - type: web
-    name: medassist-backend-api
+    name: medassist-backend
     env: python
-    region: singapore
+    region: oregon
+    plan: free
     rootDir: backend
-    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /health
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python -m uvicorn main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.9
-      - key: DATABASE_URL
-        sync: false
-      - key: MONGO_URI
-        sync: false
-      - key: JWT_SECRET
+        value: 3.11.0
+      - key: SECRET_KEY
         generateValue: true
-      - key: VALID_ADMIN_CODES
-        value: ADMIN2026,ADMIN123,SUPERADMIN
-      - key: VALID_CLINIC_CODES
-        value: CLINIC2026,CLINIC123,MEDCLINIC
+
+  # ----------------------------------------------------------------------------
+  # 2. Next.js Frontend Web Service
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: medassist-frontend
+    env: node
+    region: oregon
+    plan: free
+    rootDir: frontend
+    buildCommand: "npm install && npm run build"
+    startCommand: "npm start"
+    envVars:
+      - key: NODE_VERSION
+        value: 18.17.0
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: medassist-backend
+          property: url
