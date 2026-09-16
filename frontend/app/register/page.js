@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, getRoleHomePath } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import Link from 'next/link';
@@ -153,7 +153,7 @@ export default function Register() {
 
       const response = await api.post('/auth/register', payload);
       loginUser(response.access_token, response.role);
-      router.push(response.role === 'admin' ? '/admin' : response.role === 'doctor' ? '/doctor' : '/dashboard');
+      router.push(getRoleHomePath(response.role));
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
