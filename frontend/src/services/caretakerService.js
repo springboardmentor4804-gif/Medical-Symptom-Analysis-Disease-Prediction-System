@@ -79,4 +79,27 @@ export const deleteCarePlan = async (planId) => {
     return response.data;
 };
 
+// Download Care Plan PDF
+export const downloadCarePlanPdf = async (planId, patientName = "Patient") => {
+    const response = await api.get(`/caretaker/care-plans/${planId}/pdf`, {
+        responseType: "blob"
+    });
+    const blob = new Blob([response.data], { type: "application/pdf" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `CarePlan_${patientName.replace(/\s+/g, '_')}_${planId}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode.removeChild(link);
+    window.URL.revokeObjectURL(url);
+};
+
+// Get Caretaker Triage Queue
+export const getCaretakerTriageQueue = async () => {
+    const response = await api.get("/caretaker/triage-queue");
+    return response.data;
+};
+
+
 

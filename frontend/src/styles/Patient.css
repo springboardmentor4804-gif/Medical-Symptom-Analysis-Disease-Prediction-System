@@ -1598,4 +1598,158 @@ body{
 .hero-content p,
 .section-header p {
     color: #cbd5e1 !important;
-}
+}
+
+/* ====================================
+   4-Tier Severity Triage & Red Flag Banner
+==================================== */
+.triage-banner {
+    margin: 18px 0 24px 0;
+    padding: 20px 24px;
+    border-radius: 12px;
+    border-left: 6px solid;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    backdrop-filter: blur(12px);
+    transition: all 0.3s ease;
+}
+
+.triage-banner.emergency {
+    border-left-color: #EF4444;
+    background: rgba(239, 68, 68, 0.14);
+    border-top: 1px solid rgba(239, 68, 68, 0.3);
+    border-right: 1px solid rgba(239, 68, 68, 0.3);
+    border-bottom: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.triage-banner.urgent {
+    border-left-color: #F59E0B;
+    background: rgba(245, 158, 11, 0.14);
+    border-top: 1px solid rgba(245, 158, 11, 0.3);
+    border-right: 1px solid rgba(245, 158, 11, 0.3);
+    border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.triage-banner.moderate {
+    border-left-color: #3B82F6;
+    background: rgba(59, 130, 246, 0.14);
+    border-top: 1px solid rgba(59, 130, 246, 0.3);
+    border-right: 1px solid rgba(59, 130, 246, 0.3);
+    border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.triage-banner.mild {
+    border-left-color: #10B981;
+    background: rgba(16, 185, 129, 0.14);
+    border-top: 1px solid rgba(16, 185, 129, 0.3);
+    border-right: 1px solid rgba(16, 185, 129, 0.3);
+    border-bottom: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.triage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.triage-title-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.triage-badge {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+}
+
+.triage-banner.emergency .triage-badge {
+    background: #EF4444;
+    color: #ffffff;
+}
+
+.triage-banner.urgent .triage-badge {
+    background: #F59E0B;
+    color: #0f172a;
+}
+
+.triage-banner.moderate .triage-badge {
+    background: #3B82F6;
+    color: #ffffff;
+}
+
+.triage-banner.mild .triage-badge {
+    background: #10B981;
+    color: #ffffff;
+}
+
+.triage-timeline {
+    font-size: 13px;
+    font-weight: 600;
+    color: #e2e8f0;
+}
+
+.triage-action {
+    font-size: 14.5px;
+    line-height: 1.5;
+    color: #f8fafc;
+}
+
+.triage-meta-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 13px;
+}
+
+.triage-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #cbd5e1;
+}
+
+.triage-meta-item strong {
+    color: #38bdf8;
+}
+
+.triage-red-flags {
+    margin-top: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.triage-red-flags span {
+    font-size: 12px;
+    font-weight: 600;
+    color: #fca5a5;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.red-flags-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.red-flag-pill {
+    background: rgba(239, 68, 68, 0.25);
+    border: 1px solid rgba(239, 68, 68, 0.6);
+    color: #fee2e2;
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 14px;
+    font-weight: 500;
+}
+

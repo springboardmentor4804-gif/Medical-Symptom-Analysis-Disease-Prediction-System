@@ -208,3 +208,99 @@ def generate_prediction_report_pdf(
     # Output
     pdf_bytes = pdf.output()
     return bytes(pdf_bytes)
+
+
+def generate_care_plan_pdf(
+    caretaker_info: dict,
+    patient_info: dict,
+    care_plan: dict
+) -> bytes:
+    """
+    Generate a formal Clinical Care Plan & E-Prescription Directive as a downloadable PDF.
+    """
+    pdf = MedAssistReport()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=25)
+
+    # Document Header
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.set_text_color(30, 41, 59)
+    pdf.cell(190, 10, "Clinical Care Plan & Health Directive", new_x="LMARGIN", new_y="NEXT", align="C")
+    
+    # Priority & Status Tag
+    priority = care_plan.get("priority", "Standard")
+    pdf.set_font("Helvetica", "B", 10)
+    if priority == "Urgent":
+        pdf.set_text_color(220, 38, 38)
+    elif priority == "High":
+        pdf.set_text_color(217, 119, 6)
+    else:
+        pdf.set_text_color(14, 116, 144)
+    pdf.cell(190, 6, f"[ Priority Level: {priority.upper()} ]", new_x="LMARGIN", new_y="NEXT", align="C")
+    pdf.ln(3)
+
+    # 1. Patient & Caretaker Metadata
+    pdf.section_title("1. Consultation & Patient Overview")
+    pdf.add_row("Patient Name", patient_info.get("full_name", "N/A"))
+    pdf.add_row("Gender / Blood Group", f"{patient_info.get('gender', 'N/A')}  |  {patient_info.get('blood_group', 'N/A')}")
+    pdf.add_row("Emergency Contact", f"{patient_info.get('emergency_contact_name', 'N/A')} ({patient_info.get('emergency_contact_phone', 'N/A')})")
+    pdf.add_row("Supervising Caretaker", f"{caretaker_info.get('full_name', 'N/A')} ({caretaker_info.get('profession', 'Healthcare Assistant')})")
+    pdf.add_row("Organization / Clinic", caretaker_info.get("organization", "MedAssist Healthcare Network"))
+    pdf.add_row("Directive Issue Date", care_plan.get("created_at", datetime.now().strftime('%Y-%m-%d')))
+
+    # 2. Care Plan Focus & Title
+    pdf.section_title("2. Care Plan Directives")
+    pdf.add_row("Directive Title", care_plan.get("title", "Clinical Care Plan"))
+
+    # 3. Clinical Observations
+    pdf.section_title("3. Diagnostic Observations & Clinical Notes")
+    notes = care_plan.get("diagnosis_notes")
+    if notes:
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(30, 30, 30)
+        safe_notes = str(notes).encode("latin-1", errors="replace").decode("latin-1")
+        pdf.multi_cell(190, 6, safe_notes)
+    else:
+        pdf.set_font("Helvetica", "I", 10)
+        pdf.cell(190, 6, "No specific diagnostic observations recorded.", new_x="LMARGIN", new_y="NEXT")
+
+    # 4. Medication & Prescription Advice
+    pdf.section_title("4. Prescribed Medication & Therapeutic Guidance")
+    meds = care_plan.get("medication_advice")
+    if meds:
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(30, 30, 30)
+        safe_meds = str(meds).encode("latin-1", errors="replace").decode("latin-1")
+        pdf.multi_cell(190, 6, safe_meds)
+    else:
+        pdf.set_font("Helvetica", "I", 10)
+        pdf.cell(190, 6, "Standard symptomatic care; no pharmacological directives noted.", new_x="LMARGIN", new_y="NEXT")
+
+    # 5. Dietary & Lifestyle Management
+    pdf.section_title("5. Dietary & Lifestyle Directives")
+    diet = care_plan.get("dietary_lifestyle")
+    if diet:
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(30, 30, 30)
+        safe_diet = str(diet).encode("latin-1", errors="replace").decode("latin-1")
+        pdf.multi_cell(190, 6, safe_diet)
+    else:
+        pdf.set_font("Helvetica", "I", 10)
+        pdf.cell(190, 6, "Standard balanced hydration and rest advised.", new_x="LMARGIN", new_y="NEXT")
+
+    # 6. Digital Attestation
+    pdf.ln(4)
+    pdf.set_draw_color(14, 116, 144)
+    pdf.set_line_width(0.4)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(3)
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.set_text_color(14, 116, 144)
+    pdf.cell(190, 5, "ELECTRONICALLY VERIFIED & ISSUED VIA MEDASSIST AI CLINICAL PORTAL", new_x="LMARGIN", new_y="NEXT", align="R")
+    pdf.set_font("Helvetica", "I", 8)
+    pdf.set_text_color(100, 100, 100)
+    pdf.cell(190, 4, f"Digital Signoff: {caretaker_info.get('full_name', 'Healthcare Provider')} | ID #{caretaker_info.get('user_id', '00')}", new_x="LMARGIN", new_y="NEXT", align="R")
+
+    pdf_bytes = pdf.output()
+    return bytes(pdf_bytes)
+

@@ -9,14 +9,16 @@ import {
     FaPills,
     FaAppleAlt,
     FaExclamationCircle,
-    FaHospital
+    FaHospital,
+    FaDownload
 } from "react-icons/fa";
 
 import {
     getAssignedPatients,
     createCarePlan,
     getCarePlans,
-    deleteCarePlan
+    deleteCarePlan,
+    downloadCarePlanPdf
 } from "../../services/caretakerService";
 import { useToast } from "../../context/ToastContext";
 
@@ -124,6 +126,18 @@ function CarePlans() {
             showToast("Failed to delete care plan.", "error");
         }
     };
+
+    const handleDownload = async (planId, patientName) => {
+        try {
+            showToast("Generating PDF Care Plan...", "info");
+            await downloadCarePlanPdf(planId, patientName);
+            showToast("Care Plan PDF downloaded successfully!", "success");
+        } catch (error) {
+            console.error("Failed to download care plan PDF:", error);
+            showToast("Failed to download care plan PDF.", "error");
+        }
+    };
+
 
     return (
         <div className="patient-dashboard">
@@ -327,20 +341,41 @@ function CarePlans() {
                                                     </span>
                                                 </div>
 
-                                                <button
-                                                    onClick={() => handleDelete(plan.id)}
-                                                    style={{
-                                                        background: "rgba(239, 68, 68, 0.15)",
-                                                        border: "1px solid rgba(239, 68, 68, 0.3)",
-                                                        color: "#fca5a5",
-                                                        padding: "6px 10px",
-                                                        borderRadius: "8px",
-                                                        cursor: "pointer"
-                                                    }}
-                                                    title="Delete Care Plan"
-                                                >
-                                                    <FaTrash size={12} />
-                                                </button>
+                                                <div style={{ display: "flex", gap: "8px" }}>
+                                                    <button
+                                                        onClick={() => handleDownload(plan.id, plan.patient_name)}
+                                                        style={{
+                                                            background: "rgba(56, 189, 248, 0.15)",
+                                                            border: "1px solid rgba(56, 189, 248, 0.3)",
+                                                            color: "#38bdf8",
+                                                            padding: "6px 10px",
+                                                            borderRadius: "8px",
+                                                            cursor: "pointer",
+                                                            display: "inline-flex",
+                                                            alignItems: "center",
+                                                            gap: "5px",
+                                                            fontSize: "12px",
+                                                            fontWeight: "600"
+                                                        }}
+                                                        title="Download Care Plan & Prescription PDF"
+                                                    >
+                                                        <FaDownload size={12} /> PDF
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(plan.id)}
+                                                        style={{
+                                                            background: "rgba(239, 68, 68, 0.15)",
+                                                            border: "1px solid rgba(239, 68, 68, 0.3)",
+                                                            color: "#fca5a5",
+                                                            padding: "6px 10px",
+                                                            borderRadius: "8px",
+                                                            cursor: "pointer"
+                                                        }}
+                                                        title="Delete Care Plan"
+                                                    >
+                                                        <FaTrash size={12} />
+                                                    </button>
+                                                </div>
                                             </div>
 
                                             {plan.diagnosis_notes && (

@@ -1,8 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
+from io import BytesIO
+from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.database import get_database_connection
 from app.auth import require_caretaker
+from app.report_generator import generate_care_plan_pdf
+from app.triage_service import evaluate_triage
 
 
 router = APIRouter(
@@ -774,4 +778,226 @@ def delete_care_plan(
     if not deleted:
         raise HTTPException(status_code=404, detail="Care plan not found or unauthorized.")
 
-    return {"message": "Care plan deleted successfully."}
+    return {"message": "Care plan deleted successfully."}
+
+
+@router.get("/care-plans/{plan_id}/pdf")
+def download_care_plan_pdf(
+    plan_id: int,
+    current_user: dict = Depends(require_caretaker)
+):
+    """Generate and stream a formal Clinical Care Plan & E-Prescription PDF."""
+    caretaker_id = int(current_user["user_id"])
+    conn = get_database_connection()
+    cursor = conn.cursor()
+
+    # 1. Fetch Care Plan
+    cursor.execute(
+        """
+        SELECT cp.id, cp.patient_user_id, cp.title, cp.diagnosis_notes,
+               cp.medication_advice, cp.dietary_lifestyle, cp.priority, cp.created_at
+        FROM caretaker_care_plans cp
+        WHERE cp.id = %s AND cp.caretaker_user_id = %s
+        """,
+        (plan_id, caretaker_id)
+    )
+    plan_row = cursor.fetchone()
+    if not plan_row:
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=404, detail="Care plan not found or unauthorized.")
+
+    plan_data = {
+        "id": plan_row[0],
+        "patient_user_id": plan_row[1],
+        "title": plan_row[2],
+        "diagnosis_notes": plan_row[3],
+        "medication_advice": plan_row[4],
+        "dietary_lifestyle": plan_row[5],
+        "priority": plan_row[6],
+        "created_at": str(plan_row[7])
+    }
+
+    # 2. Fetch Caretaker Profile Info
+    cursor.execute(
+        """
+        SELECT u.full_name, u.email, cp.profession, cp.organization, cp.phone, cp.specialization
+        FROM users u
+        LEFT JOIN caretaker_profiles cp ON u.id = cp.user_id
+        WHERE u.id = %s
+        """,
+        (caretaker_id,)
+    )
+    ct_row = cursor.fetchone()
+    caretaker_info = {
+        "user_id": caretaker_id,
+        "full_name": ct_row[0] if ct_row else "Healthcare Provider",
+        "email": ct_row[1] if ct_row else "",
+        "profession": ct_row[2] if ct_row and ct_row[2] else "Clinical Assistant",
+        "organization": ct_row[3] if ct_row and ct_row[3] else "MedAssist Health Center",
+        "phone": ct_row[4] if ct_row and ct_row[4] else "N/A",
+        "specialization": ct_row[5] if ct_row and ct_row[5] else "General Care",
+    }
+
+    # 3. Fetch Patient Profile Info
+    patient_user_id = plan_data["patient_user_id"]
+    cursor.execute(
+        """
+        SELECT u.full_name, u.email, pp.gender, pp.blood_group, pp.emergency_contact_name, pp.emergency_contact_phone
+        FROM users u
+        LEFT JOIN patient_profiles pp ON u.id = pp.user_id
+        WHERE u.id = %s
+        """,
+        (patient_user_id,)
+    )
+    pt_row = cursor.fetchone()
+    patient_info = {
+        "user_id": patient_user_id,
+        "full_name": pt_row[0] if pt_row else "Patient",
+        "email": pt_row[1] if pt_row else "",
+        "gender": pt_row[2] if pt_row and pt_row[2] else "N/A",
+        "blood_group": pt_row[3] if pt_row and pt_row[3] else "N/A",
+        "emergency_contact_name": pt_row[4] if pt_row and pt_row[4] else "N/A",
+        "emergency_contact_phone": pt_row[5] if pt_row and pt_row[5] else "N/A",
+    }
+
+    cursor.close()
+    conn.close()
+
+    pdf_bytes = generate_care_plan_pdf(
+        caretaker_info=caretaker_info,
+        patient_info=patient_info,
+        care_plan=plan_data
+    )
+
+    filename = f"CarePlan_Patient_{patient_user_id}_Plan_{plan_id}.pdf"
+    return StreamingResponse(
+        BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+@router.get("/triage-queue")
+def get_caretaker_triage_queue(
+    current_user: dict = Depends(require_caretaker)
+):
+    """
+    Retrieve clinical triage queue of assigned patients sorted by urgency
+    (EMERGENCY -> URGENT -> MODERATE -> MILD) with red flag alerts.
+    """
+    caretaker_id = int(current_user["user_id"])
+    conn = get_database_connection()
+    cursor = conn.cursor()
+
+    # Fetch assigned patients
+    cursor.execute(
+        """
+        SELECT pa.patient_user_id, u.full_name, u.email, pp.gender, pp.phone, pp.blood_group
+        FROM patient_assignments pa
+        JOIN users u ON pa.patient_user_id = u.id
+        LEFT JOIN patient_profiles pp ON u.id = pp.user_id
+        WHERE pa.caretaker_user_id = %s AND pa.status = 'Active'
+        """,
+        (caretaker_id,)
+    )
+    assigned_patients = cursor.fetchall()
+    
+    triage_queue = []
+
+    for p in assigned_patients:
+        p_id = p[0]
+        p_name = p[1]
+        p_email = p[2]
+        p_gender = p[3] or "N/A"
+        p_phone = p[4] or "N/A"
+        p_blood = p[5] or "N/A"
+
+        # Fetch recent symptoms
+        cursor.execute(
+            """
+            SELECT symptom_name, severity
+            FROM patient_symptoms
+            WHERE user_id = %s
+            ORDER BY recorded_at DESC
+            LIMIT 15
+            """,
+            (p_id,)
+        )
+        sym_rows = cursor.fetchall()
+        symptoms_list = [r[0] for r in sym_rows]
+        severity_map = {r[0]: r[1] for r in sym_rows}
+
+        # Fetch latest disease prediction
+        cursor.execute(
+            """
+            SELECT predicted_disease, created_at
+            FROM disease_predictions
+            WHERE user_id = %s
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (p_id,)
+        )
+        pred_row = cursor.fetchone()
+        last_prediction = pred_row[0] if pred_row else "No Prediction"
+        last_consult_time = str(pred_row[1]) if pred_row else "N/A"
+
+        # Fetch latest risk assessment score
+        cursor.execute(
+            """
+            SELECT positive_model_score
+            FROM patient_risk_assessments
+            WHERE user_id = %s
+            ORDER BY assessed_at DESC
+            LIMIT 1
+            """,
+            (p_id,)
+        )
+        risk_row = cursor.fetchone()
+        risk_score = float(risk_row[0]) if risk_row else None
+
+        # Evaluate Triage
+        triage = evaluate_triage(
+            symptoms=symptoms_list,
+            symptom_severities=severity_map,
+            vitals={"Gender": p_gender},
+            predicted_disease=last_prediction if last_prediction != "No Prediction" else None,
+            risk_score_percentage=risk_score
+        )
+
+        triage_queue.append({
+            "patient_user_id": p_id,
+            "patient_name": p_name,
+            "patient_email": p_email,
+            "gender": p_gender,
+            "phone": p_phone,
+            "blood_group": p_blood,
+            "last_prediction": last_prediction,
+            "last_consult_time": last_consult_time,
+            "symptoms_count": len(symptoms_list),
+            "triage_level": triage["triage_level"],
+            "priority_rank": triage["priority_rank"],
+            "color_code": triage["color_code"],
+            "urgency_timeline": triage["urgency_timeline"],
+            "action_message": triage["action_message"],
+            "recommended_specialist": triage["recommended_specialist"],
+            "critical_red_flags": triage["critical_red_flags"],
+            "serious_red_flags": triage["serious_red_flags"]
+        })
+
+    cursor.close()
+    conn.close()
+
+    # Sort queue by priority_rank (1=EMERGENCY first, then 2=URGENT, etc.)
+    triage_queue.sort(key=lambda item: item["priority_rank"])
+
+    return {
+        "total_patients_in_queue": len(triage_queue),
+        "emergency_count": sum(1 for item in triage_queue if item["triage_level"] == "EMERGENCY"),
+        "urgent_count": sum(1 for item in triage_queue if item["triage_level"] == "URGENT"),
+        "moderate_count": sum(1 for item in triage_queue if item["triage_level"] == "MODERATE"),
+        "mild_count": sum(1 for item in triage_queue if item["triage_level"] == "MILD"),
+        "queue": triage_queue
+    }
+

@@ -9,7 +9,11 @@ import {
     FaClipboardList,
     FaChartLine,
     FaStethoscope,
-    FaDownload
+    FaDownload,
+    FaExclamationTriangle,
+    FaShieldAlt,
+    FaUserMd,
+    FaClock
 } from "react-icons/fa";
 
 import {
@@ -536,7 +540,7 @@ educational information.
                                         </h2>
 
                                         <p>
-                                            The following conditions were ranked by the
+                                             The following conditions were ranked by the
                                             AI model based on your selected symptoms.
                                         </p>
 
@@ -544,8 +548,63 @@ educational information.
 
                                 </div>
 
+                                {prediction.triage && (
+                                    <div className={`triage-banner ${prediction.triage.triage_level?.toLowerCase() || 'moderate'}`}>
+                                        <div className="triage-header">
+                                            <div className="triage-title-group">
+                                                <span className="triage-badge">
+                                                    {prediction.triage.triage_level === 'EMERGENCY' ? (
+                                                        <FaExclamationTriangle style={{ marginRight: 6 }} />
+                                                    ) : (
+                                                        <FaShieldAlt style={{ marginRight: 6 }} />
+                                                    )}
+                                                    {prediction.triage.triage_level} PRIORITY
+                                                </span>
+                                                <span className="triage-timeline">
+                                                    <FaClock style={{ marginRight: 5, verticalAlign: 'middle' }} />
+                                                    {prediction.triage.urgency_timeline}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <p className="triage-action">
+                                            {prediction.triage.action_message}
+                                        </p>
+
+                                        {((prediction.triage.critical_red_flags?.length > 0) || (prediction.triage.serious_red_flags?.length > 0)) && (
+                                            <div className="triage-red-flags">
+                                                <span>🚨 Red Flag Indicators Detected:</span>
+                                                <div className="red-flags-list">
+                                                    {prediction.triage.critical_red_flags?.map((rf, idx) => (
+                                                        <span key={`crit-${idx}`} className="red-flag-pill">
+                                                            ⚠️ {rf.label}
+                                                        </span>
+                                                    ))}
+                                                    {prediction.triage.serious_red_flags?.map((rf, idx) => (
+                                                        <span key={`ser-${idx}`} className="red-flag-pill" style={{ background: 'rgba(245, 158, 11, 0.25)', borderColor: 'rgba(245, 158, 11, 0.6)', color: '#fef3c7' }}>
+                                                            ⚡ {rf.label}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="triage-meta-row">
+                                            <div className="triage-meta-item">
+                                                <FaUserMd />
+                                                <span>Recommended Specialist: <strong>{prediction.triage.recommended_specialist}</strong></span>
+                                            </div>
+                                            {prediction.triage.age_vulnerability && (
+                                                <div className="triage-meta-item">
+                                                    <span>Context: <strong>{prediction.triage.age_vulnerability}</strong></span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="result-stats">
+
 
                                     <div className="result-stat">
 
