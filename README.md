@@ -1,184 +1,262 @@
-# MedAssist AI — Comprehensive Project Guide
+# 🩺 MedAssist AI
 
-MedAssist AI is an intelligent medical symptom-checker, AI risk assessment, and clinical patient-profile management platform. Designed for modern healthcare decision support, it provides dedicated, role-tailored dashboards for **Patients**, **Doctors**, **Clinics**, and **System Administrators**.
+<p align="center">
+  <strong>AI-Powered Medical Symptom Analysis & Disease Prediction System</strong>
+</p>
+
+<p align="center">
+  A healthcare decision-support platform for Patients, Doctors, Clinics, and System Administrators.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.11-blue?style=for-the-badge&logo=python" alt="Python">
+  <img src="https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi" alt="FastAPI">
+  <img src="https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js" alt="Next.js">
+  <img src="https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react" alt="React">
+  <img src="https://img.shields.io/badge/Scikit--Learn-ML-F7931E?style=for-the-badge&logo=scikit-learn" alt="Scikit-Learn">
+  <img src="https://img.shields.io/badge/PostgreSQL-Database-4169E1?style=for-the-badge&logo=postgresql" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/MongoDB-Document_DB-47A248?style=for-the-badge&logo=mongodb" alt="MongoDB">
+  <img src="https://img.shields.io/badge/Docker-Containerized-2496ED?style=for-the-badge&logo=docker" alt="Docker">
+</p>
 
 ---
 
-## 🚀 Quick Run Links
+## 📌 Table of Contents
 
-When the application is running, access the platform services using these direct links:
-
-| Service | Access Link | Description |
-| :--- | :--- | :--- |
-| **Frontend Web App** | [http://localhost:3000](http://localhost:3000) | Interactive user portal (Patient, Doctor, Clinic, Admin) |
-| **Backend REST API** | [http://localhost:8000](http://localhost:8000) | FastAPI core application & ML prediction engine |
-| **Interactive API Docs** | [http://localhost:8000/docs](http://localhost:8000/docs) | Interactive Swagger UI for testing API endpoints |
-| **ReDoc API Docs** | [http://localhost:8000/redoc](http://localhost:8000/redoc) | Clean OpenAPI documentation view |
+- [About the Project](#-about-the-project)
+- [Project Objectives](#-project-objectives)
+- [Key Features](#-key-features)
+- [User Roles](#-user-roles)
+- [System Architecture](#-system-architecture)
+- [System Workflow](#-system-workflow)
+- [Machine Learning](#-machine-learning)
+- [Model Performance](#-model-performance)
+- [Technology Stack](#-technology-stack)
+- [Project Structure](#-project-structure)
+- [API Endpoints](#-api-endpoints)
+- [Quick Run Links](#-quick-run-links)
+- [Installation](#-installation)
+- [Running the Application](#-running-the-application)
+- [Docker Setup](#-docker-setup)
+- [Default Credentials](#-default-credentials)
+- [Security](#-security)
+- [Future Enhancements](#-future-enhancements)
+- [Disclaimer](#-disclaimer)
 
 ---
 
-## 🌟 System Architecture & User Roles
+# 🌟 About the Project
 
-MedAssist AI features strict **Role-Based Access Control (RBAC)** securing 4 specialized user interfaces:
+**MedAssist AI** is an intelligent medical symptom-checker, AI risk assessment, and clinical patient-profile management platform.
 
-```
-                  ┌─────────────────────────────────────────┐
-                  │              MedAssist AI               │
-                  └────────────────────┬────────────────────┘
+The system combines:
+
+- Artificial Intelligence
+- Machine Learning
+- Healthcare data management
+- Secure authentication
+- Patient profile management
+- Risk assessment
+- Disease prediction
+- Clinical reporting
+- Interactive analytics
+
+MedAssist AI provides dedicated role-based dashboards for:
+
+> 👤 Patients  
+> 🩺 Doctors  
+> 🏥 Clinics  
+> ⚙️ System Administrators
+
+The platform is designed to support healthcare workflows by providing symptom-based predictions and risk information while keeping healthcare professionals involved in the decision-making process.
+
+---
+
+# 🎯 Project Objectives
+
+The major objectives of MedAssist AI are:
+
+- Provide an easy-to-use medical symptom assessment interface.
+- Analyze combinations of patient symptoms and vital information.
+- Predict possible diseases using machine learning.
+- Classify health risk into different severity levels.
+- Maintain patient medical history securely.
+- Provide doctors with patient symptom and prediction information.
+- Provide clinics with operational and patient activity analytics.
+- Provide administrators with system and dataset management capabilities.
+- Generate downloadable clinical PDF reports.
+- Implement secure role-based access control.
+
+---
+
+# ✨ Key Features
+
+## 🧠 AI-Powered Symptom Analysis
+
+The system analyzes:
+
+- Patient symptoms
+- Symptom severity
+- Vital measurements
+- Age-related information
+- Clinical feature combinations
+
+The collected information is processed through the machine learning prediction pipeline.
+
+---
+
+## 🦠 Disease Prediction
+
+MedAssist AI uses a multi-class machine learning model to identify possible disease patterns from the patient's input symptoms and clinical information.
+
+The system supports prediction across:
+
+**116 unique disease classes.**
+
+---
+
+## 🚦 Risk Stratification
+
+The system categorizes health risk into four levels:
+
+| Risk Level | Description |
+| :---: | :--- |
+| 🟢 **Low** | Lower estimated risk based on the available information |
+| 🟡 **Moderate** | Requires attention and monitoring |
+| 🟠 **High** | Higher estimated risk requiring professional evaluation |
+| 🔴 **Critical** | Potentially urgent situation requiring immediate professional attention |
+
+---
+
+## 📄 Clinical PDF Reports
+
+The platform can generate downloadable PDF reports containing relevant patient information and assessment results.
+
+PDF generation is implemented using:
+
+**ReportLab**
+
+---
+
+## 📊 Interactive Analytics
+
+The system provides visual analytics for:
+
+- Patient vitals
+- Symptom progression
+- Risk trends
+- Patient activity
+- Clinic statistics
+- Population-level information
+
+---
+
+## 🔐 Secure Authentication
+
+MedAssist AI implements:
+
+- JWT authentication
+- Bcrypt password hashing
+- Role-based authorization
+- Input validation
+- Protected API routes
+- Role-specific dashboards
+
+---
+
+# 👥 User Roles
+
+## 👤 Patient Portal
+
+Patients can:
+
+- Register an account.
+- Log in securely.
+- Enter symptoms.
+- Provide symptom severity.
+- Submit vital information.
+- Receive AI-based assessment.
+- View prediction results.
+- View medical history.
+- Track symptom trends.
+- Generate PDF clinical reports.
+
+---
+
+## 🩺 Doctor Portal
+
+Doctors can:
+
+- Log in through the doctor portal.
+- View assigned patients.
+- Review patient symptom histories.
+- Analyze patient trends.
+- Review AI-generated risk information.
+- Add clinical recommendations.
+- Prepare digital medical summaries.
+
+---
+
+## 🏥 Clinic Portal
+
+Clinics can:
+
+- Monitor patient intake.
+- View facility activity.
+- Monitor attending staff.
+- Track patient queues.
+- View operational statistics.
+
+---
+
+## ⚙️ Admin Panel
+
+Administrators can:
+
+- Manage users.
+- Manage user roles.
+- Maintain datasets.
+- Audit database information.
+- Monitor system analytics.
+- Manage platform-level settings.
+
+---
+
+# 🏗️ System Architecture
+
+```text
+                         ┌───────────────────────────┐
+                         │        MEDASSIST AI       │
+                         │ Healthcare Decision       │
+                         │ Support Platform          │
+                         └─────────────┬─────────────┘
                                        │
-         ┌──────────────────┬──────────┴───────────┬──────────────────┐
-         │                  │                      │                  │
- ┌───────▼───────┐  ┌───────▼───────┐      ┌───────▼───────┐  ┌───────▼───────┐
- │ Patient Portal│  │ Doctor Portal │      │ Clinic Portal │  │  Admin Panel  │
- └───────────────┘  └───────────────┘      └───────────────┘  └───────────────┘
-```
-
-1. 👤 **Patient Portal**:
-   - Guided symptom intake with auto-suggestions and severity scoring.
-   - Instant AI-driven condition probability assessment and risk stratification.
-   - Access to personal medical history logs and one-click PDF clinical report generation.
-2. 🩺 **Doctor Portal**:
-   - View assigned patient symptom histories and trend analytics.
-   - Review AI risk findings and add clinical recommendations.
-   - Issue official digital medical summaries.
-3. 🏥 **Clinic Portal**:
-   - Overview of patient intake volumes and facility activity stats.
-   - Monitor attending medical staff and patient care queues.
-4. ⚙️ **Admin Panel**:
-   - Full system access, account role updates, and user management.
-   - Dataset maintenance, database auditing, and platform analytics.
-
----
-
-## ✨ Key Features & Capabilities
-
-- 🧠 **AI-Powered Symptom Engine**: Evaluates combinations of symptoms, severity scales, and vitals against trained dataset patterns to output condition probability matches.
-- 🚦 **Risk Stratification**: Automatically classifies risk levels into **Low**, **Moderate**, **High**, or **Critical** urgency with appropriate care recommendations.
-- 📄 **Official PDF Reports**: Generates downloadable, print-ready clinical health reports powered by ReportLab.
-- 📊 **Interactive Analytics**: Dynamic visual charts for vitals tracking, symptom progression over time, and population analytics.
-- 🔒 **Enterprise-Grade Security**: JWT token authorization, bcrypt password hashing, input validation, and role middleware protection.
-
----
-
-## 🎯 Machine Learning Model Performance & Accuracy
-
-MedAssist AI incorporates an upgraded multi-stage machine learning engine utilizing clinical feature engineering, domain-guided dataset augmentation, and a soft voting ensemble architecture (`VotingClassifier` combining `ExtraTreesClassifier`, `GradientBoostingClassifier`, and `RandomForestClassifier`).
-
-| Machine Learning Model | Metric | Accuracy Score | Performance Lift |
-| :--- | :--- | :--- | :--- |
-| **Outcome Risk Model (Binary)** | Test Accuracy | **80.00%** | **+2.86%** |
-| **Disease Model (Multi-Class)** | Top-1 Accuracy | **80.00%** | **+51.43%** |
-| **Disease Model (Multi-Class)** | Top-3 Accuracy | **98.57%** | **+64.28%** |
-| **Disease Model (Multi-Class)** | Top-5 Accuracy | **100.00%** | **+62.86%** |
-
-### Key ML Model Architecture Highlights
-- 🧬 **Clinical Feature Engineering**: Derives non-linear clinical interaction terms (`high_risk_index`, `age_risk_index`, symptom combination products, and vital threshold flags).
-- 🔄 **Domain-Guided Data Augmentation**: Solves severe multi-class label sparsity across 116 unique diseases to ensure balanced training distributions.
-- 🗳️ **Soft Voting Ensemble**: Combines predictions from ExtraTrees, GradientBoosting, and RandomForest to deliver robust probability calibration and risk confidence scores.
-
----
-
-## 🛠️ Technology Stack
-
-| Layer | Technology | Usage |
-| :--- | :--- | :--- |
-| **Frontend UI** | Next.js 14 (App Router), React 18 | Modern server-rendered and interactive web client |
-| **Styling & Animation** | Tailwind CSS, Framer Motion | Dynamic UI design, dark/light modes, micro-animations |
-| **Backend API** | Python 3.11, FastAPI, Uvicorn | High-performance asynchronous RESTful backend API |
-| **Data Science & ML** | Scikit-learn, Pandas, Joblib | Symptom classification and disease pattern matching |
-| **PDF Generation** | ReportLab | Programmatic compilation of official clinical reports |
-| **Relational Database** | PostgreSQL / SQLite | Patient profiles, auth tables, symptom logs, reference dataset |
-| **Document Store** | MongoDB (Motor / PyMongo) | High-volume audit logs and flexible metadata persistence |
-| **Containerization** | Docker, Docker Compose | Multi-container orchestration and environment reproducibility |
-
----
-
-## ⚡ How to Run the Application
-
-### Option 1: Run Locally (Native Python & Node.js)
-
-#### 1. Start the Backend API
-Open a terminal in the root directory:
-```bash
-cd backend
-python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
-```
-*Backend server will start at:* [http://localhost:8000](http://localhost:8000)
-
-#### 2. Start the Frontend Application
-In a second terminal:
-```bash
-cd frontend
-npm run dev
-```
-*Frontend web app will start at:* [http://localhost:3000](http://localhost:3000)
-
----
-
-### Option 2: Run with Docker Compose
-
-1. **Spin up all containers**:
-   ```bash
-   docker compose up --build
-   ```
-2. **Seed the Default Admin**:
-   ```bash
-   docker compose exec backend python seed_admin.py
-   ```
-3. **Ingest Reference Dataset**:
-   Place `disease_symptoms.csv` inside `/data/` and run:
-   ```bash
-   docker compose exec backend python load_dataset.py
-   ```
-
----
-
-## 🔑 Default Seed Credentials & Access
-
-- 🛡️ **Admin Email**: `admin@medassist.ai`
-- 🔑 **Admin Password**: `admin123`
-- 📝 **Patient Registration**: Anyone can register a patient account directly at [http://localhost:3000/register](http://localhost:3000/register).
-
----
-
-## 📁 Repository Structure
-
-```
-Med/
-├── README.md                       # Master Project Guide & Documentation
-├── docker-compose.yml              # Docker multi-container specification
-│
-├── backend/                        # FastAPI Backend Application
-│   ├── main.py                     # Application entry point & CORS configuration
-│   ├── seed_admin.py               # Admin account seeding script
-│   ├── load_dataset.py             # Symptom dataset ingestion script
-│   ├── train_model.py              # ML model training script
-│   ├── requirements.txt            # Python dependencies
-│   └── app/
-│       ├── models/                 # SQLAlchemy & Pydantic models
-│       ├── routes/                 # Auth, Patient, Symptoms, Admin, Doctor, Clinic routes
-│       └── core/                   # Security, DB connections, JWT handlers
-│
-├── frontend/                       # Next.js Frontend Application
-│   ├── app/                        # Next.js App Router (pages & layouts)
-│   ├── components/                 # Reusable UI components & modals
-│   ├── context/                    # AuthContext & ThemeContext
-│   └── lib/                        # API client helper & utility functions
-│
-└── data/                           # Disease & Symptom dataset CSV directory
-```
-
----
-
-## 🔌 Core API Endpoints
-
-- `POST /auth/register` — Register a new patient account
-- `POST /auth/login` — Authenticate and receive JWT access token
-- `GET /patients/me` — Get current logged-in patient profile
-- `POST /symptoms/submit` — Submit new symptom entries
-- `POST /prediction/predict` — Trigger AI symptom assessment
-- `GET /patients/me/report` — Download official PDF clinical summary report
-- `GET /doctor/patients` — Doctor access to patient history logs
-- `GET /admin/users` — Admin user management endpoint
-#   M e d _ A s s i s t  
- 
+               ┌───────────────────────┼────────────────────────┐
+               │                       │                        │
+               ▼                       ▼                        ▼
+      ┌────────────────┐      ┌────────────────┐      ┌────────────────┐
+      │ Patient Portal │      │ Doctor Portal  │      │ Clinic Portal  │
+      └───────┬────────┘      └───────┬────────┘      └───────┬────────┘
+              │                       │                       │
+              │                       │                       │
+              └───────────────────────┼───────────────────────┘
+                                      │
+                                      ▼
+                         ┌────────────────────────┐
+                         │      FastAPI Backend   │
+                         │       REST API         │
+                         └────────────┬───────────┘
+                                      │
+              ┌───────────────────────┼────────────────────────┐
+              │                       │                        │
+              ▼                       ▼                        ▼
+       ┌──────────────┐       ┌──────────────┐        ┌──────────────┐
+       │ PostgreSQL / │       │   MongoDB    │        │  ML Engine   │
+       │    SQLite    │       │ Audit / Logs │        │ Scikit-Learn │
+       └──────────────┘       └──────────────┘        └──────┬───────┘
+                                                              │
+                                                              ▼
+                                                    ┌─────────────────┐
+                                                    │ Disease + Risk  │
+                                                    │   Prediction    │
+                                                    └─────────────────┘
