@@ -22,6 +22,7 @@ export default function Register() {
     state_council: 'Maharashtra Medical Council',
     qualification: 'MBBS',
     registration_year: '2020',
+    access_code: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -122,6 +123,16 @@ export default function Register() {
       return;
     }
 
+    if (formData.role === 'admin' && !formData.access_code.trim()) {
+      setError('Admin registration requires an authorized Admin Access Code (e.g. ADMIN2026).');
+      return;
+    }
+
+    if (formData.role === 'clinic' && !formData.access_code.trim()) {
+      setError('Clinic registration requires an authorized Clinic Access Code (e.g. CLINIC2026).');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -137,6 +148,7 @@ export default function Register() {
         qualification: formData.role === 'doctor' ? formData.qualification || null : null,
         registration_year: formData.role === 'doctor' ? parseInt(formData.registration_year, 10) || null : null,
         is_verified: formData.role === 'doctor' ? isVerified : false,
+        access_code: (formData.role === 'admin' || formData.role === 'clinic') ? formData.access_code.trim() : null,
       };
 
       const response = await api.post('/auth/register', payload);
@@ -605,11 +617,41 @@ export default function Register() {
                 )}
               </div>
             </div>
-          ) : (
-            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950/40 p-4 text-xs text-slate-600 dark:text-slate-400 font-medium">
-              Administrative & Clinic accounts grant elevated clinical monitoring capabilities across system nodes.
+          ) : (formData.role === 'admin' || formData.role === 'clinic') ? (
+            <div className="space-y-4 rounded-2xl border border-cyan-200 dark:border-cyan-900/60 bg-cyan-50/40 dark:bg-cyan-950/20 p-5">
+              <div className="flex items-center justify-between border-b border-cyan-200 dark:border-cyan-900/40 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="p-1 rounded-lg bg-cyan-600 text-white text-xs font-black">SEC</span>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider">
+                    {formData.role === 'admin' ? 'Admin Access Security Code' : 'Clinic Security Code'}
+                  </h3>
+                </div>
+                <span className="text-[11px] font-bold text-cyan-700 dark:text-cyan-300 bg-cyan-100 dark:bg-cyan-950 px-2.5 py-1 rounded-full border border-cyan-300 dark:border-cyan-800">
+                  Required Security Passcode
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
+                  Unique {formData.role === 'admin' ? 'Admin' : 'Clinic'} Access Code <span className="text-red-500 font-bold">* Mandatory</span>
+                </label>
+                <input
+                  type="password"
+                  name="access_code"
+                  required
+                  value={formData.access_code}
+                  onChange={handleChange}
+                  placeholder={formData.role === 'admin' ? 'Enter Admin Code (e.g. ADMIN2026)' : 'Enter Clinic Code (e.g. CLINIC2026)'}
+                  className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all text-sm font-mono tracking-wider"
+                />
+                <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                  {formData.role === 'admin'
+                    ? 'Enter the official system administrator authorization security code (Default: ADMIN2026).'
+                    : 'Enter your clinic facility registration passcode (Default: CLINIC2026).'}
+                </p>
+              </div>
             </div>
-          )}
+          ) : null}
 
           <button
             type="submit"

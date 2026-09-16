@@ -13,10 +13,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="min-h-full flex flex-col antialiased font-sans relative selection:bg-emerald-500/20 selection:text-emerald-700 dark:selection:text-emerald-300">
-        <Script
+      <head>
+        <script
           id="theme-init"
-          strategy="beforeInteractive"
+          async
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
@@ -41,6 +41,8 @@ export default function RootLayout({ children }) {
             `,
           }}
         />
+      </head>
+      <body className="min-h-full flex flex-col antialiased font-sans relative selection:bg-emerald-500/20 selection:text-emerald-700 dark:selection:text-emerald-300">
         <ThemeProvider>
           <AuthProvider>
             <BackgroundUI />
@@ -52,3 +54,4 @@ export default function RootLayout({ children }) {
     </html>
   );
 }
+

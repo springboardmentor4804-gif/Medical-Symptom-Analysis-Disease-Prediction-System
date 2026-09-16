@@ -143,6 +143,26 @@ export default function Dashboard() {
             </div>
           </FadeIn>
 
+          {/* PATIENT MEDICAL ADVISORY DISCLAIMER BANNER */}
+          <div className="p-4 rounded-2xl bg-amber-500/10 dark:bg-amber-950/70 border-2 border-amber-400 dark:border-amber-600 text-amber-950 dark:text-amber-100 space-y-1.5 shadow-sm mb-6">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-1.5 border-amber-300/60 dark:border-amber-800/80">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <h4 className="text-xs font-black uppercase tracking-wider text-amber-900 dark:text-amber-200">
+                  Patient Medical Advisory & Model Disclaimer
+                </h4>
+              </div>
+              <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-amber-200 dark:bg-amber-900/80 text-amber-900 dark:text-amber-200">
+                AI Insight Only • Consult a Physician
+              </span>
+            </div>
+            <p className="text-xs leading-relaxed text-amber-950 dark:text-amber-100 font-medium">
+              <strong className="font-extrabold">IMPORTANT NOTICE:</strong> MedAssist AI provides automated symptom analysis and risk estimation for informational purposes only. <strong className="font-bold underline">This platform does NOT provide medical diagnoses, certified laboratory outcomes, or clinical treatments.</strong> Always consult a licensed physician or qualified healthcare provider regarding any symptoms or medical concerns. In an emergency, contact local emergency medical services immediately.
+            </p>
+          </div>
+
           {/* Global Error Banner */}
           {fetchError && (
             <div className="mb-6 p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 text-sm text-red-700 dark:text-red-300 flex items-center justify-between gap-3 animate-fade-rise">

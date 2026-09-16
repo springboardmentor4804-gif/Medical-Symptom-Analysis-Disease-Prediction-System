@@ -186,6 +186,26 @@ export default function SymptomsSubmission() {
             </p>
           </div>
 
+          {/* SYMPTOM INTAKE ADVISORY DISCLAIMER BANNER */}
+          <div className="p-4 rounded-2xl bg-amber-500/10 dark:bg-amber-950/70 border-2 border-amber-400 dark:border-amber-600 text-amber-950 dark:text-amber-100 space-y-1.5 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-1.5 border-amber-300/60 dark:border-amber-800/80">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <h4 className="text-xs font-black uppercase tracking-wider text-amber-900 dark:text-amber-200">
+                  Symptom Intake Advisory Notice
+                </h4>
+              </div>
+              <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-amber-200 dark:bg-amber-900/80 text-amber-900 dark:text-amber-200">
+                Self-Reported Log • Not Emergency Intake
+              </span>
+            </div>
+            <p className="text-xs leading-relaxed text-amber-950 dark:text-amber-100 font-medium">
+              <strong className="font-extrabold">INTAKE NOTICE:</strong> Logged symptom details are used by machine learning algorithms for health pattern tracking. <strong className="font-bold underline">This form is NOT an emergency response service or diagnostic evaluation.</strong> If you are experiencing severe or life-threatening symptoms (such as intense chest pressure, severe shortness of breath, or sudden weakness), seek emergency medical attention immediately.
+            </p>
+          </div>
+
           {successMessage && (
             <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-sm text-emerald-800 dark:text-emerald-300 flex items-center justify-between animate-fade-rise">
               <div className="flex items-center gap-2 font-semibold">

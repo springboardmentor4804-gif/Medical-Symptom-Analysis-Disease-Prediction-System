@@ -16,6 +16,7 @@ class UserRegister(BaseModel):
     qualification: Optional[str] = None  # MBBS, MD, MS, etc.
     registration_year: Optional[int] = None  # Year of Registration
     is_verified: Optional[bool] = False  # Verification status
+    access_code: Optional[str] = None  # Unique security code required for Clinic & Admin registration
 
 class UserLogin(BaseModel):
     email: EmailStr

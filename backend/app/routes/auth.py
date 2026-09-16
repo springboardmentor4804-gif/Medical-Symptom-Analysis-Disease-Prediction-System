@@ -102,6 +102,20 @@ async def register(user_in: UserRegister, db: Session = Depends(get_db)):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Doctor registration requires medical qualification details."
             )
+    elif user_in.role == "admin":
+        user_code = (user_in.access_code or "").strip().upper()
+        if not user_code or user_code not in VALID_ADMIN_CODES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or missing Admin Access Code. Enter an authorized Admin security code (e.g. ADMIN2026) to create an Admin account."
+            )
+    elif user_in.role == "clinic":
+        user_code = (user_in.access_code or "").strip().upper()
+        if not user_code or user_code not in VALID_CLINIC_CODES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or missing Clinic Access Code. Enter an authorized Clinic security code (e.g. CLINIC2026) to register a Clinic account."
+            )
 
     new_user = User(
         email=user_in.email,

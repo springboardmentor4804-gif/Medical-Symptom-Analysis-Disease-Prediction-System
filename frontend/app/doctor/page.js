@@ -101,6 +101,18 @@ export default function DoctorDashboard() {
     return true;
   });
 
+  const handleDownloadPatientPdf = async (patientId, patientName) => {
+    try {
+      const nameStr = (patientName || `Patient_${patientId}`).replace(/\s+/g, '_');
+      await api.downloadFile(
+        `/doctor/patients/${patientId}/report/pdf`,
+        `Doctor_Clinical_Report_${nameStr}.pdf`
+      );
+    } catch (err) {
+      console.error('PDF download error:', err);
+    }
+  };
+
   return (
     <ProtectedRoute allowedRoles={['doctor']}>
       <div className="flex-1 px-4 sm:px-8 py-10 bg-slate-50/50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
@@ -134,6 +146,26 @@ export default function DoctorDashboard() {
                 Analytics Dashboard
               </button>
             </div>
+          </div>
+
+          {/* DOCTOR DECISION-SUPPORT CLINICAL ADVISORY BANNER */}
+          <div className="p-4 rounded-2xl bg-amber-500/10 dark:bg-amber-950/70 border-2 border-amber-400 dark:border-amber-600 text-amber-950 dark:text-amber-100 space-y-1.5 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-1.5 border-amber-300/60 dark:border-amber-800/80">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <h4 className="text-xs font-black uppercase tracking-wider text-amber-900 dark:text-amber-200">
+                  Doctor Clinical Decision-Support Advisory
+                </h4>
+              </div>
+              <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-amber-200 dark:bg-amber-900/80 text-amber-900 dark:text-amber-200">
+                Decision Support Tool • Physician Review Required
+              </span>
+            </div>
+            <p className="text-xs leading-relaxed text-amber-950 dark:text-amber-100 font-medium">
+              <strong className="font-extrabold">CLINICAL NOTICE:</strong> AI risk estimations and disease likelihood scores across this workspace are automated statistical predictions generated from patient-reported symptoms. <strong className="font-bold underline">They do NOT constitute certified lab results or definitive diagnoses.</strong> Attending doctors must independently evaluate patients, perform diagnostic procedures, and apply licensed clinical judgment for all treatment decisions.
+            </p>
           </div>
 
           {error && (
@@ -334,15 +366,28 @@ export default function DoctorDashboard() {
                                 </span>
                               </td>
                               <td className="py-4 px-6 text-right">
-                                <Link
-                                  href={`/doctor/patients/${patient.id}`}
-                                  className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-400 text-white dark:text-slate-950 font-bold text-xs shadow-sm transition-all"
-                                >
-                                  Review Patient
-                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                                  </svg>
-                                </Link>
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDownloadPatientPdf(patient.id, patient.name)}
+                                    className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs transition-all"
+                                    title="Download Official Clinical PDF Report"
+                                  >
+                                    <svg className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                    </svg>
+                                    <span>PDF</span>
+                                  </button>
+                                  <Link
+                                    href={`/doctor/patients/${patient.id}`}
+                                    className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-400 text-white dark:text-slate-950 font-bold text-xs shadow-sm transition-all"
+                                  >
+                                    Review Patient
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                  </Link>
+                                </div>
                               </td>
                             </tr>
                           );
