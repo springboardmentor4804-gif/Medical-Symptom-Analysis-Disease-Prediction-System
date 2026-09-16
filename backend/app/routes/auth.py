@@ -163,13 +163,11 @@ async def register(user_in: UserRegister, db: Session = Depends(get_db)):
     # Generate token
     token = create_access_token(data={"sub": new_user.email, "user_id": new_user.id, "role": new_user.role})
 
-    # Mirror registration data to MongoDB (non-blocking, fire-and-forget)
+    # Mirror registration data to MongoDB
     try:
-        asyncio.create_task(
-            _mirror_registration_to_mongo(user_in, new_user.password_hash)
-        )
+        await _mirror_registration_to_mongo(user_in, new_user.password_hash)
     except Exception as exc:
-        print(f"[MongoDB] ⚠️ Could not schedule mongo registration mirror: {exc}")
+        print(f"[MongoDB] ⚠️ Could not mirror registration: {exc}")
 
     return TokenResponse(
         access_token=token,
@@ -178,8 +176,47 @@ async def register(user_in: UserRegister, db: Session = Depends(get_db)):
     )
 
 @router.post("/login", response_model=TokenResponse)
-def login(user_in: UserLogin, db: Session = Depends(get_db)):
+async def login(user_in: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == user_in.email).first()
+    
+    # Auto-restore from MongoDB Atlas if SQL database was wiped/reset on Render
+    if not user:
+        try:
+            mongo_u = await users_collection().find_one({"email": user_in.email})
+            if mongo_u and verify_password(user_in.password, mongo_u.get("password_hash", "")):
+                user = User(
+                    email=mongo_u["email"],
+                    password_hash=mongo_u["password_hash"],
+                    name=mongo_u.get("name", "User"),
+                    role=mongo_u.get("role", "patient"),
+                    specialty=mongo_u.get("specialty")
+                )
+                db.add(user)
+                db.commit()
+                db.refresh(user)
+
+                if user.role == "patient":
+                    mongo_p = await patients_collection().find_one({"user_email": user.email})
+                    patient = Patient(
+                        user_id=user.id,
+                        name=user.name,
+                        age=mongo_p.get("age", 30) if mongo_p else 30,
+                        gender=mongo_p.get("gender", "Male") if mongo_p else "Male",
+                        medical_history=mongo_p.get("medical_history") if mongo_p else None
+                    )
+                    db.add(patient)
+                    db.commit()
+                elif user.role == "clinic":
+                    clinic = Clinic(
+                        user_id=user.id,
+                        clinic_name=user.name or "MedAssist Medical Clinic",
+                        address="Main Healthcare Center"
+                    )
+                    db.add(clinic)
+                    db.commit()
+        except Exception as exc:
+            print(f"[MongoDB Auto-Restore Warning]: {exc}")
+
     if not user or not verify_password(user_in.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
