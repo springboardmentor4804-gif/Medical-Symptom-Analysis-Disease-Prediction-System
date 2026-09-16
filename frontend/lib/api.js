@@ -1,7 +1,15 @@
-const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const API_URL = rawApiUrl.replace(/\/+$/, '');
+export const getApiUrl = () => {
+  let url = process.env.NEXT_PUBLIC_API_URL;
+  if (!url || url === 'http://localhost:8000' || url === 'http://127.0.0.1:8000') {
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      url = 'https://medical-symptom-analysis-disease-46je.onrender.com';
+    }
+  }
+  return (url || 'http://localhost:8000').replace(/\/+$/, '');
+};
 
 export const request = async (endpoint, options = {}) => {
+  const API_URL = getApiUrl();
   let token = null;
   if (typeof window !== 'undefined') {
     token = localStorage.getItem('token');
@@ -27,22 +35,22 @@ export const request = async (endpoint, options = {}) => {
   try {
     response = await fetch(`${API_URL}${formattedEndpoint}`, config);
   } catch (fetchErr) {
-    // If primary host fetch fails, try fallback between localhost and 127.0.0.1
+    // Try HTTPS fallback if HTTP failed, or vice versa
     let fallbackUrl = null;
-    if (API_URL.includes('localhost')) {
+    if (API_URL.startsWith('http://')) {
+      fallbackUrl = API_URL.replace('http://', 'https://');
+    } else if (API_URL.includes('localhost')) {
       fallbackUrl = API_URL.replace('localhost', '127.0.0.1');
-    } else if (API_URL.includes('127.0.0.1')) {
-      fallbackUrl = API_URL.replace('127.0.0.1', 'localhost');
     }
 
     if (fallbackUrl) {
       try {
-        response = await fetch(`${fallbackUrl}${endpoint}`, config);
+        response = await fetch(`${fallbackUrl}${formattedEndpoint}`, config);
       } catch (fallbackErr) {
-        throw new Error(`Unable to connect to backend server at ${API_URL}. Please ensure the backend server is running on http://127.0.0.1:8000.`);
+        throw new Error(`Unable to connect to backend server at ${API_URL}. Please ensure the backend is active on Render.`);
       }
     } else {
-      throw new Error(`Unable to connect to backend server at ${API_URL}. Please check your connection or backend server status.`);
+      throw new Error(`Unable to connect to backend server at ${API_URL}. Please check your connection or backend server status on Render.`);
     }
   }
 
@@ -78,6 +86,7 @@ export const api = {
   put: (endpoint, body, options) => request(endpoint, { ...options, method: 'PUT', body: JSON.stringify(body) }),
   delete: (endpoint, options) => request(endpoint, { ...options, method: 'DELETE' }),
   downloadFile: async (endpoint, defaultFilename = 'health_report.pdf') => {
+    const API_URL = getApiUrl();
     let token = null;
     if (typeof window !== 'undefined') {
       token = localStorage.getItem('token');
@@ -86,14 +95,15 @@ export const api = {
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
+    const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     let response;
     try {
-      response = await fetch(`${API_URL}${endpoint}`, { method: 'GET', headers });
+      response = await fetch(`${API_URL}${formattedEndpoint}`, { method: 'GET', headers });
     } catch (err) {
-      const fallbackUrl = API_URL.includes('localhost')
-        ? API_URL.replace('localhost', '127.0.0.1')
-        : API_URL.replace('127.0.0.1', 'localhost');
-      response = await fetch(`${fallbackUrl}${endpoint}`, { method: 'GET', headers });
+      const fallbackUrl = API_URL.startsWith('http://')
+        ? API_URL.replace('http://', 'https://')
+        : API_URL.replace('localhost', '127.0.0.1');
+      response = await fetch(`${fallbackUrl}${formattedEndpoint}`, { method: 'GET', headers });
     }
     if (!response.ok) {
       throw new Error('Failed to download PDF report');
