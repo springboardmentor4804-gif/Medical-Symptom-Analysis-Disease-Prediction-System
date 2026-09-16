@@ -21,10 +21,12 @@ def ensure_user_name_column():
     except Exception as e:
         print(f"[SQLite Schema Check Warning]: {e}")
 
-# Create tables in Database (if reachable)
+# Create tables in Database (if reachable) & Seed Admin
 try:
     Base.metadata.create_all(bind=engine)
     ensure_user_name_column()
+    from seed_admin import seed_admin
+    seed_admin("admin@medassist.ai", "admin123")
 except Exception as e:
     print(f"[Database Warning] Could not connect or create database tables on startup: {e}")
 

@@ -69,7 +69,7 @@ export const request = async (endpoint, options = {}) => {
   }
 
   if (!response.ok) {
-    let errorMsg = 'Something went wrong';
+    let errorMsg = `Server error (${response.status}): Request failed.`;
     try {
       const errorData = await response.json();
       if (typeof errorData.detail === 'string') {
