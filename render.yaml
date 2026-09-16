@@ -28,7 +28,7 @@ services:
     plan: free
     rootDir: frontend
     buildCommand: "npm install --no-package-lock --include=optional && npm run build"
-    startCommand: "npm start"
+    startCommand: "npx next start -H 0.0.0.0 -p $PORT"
     envVars:
       - key: NODE_VERSION
         value: 20.11.0
