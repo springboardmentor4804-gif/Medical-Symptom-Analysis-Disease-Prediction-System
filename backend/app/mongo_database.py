@@ -37,7 +37,11 @@ def get_mongo_client() -> AsyncIOMotorClient:
     """Return the shared motor client (must be called after startup)."""
     global _mongo_client
     if _mongo_client is None:
-        _mongo_client = AsyncIOMotorClient(MONGO_URL, serverSelectionTimeoutMS=3000)
+        try:
+            _mongo_client = AsyncIOMotorClient(MONGO_URL, serverSelectionTimeoutMS=3000)
+        except Exception as err:
+            print(f"[MongoDB Client Init Warning]: {err}")
+            raise err
     return _mongo_client
 
 
