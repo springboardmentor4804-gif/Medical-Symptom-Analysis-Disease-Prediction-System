@@ -21,30 +21,6 @@
 
 ---
 
-## 📌 Table of Contents
-
-- [About the Project](#-about-the-project)
-- [Project Objectives](#-project-objectives)
-- [Key Features](#-key-features)
-- [User Roles](#-user-roles)
-- [System Architecture](#-system-architecture)
-- [System Workflow](#-system-workflow)
-- [Machine Learning](#-machine-learning)
-- [Model Performance](#-model-performance)
-- [Technology Stack](#-technology-stack)
-- [Project Structure](#-project-structure)
-- [API Endpoints](#-api-endpoints)
-- [Quick Run Links](#-quick-run-links)
-- [Installation](#-installation)
-- [Running the Application](#-running-the-application)
-- [Docker Setup](#-docker-setup)
-- [Default Credentials](#-default-credentials)
-- [Security](#-security)
-- [Future Enhancements](#-future-enhancements)
-- [Disclaimer](#-disclaimer)
-
----
-
 # 🌟 About the Project
 
 **MedAssist AI** is an intelligent medical symptom-checker, AI risk assessment, and clinical patient-profile management platform.
