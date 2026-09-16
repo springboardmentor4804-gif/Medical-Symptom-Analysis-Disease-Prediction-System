@@ -1,4 +1,7 @@
 export const getApiUrl = () => {
+  if (typeof window !== 'undefined' && window.localStorage.getItem('CUSTOM_API_URL')) {
+    return window.localStorage.getItem('CUSTOM_API_URL').replace(/\/+$/, '');
+  }
   let url = process.env.NEXT_PUBLIC_API_URL;
   if (!url || url === 'http://localhost:8000' || url === 'http://127.0.0.1:8000') {
     if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
@@ -61,7 +64,7 @@ export const request = async (endpoint, options = {}) => {
 
   if (lastErr || !response) {
     throw new Error(
-      `Unable to connect to backend server at ${API_URL}. The Render backend may be waking up from sleep. Please wait 15 seconds and refresh, or check backend logs on Render.`
+      `Cannot connect to Backend API at [${API_URL}]. Please check if this backend URL is live in your Render Dashboard. If your backend URL is different, set NEXT_PUBLIC_API_URL on your frontend Render service.`
     );
   }
 
