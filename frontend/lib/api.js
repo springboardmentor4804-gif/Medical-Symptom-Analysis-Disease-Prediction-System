@@ -5,7 +5,7 @@ export const getApiUrl = () => {
   let url = process.env.NEXT_PUBLIC_API_URL;
   if (!url || url === 'http://localhost:8000' || url === 'http://127.0.0.1:8000') {
     if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      url = 'https://medical-symptom-analysis-disease-46je.onrender.com';
+      url = 'https://med-assist-80aa.onrender.com';
     }
   }
   return (url || 'http://localhost:8000').replace(/\/+$/, '');
