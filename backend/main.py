@@ -8,42 +8,25 @@ from app.mongo_database import connect_mongo, close_mongo
 from sqlalchemy import inspect
 
 
-# Create tables in PostgreSQL (if they do not exist)
-Base.metadata.create_all(bind=engine)
-
-
 def ensure_user_name_column():
     if engine.dialect.name != "sqlite":
         return
+    try:
+        inspector = inspect(engine)
+        if inspector.has_table("users"):
+            user_columns = [column["name"] for column in inspector.get_columns("users")]
+            with engine.begin() as connection:
+                if "name" not in user_columns:
+                    connection.exec_driver_sql("ALTER TABLE users ADD COLUMN name VARCHAR")
+    except Exception as e:
+        print(f"[SQLite Schema Check Warning]: {e}")
 
-    inspector = inspect(engine)
-    user_columns = [column["name"] for column in inspector.get_columns("users")]
-    with engine.begin() as connection:
-        if "name" not in user_columns:
-            connection.exec_driver_sql("ALTER TABLE users ADD COLUMN name VARCHAR")
-        if "medical_reg_no" not in user_columns:
-            connection.exec_driver_sql("ALTER TABLE users ADD COLUMN medical_reg_no VARCHAR")
-        if "council_type" not in user_columns:
-            connection.exec_driver_sql("ALTER TABLE users ADD COLUMN council_type VARCHAR")
-        if "state_council" not in user_columns:
-            connection.exec_driver_sql("ALTER TABLE users ADD COLUMN state_council VARCHAR")
-        if "qualification" not in user_columns:
-            connection.exec_driver_sql("ALTER TABLE users ADD COLUMN qualification VARCHAR")
-        if "registration_year" not in user_columns:
-            connection.exec_driver_sql("ALTER TABLE users ADD COLUMN registration_year INTEGER")
-        if "is_verified" not in user_columns:
-            connection.exec_driver_sql("ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT 0")
-
-    if inspector.has_table("symptoms"):
-        symptom_columns = [column["name"] for column in inspector.get_columns("symptoms")]
-        with engine.begin() as connection:
-            if "occurrence_count" not in symptom_columns:
-                connection.exec_driver_sql("ALTER TABLE symptoms ADD COLUMN occurrence_count INTEGER DEFAULT 1")
-            if "duration_onset" not in symptom_columns:
-                connection.exec_driver_sql("ALTER TABLE symptoms ADD COLUMN duration_onset VARCHAR DEFAULT 'Just today'")
-
-
-ensure_user_name_column()
+# Create tables in Database (if reachable)
+try:
+    Base.metadata.create_all(bind=engine)
+    ensure_user_name_column()
+except Exception as e:
+    print(f"[Database Warning] Could not connect or create database tables on startup: {e}")
 
 
 # ── Application lifespan (startup + shutdown) ──────────────────────
