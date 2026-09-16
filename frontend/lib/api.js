@@ -32,26 +32,37 @@ export const request = async (endpoint, options = {}) => {
   const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 
   let response;
-  try {
-    response = await fetch(`${API_URL}${formattedEndpoint}`, config);
-  } catch (fetchErr) {
-    // Try HTTPS fallback if HTTP failed, or vice versa
-    let fallbackUrl = null;
-    if (API_URL.startsWith('http://')) {
-      fallbackUrl = API_URL.replace('http://', 'https://');
-    } else if (API_URL.includes('localhost')) {
-      fallbackUrl = API_URL.replace('localhost', '127.0.0.1');
-    }
+  let lastErr;
 
-    if (fallbackUrl) {
-      try {
-        response = await fetch(`${fallbackUrl}${formattedEndpoint}`, config);
-      } catch (fallbackErr) {
-        throw new Error(`Unable to connect to backend server at ${API_URL}. Please ensure the backend is active on Render.`);
+  // Retry up to 3 times to allow Render Free Tier backend to wake up from cold start
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      response = await fetch(`${API_URL}${formattedEndpoint}`, config);
+      lastErr = null;
+      break;
+    } catch (err) {
+      lastErr = err;
+      if (API_URL.startsWith('http://')) {
+        const httpsUrl = API_URL.replace('http://', 'https://');
+        try {
+          response = await fetch(`${httpsUrl}${formattedEndpoint}`, config);
+          lastErr = null;
+          break;
+        } catch (httpsErr) {
+          lastErr = httpsErr;
+        }
       }
-    } else {
-      throw new Error(`Unable to connect to backend server at ${API_URL}. Please check your connection or backend server status on Render.`);
+      // Wait 3 seconds before next retry if cold starting
+      if (attempt < 2) {
+        await new Promise((r) => setTimeout(r, 3000));
+      }
     }
+  }
+
+  if (lastErr || !response) {
+    throw new Error(
+      `Unable to connect to backend server at ${API_URL}. The Render backend may be waking up from sleep. Please wait 15 seconds and refresh, or check backend logs on Render.`
+    );
   }
 
   if (!response.ok) {
