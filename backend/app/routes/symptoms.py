@@ -116,10 +116,7 @@ def get_my_symptoms(
 ):
     patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
     if not patient:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Patient profile not found."
-        )
+        return []
     
     symptoms = db.query(Symptom).filter(Symptom.patient_id == patient.id).order_by(Symptom.submitted_at.desc()).all()
     return symptoms

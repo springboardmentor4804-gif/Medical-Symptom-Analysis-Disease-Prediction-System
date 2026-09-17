@@ -49,10 +49,16 @@ async def _mirror_patient_to_mongo(patient, user_email: str) -> None:
 def get_me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
     if not patient:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Patient profile not found."
+        patient = Patient(
+            user_id=current_user.id,
+            name=current_user.name or (current_user.email.split("@")[0].title() if current_user.email else "Patient"),
+            age=30,
+            gender="Male",
+            medical_history=None
         )
+        db.add(patient)
+        db.commit()
+        db.refresh(patient)
     return PatientResponse(
         id=patient.id,
         user_id=patient.user_id,
@@ -396,10 +402,16 @@ def get_my_report(
 ):
     patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
     if not patient:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Patient profile not found."
+        patient = Patient(
+            user_id=current_user.id,
+            name=current_user.name or (current_user.email.split("@")[0].title() if current_user.email else "Patient"),
+            age=30,
+            gender="Male",
+            medical_history=None
         )
+        db.add(patient)
+        db.commit()
+        db.refresh(patient)
 
     symptoms = db.query(Symptom).filter(Symptom.patient_id == patient.id).order_by(Symptom.submitted_at.desc()).all()
 
