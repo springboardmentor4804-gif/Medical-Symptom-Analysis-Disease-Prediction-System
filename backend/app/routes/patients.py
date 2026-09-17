@@ -485,18 +485,23 @@ def update_me(
 ):
     patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
     if not patient:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Patient profile not found."
+        patient = Patient(
+            user_id=current_user.id,
+            name=profile_data.name,
+            age=profile_data.age,
+            gender=profile_data.gender,
+            medical_history=profile_data.medical_history
         )
-    
-    patient.name = profile_data.name
-    patient.age = profile_data.age
-    patient.gender = profile_data.gender
-    patient.medical_history = profile_data.medical_history
-    
-    db.commit()
-    db.refresh(patient)
+        db.add(patient)
+        db.commit()
+        db.refresh(patient)
+    else:
+        patient.name = profile_data.name
+        patient.age = profile_data.age
+        patient.gender = profile_data.gender
+        patient.medical_history = profile_data.medical_history
+        db.commit()
+        db.refresh(patient)
 
     # Mirror updated profile to MongoDB (non-blocking)
     asyncio.create_task(_mirror_patient_to_mongo(patient, current_user.email))

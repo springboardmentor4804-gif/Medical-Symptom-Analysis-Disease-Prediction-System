@@ -30,26 +30,15 @@ router = APIRouter(prefix="/clinic", tags=["Clinic"])
 def get_current_clinic(current_user: User, db: Session) -> Clinic:
     clinic = db.query(Clinic).filter(Clinic.user_id == current_user.id).first()
     if not clinic:
-        # Guarantee auto-provisioning for any clinic account
-        clinic_name = current_user.name if (current_user and current_user.name) else "MedAssist Medical Clinic"
+        clinic_name = current_user.name if (current_user and current_user.name) else (current_user.email.split("@")[0].title() + " Clinic" if current_user.email else "MedAssist Medical Clinic")
         clinic = Clinic(
             user_id=current_user.id,
             clinic_name=clinic_name,
-            address="Main Healthcare Center"
+            address="Main Center",
         )
         db.add(clinic)
-        try:
-            db.commit()
-            db.refresh(clinic)
-        except Exception:
-            db.rollback()
-            clinic = db.query(Clinic).filter(Clinic.user_id == current_user.id).first()
-
-    if not clinic:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Clinic profile not found.",
-        )
+        db.commit()
+        db.refresh(clinic)
     return clinic
 
 

@@ -58,10 +58,16 @@ async def create_symptoms(
 ):
     patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
     if not patient:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Patient profile not found."
+        patient = Patient(
+            user_id=current_user.id,
+            name=current_user.name or (current_user.email.split("@")[0].title() if current_user.email else "Patient"),
+            age=30,
+            gender="Male",
+            medical_history=None
         )
+        db.add(patient)
+        db.commit()
+        db.refresh(patient)
     
     now = datetime.utcnow()
     created_records = []
@@ -128,10 +134,16 @@ def get_symptom_frequency_stats(
 ):
     patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
     if not patient and current_user.role == "patient":
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Patient profile not found."
+        patient = Patient(
+            user_id=current_user.id,
+            name=current_user.name or (current_user.email.split("@")[0].title() if current_user.email else "Patient"),
+            age=30,
+            gender="Male",
+            medical_history=None
         )
+        db.add(patient)
+        db.commit()
+        db.refresh(patient)
     
     patient_id = patient.id if patient else 1
     symptoms = db.query(Symptom).filter(Symptom.patient_id == patient_id).all()
@@ -162,10 +174,16 @@ def update_symptom(
 ):
     patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
     if not patient:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Patient profile not found."
+        patient = Patient(
+            user_id=current_user.id,
+            name=current_user.name or (current_user.email.split("@")[0].title() if current_user.email else "Patient"),
+            age=30,
+            gender="Male",
+            medical_history=None
         )
+        db.add(patient)
+        db.commit()
+        db.refresh(patient)
 
     symptom = db.query(Symptom).filter(
         Symptom.id == symptom_id,
@@ -203,10 +221,16 @@ def delete_symptom(
 ):
     patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
     if not patient:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Patient profile not found."
+        patient = Patient(
+            user_id=current_user.id,
+            name=current_user.name or (current_user.email.split("@")[0].title() if current_user.email else "Patient"),
+            age=30,
+            gender="Male",
+            medical_history=None
         )
+        db.add(patient)
+        db.commit()
+        db.refresh(patient)
 
     symptom = db.query(Symptom).filter(
         Symptom.id == symptom_id,
