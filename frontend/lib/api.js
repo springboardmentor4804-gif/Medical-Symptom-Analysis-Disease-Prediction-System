@@ -3,12 +3,12 @@ export const getApiUrl = () => {
     return window.localStorage.getItem('CUSTOM_API_URL').replace(/\/+$/, '');
   }
   let url = process.env.NEXT_PUBLIC_API_URL;
-  if (!url || url === 'http://localhost:8000' || url === 'http://127.0.0.1:8000') {
+  if (!url || url === 'http://localhost:8000' || url === 'http://127.0.0.1:8000' || url.includes('med-assist-80aa.onrender.com')) {
     if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
       url = 'https://medical-symptom-analysis-disease-46je.onrender.com';
     }
   }
-  return (url || 'http://localhost:8000').replace(/\/+$/, '');
+  return (url || 'https://medical-symptom-analysis-disease-46je.onrender.com').replace(/\/+$/, '');
 };
 
 export const request = async (endpoint, options = {}) => {
