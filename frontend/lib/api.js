@@ -1,21 +1,26 @@
 export const getApiUrl = () => {
-  if (typeof window !== 'undefined' && window.localStorage.getItem('CUSTOM_API_URL')) {
+  if (typeof window !== 'undefined' && window.localStorage && window.localStorage.getItem('CUSTOM_API_URL')) {
     return window.localStorage.getItem('CUSTOM_API_URL').replace(/\/+$/, '');
   }
   let url = process.env.NEXT_PUBLIC_API_URL;
-  if (!url || url === 'http://localhost:8000' || url === 'http://127.0.0.1:8000' || url.includes('med-assist-80aa.onrender.com')) {
-    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      url = 'https://medical-symptom-analysis-disease-46je.onrender.com';
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+    if (isLocalhost) {
+      if (!url || url.includes('onrender.com')) {
+        return 'http://127.0.0.1:8000';
+      }
+      return url.replace(/\/+$/, '');
     }
   }
   return (url || 'https://medical-symptom-analysis-disease-46je.onrender.com').replace(/\/+$/, '');
 };
 
 export const request = async (endpoint, options = {}) => {
-  const API_URL = getApiUrl();
+  const primaryUrl = getApiUrl();
   let token = null;
-  if (typeof window !== 'undefined') {
-    token = localStorage.getItem('token');
+  if (typeof window !== 'undefined' && window.localStorage) {
+    token = window.localStorage.getItem('token');
   }
 
   const headers = {
@@ -34,56 +39,87 @@ export const request = async (endpoint, options = {}) => {
 
   const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 
-  let response;
-  let lastErr;
+  // Candidate URLs to attempt (Primary URL, then secondary fallbacks)
+  const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const candidateUrls = [primaryUrl];
 
-  // Retry up to 3 times to allow Render Free Tier backend to wake up from cold start
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      response = await fetch(`${API_URL}${formattedEndpoint}`, config);
-      lastErr = null;
-      break;
-    } catch (err) {
-      lastErr = err;
-      if (API_URL.startsWith('http://')) {
-        const httpsUrl = API_URL.replace('http://', 'https://');
-        try {
-          response = await fetch(`${httpsUrl}${formattedEndpoint}`, config);
-          lastErr = null;
-          break;
-        } catch (httpsErr) {
-          lastErr = httpsErr;
-        }
-      }
-      // Wait 3 seconds before next retry if cold starting
-      if (attempt < 2) {
-        await new Promise((r) => setTimeout(r, 3000));
-      }
+  if (isLocalhost) {
+    if (!candidateUrls.includes('http://127.0.0.1:8000')) candidateUrls.push('http://127.0.0.1:8000');
+    if (!candidateUrls.includes('http://localhost:8000')) candidateUrls.push('http://localhost:8000');
+    if (!candidateUrls.includes('https://medical-symptom-analysis-disease-46je.onrender.com')) {
+      candidateUrls.push('https://medical-symptom-analysis-disease-46je.onrender.com');
+    }
+  } else {
+    if (!candidateUrls.includes('https://medical-symptom-analysis-disease-46je.onrender.com')) {
+      candidateUrls.push('https://medical-symptom-analysis-disease-46je.onrender.com');
     }
   }
 
-  if (lastErr || !response) {
+  let response;
+  let lastErr;
+  let activeUrl = primaryUrl;
+
+  for (const targetUrl of candidateUrls) {
+    activeUrl = targetUrl;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        response = await fetch(`${targetUrl}${formattedEndpoint}`, config);
+        // If request returned a status other than 404 / 502 connection drop, break
+        if (response.ok || (response.status !== 404 && response.status !== 502 && response.status !== 503)) {
+          lastErr = null;
+          break;
+        }
+        lastErr = new Error(`Server status ${response.status}`);
+      } catch (err) {
+        lastErr = err;
+        if (attempt < 1) {
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+      }
+    }
+    if (response && response.ok) break;
+  }
+
+  if (!response) {
     throw new Error(
-      `Cannot connect to Backend API at [${API_URL}]. Please check if this backend URL is live in your Render Dashboard. If your backend URL is different, set NEXT_PUBLIC_API_URL on your frontend Render service.`
+      `Cannot connect to Backend API at [${primaryUrl}]. Please ensure the backend server is running (e.g. uvicorn main:app on port 8000).`
     );
   }
 
   if (!response.ok) {
-    let errorMsg = `Server error (${response.status}): Request failed.`;
+    let errorMsg = `Server error (${response.status}): Request failed at ${formattedEndpoint}.`;
     try {
-      const errorData = await response.json();
-      if (typeof errorData.detail === 'string') {
-        errorMsg = errorData.detail;
-      } else if (Array.isArray(errorData.detail)) {
-        errorMsg = errorData.detail.map((d) => (typeof d === 'string' ? d : d.msg || JSON.stringify(d))).join('; ');
-      } else if (errorData.detail && typeof errorData.detail === 'object') {
-        errorMsg = JSON.stringify(errorData.detail);
-      } else if (errorData.message) {
-        errorMsg = errorData.message;
+      const clone = response.clone();
+      try {
+        const errorData = await clone.json();
+        if (typeof errorData.detail === 'string') {
+          errorMsg = errorData.detail;
+        } else if (Array.isArray(errorData.detail)) {
+          errorMsg = errorData.detail.map((d) => (typeof d === 'string' ? d : d.msg || JSON.stringify(d))).join('; ');
+        } else if (errorData.detail && typeof errorData.detail === 'object') {
+          errorMsg = JSON.stringify(errorData.detail);
+        } else if (errorData.message) {
+          errorMsg = errorData.message;
+        }
+      } catch (jsonErr) {
+        const textContent = await response.text();
+        if (textContent.includes('<title>')) {
+          const match = textContent.match(/<title>(.*?)<\/title>/i);
+          if (match && match[1]) {
+            errorMsg = `Server error (${response.status}): ${match[1].trim()}`;
+          }
+        } else if (textContent.trim()) {
+          errorMsg = `Server error (${response.status}): ${textContent.slice(0, 150)}`;
+        }
       }
     } catch (e) {
-      // response might not be json
+      // Ignore text extraction fallback failures
     }
+
+    if (response.status === 404) {
+      errorMsg = `Endpoint Not Found (404): [${formattedEndpoint}]. Please check if your backend service is running and up to date.`;
+    }
+
     throw new Error(errorMsg);
   }
 
@@ -116,7 +152,7 @@ export const api = {
     } catch (err) {
       const fallbackUrl = API_URL.startsWith('http://')
         ? API_URL.replace('http://', 'https://')
-        : API_URL.replace('localhost', '127.0.0.1');
+        : 'http://127.0.0.1:8000';
       response = await fetch(`${fallbackUrl}${formattedEndpoint}`, { method: 'GET', headers });
     }
     if (!response.ok) {
@@ -133,5 +169,6 @@ export const api = {
     window.URL.revokeObjectURL(url);
   },
 };
+
 
 

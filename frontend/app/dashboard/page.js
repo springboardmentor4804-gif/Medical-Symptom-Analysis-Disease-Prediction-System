@@ -42,12 +42,23 @@ export default function Dashboard() {
 
   const loadDashboardData = useCallback(async () => {
     try {
-      const [profileData, symptomsData] = await Promise.all([
+      const [profileResult, symptomsResult] = await Promise.allSettled([
         api.get('/patients/me'),
         api.get('/symptoms/me'),
       ]);
-      setProfile(profileData);
-      setSymptoms(Array.isArray(symptomsData) ? symptomsData : []);
+
+      if (profileResult.status === 'fulfilled') {
+        setProfile(profileResult.value);
+      } else {
+        console.warn('Profile load error:', profileResult.reason);
+        setFetchError(profileResult.reason?.message || 'Failed to load patient profile.');
+      }
+
+      if (symptomsResult.status === 'fulfilled') {
+        setSymptoms(Array.isArray(symptomsResult.value) ? symptomsResult.value : []);
+      } else {
+        console.warn('Symptoms load error:', symptomsResult.reason);
+      }
     } catch (err) {
       setFetchError(err.message || 'Failed to load dashboard data. Please try refreshing.');
     } finally {
