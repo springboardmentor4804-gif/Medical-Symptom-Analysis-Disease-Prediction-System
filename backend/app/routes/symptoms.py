@@ -48,7 +48,7 @@ async def _mirror_symptoms_to_mongo(
         )
         await user_inputs_collection().insert_one(mongo_input.model_dump())
     except Exception as exc:
-        print(f"[MongoDB] ⚠️  Symptom mirror failed: {exc}")
+        print(f"[MongoDB] [WARN] Symptom mirror failed: {exc}")
 
 @router.post("", response_model=List[SymptomResponse], status_code=status.HTTP_201_CREATED)
 async def create_symptoms(

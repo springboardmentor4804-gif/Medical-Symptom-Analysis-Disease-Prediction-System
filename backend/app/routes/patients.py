@@ -43,7 +43,7 @@ async def _mirror_patient_to_mongo(patient, user_email: str) -> None:
         )
         await user_inputs_collection().insert_one(mongo_input.model_dump())
     except Exception as exc:
-        print(f"[MongoDB] ⚠️  Patient profile mirror failed: {exc}")
+        print(f"[MongoDB] [WARN] Patient profile mirror failed: {exc}")
 
 @router.get("/me", response_model=PatientResponse)
 def get_me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):

@@ -78,7 +78,7 @@ async def _mirror_registration_to_mongo(
         await user_inputs_collection().insert_one(mongo_input.model_dump())
     except Exception as exc:
         # MongoDB failures must never crash the main API response
-        print(f"[MongoDB] ⚠️  Registration mirror failed: {exc}")
+        print(f"[MongoDB] [WARN] Registration mirror failed: {exc}")
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_in: UserRegister, db: Session = Depends(get_db)):
@@ -167,7 +167,7 @@ async def register(user_in: UserRegister, db: Session = Depends(get_db)):
     try:
         await _mirror_registration_to_mongo(user_in, new_user.password_hash)
     except Exception as exc:
-        print(f"[MongoDB] ⚠️ Could not mirror registration: {exc}")
+        print(f"[MongoDB] [WARN] Could not mirror registration: {exc}")
 
     return TokenResponse(
         access_token=token,
