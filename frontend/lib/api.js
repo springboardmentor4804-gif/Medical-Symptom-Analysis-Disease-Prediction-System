@@ -2,22 +2,21 @@ export const getApiUrl = () => {
   if (typeof window !== 'undefined' && window.localStorage && window.localStorage.getItem('CUSTOM_API_URL')) {
     return window.localStorage.getItem('CUSTOM_API_URL').replace(/\/+$/, '');
   }
-  let url = process.env.NEXT_PUBLIC_API_URL;
+  const url = process.env.NEXT_PUBLIC_API_URL;
+  if (url && url.trim()) {
+    return url.replace(/\/+$/, '');
+  }
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
-    if (isLocalhost) {
-      if (!url || url.includes('onrender.com')) {
-        return 'http://127.0.0.1:8000';
-      }
-      return url.replace(/\/+$/, '');
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://127.0.0.1:8000';
     }
   }
-  return (url || 'https://medical-symptom-analysis-disease-46je.onrender.com').replace(/\/+$/, '');
+  return 'https://medical-symptom-analysis-disease-46je.onrender.com';
 };
 
 export const request = async (endpoint, options = {}) => {
-  const primaryUrl = getApiUrl();
+  const API_URL = getApiUrl();
   let token = null;
   if (typeof window !== 'undefined' && window.localStorage) {
     token = window.localStorage.getItem('token');
@@ -39,50 +38,28 @@ export const request = async (endpoint, options = {}) => {
 
   const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 
-  // Candidate URLs to attempt (Primary URL, then secondary fallbacks)
-  const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-  const candidateUrls = [primaryUrl];
-
-  if (isLocalhost) {
-    if (!candidateUrls.includes('http://127.0.0.1:8000')) candidateUrls.push('http://127.0.0.1:8000');
-    if (!candidateUrls.includes('http://localhost:8000')) candidateUrls.push('http://localhost:8000');
-    if (!candidateUrls.includes('https://medical-symptom-analysis-disease-46je.onrender.com')) {
-      candidateUrls.push('https://medical-symptom-analysis-disease-46je.onrender.com');
-    }
-  } else {
-    if (!candidateUrls.includes('https://medical-symptom-analysis-disease-46je.onrender.com')) {
-      candidateUrls.push('https://medical-symptom-analysis-disease-46je.onrender.com');
-    }
-  }
-
   let response;
   let lastErr;
-  let activeUrl = primaryUrl;
 
-  for (const targetUrl of candidateUrls) {
-    activeUrl = targetUrl;
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        response = await fetch(`${targetUrl}${formattedEndpoint}`, config);
-        // If request returned a status other than 404 / 502 connection drop, break
-        if (response.ok || (response.status !== 404 && response.status !== 502 && response.status !== 503)) {
-          lastErr = null;
-          break;
-        }
-        lastErr = new Error(`Server status ${response.status}`);
-      } catch (err) {
-        lastErr = err;
-        if (attempt < 1) {
-          await new Promise((r) => setTimeout(r, 1000));
-        }
+  // Retry loop for Render cold-starts or network blips
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      response = await fetch(`${API_URL}${formattedEndpoint}`, config);
+      lastErr = null;
+      if (response.ok || (response.status !== 502 && response.status !== 503 && response.status !== 504)) {
+        break;
+      }
+    } catch (err) {
+      lastErr = err;
+      if (attempt < 2) {
+        await new Promise((r) => setTimeout(r, 2000));
       }
     }
-    if (response && response.ok) break;
   }
 
-  if (!response) {
+  if (lastErr || !response) {
     throw new Error(
-      `Cannot connect to Backend API at [${primaryUrl}]. Please ensure the backend server is running (e.g. uvicorn main:app on port 8000).`
+      `Cannot connect to Backend API at [${API_URL}]. ${lastErr?.message || 'Server did not respond.'}`
     );
   }
 
@@ -114,10 +91,6 @@ export const request = async (endpoint, options = {}) => {
       }
     } catch (e) {
       // Ignore text extraction fallback failures
-    }
-
-    if (response.status === 404) {
-      errorMsg = `Endpoint Not Found (404): [${formattedEndpoint}]. Please check if your backend service is running and up to date.`;
     }
 
     throw new Error(errorMsg);
